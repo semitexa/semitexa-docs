@@ -13,6 +13,7 @@ packages/syntexa/
 │   ├── README.md              # This file — index + package map
 │   ├── AI_REFERENCE.md        # AI quick reference
 │   ├── AI_QUICK_START.md      # 5 key rules for AI (read first if project AI_ENTRY is outdated)
+│   ├── RECOMMENDED_STACK.md   # For HTML apps: core + core-frontend only; no custom renderer
 │   ├── architecture/          # Architecture and overlay
 │   └── guides/                # Conventions, examples
 ├── core/
@@ -65,6 +66,7 @@ This updates `AI_ENTRY.md`, `README.md`, and `docs/` (CONVENTIONS, DEPENDENCIES,
 | **Overlay architecture** | [architecture/OVERLAY_ARCHITECTURE.md](architecture/OVERLAY_ARCHITECTURE.md) |
 | **Conventions** | [guides/CONVENTIONS.md](guides/CONVENTIONS.md) |
 | **Examples** | [guides/EXAMPLES.md](guides/EXAMPLES.md) |
+| **Recommended stack (HTML)** | [RECOMMENDED_STACK.md](RECOMMENDED_STACK.md) — core + core-frontend only; do not implement your own Twig renderer |
 
 ## Package map (for AI and developers)
 
@@ -87,7 +89,7 @@ Use this table to see what the framework offers and which packages to add to you
 ## For AI assistants
 
 1. **Start with** the app’s `AI_ENTRY.md` (e.g. in project root); it points here. If the project was created before recent framework updates, read [AI_QUICK_START.md](AI_QUICK_START.md) in vendor for the 5 key rules (routes, HTML/Twig, var/docs, no vendor patches, links).
-2. **Adding new pages/routes** — first read [core/docs/ADDING_ROUTES.md](../core/docs/ADDING_ROUTES.md) (how to create a module). For **HTML pages** (not JSON API) use [AI_REFERENCE.md](AI_REFERENCE.md) or [guides/CONVENTIONS.md](guides/CONVENTIONS.md) (Response DTO + Twig, templates); do not implement HTML rendering manually in the Handler.
+2. **Adding new pages/routes** — first read [core/docs/ADDING_ROUTES.md](../core/docs/ADDING_ROUTES.md) (how to create a module). For **HTML pages** use **syntexa/core-frontend** only (Twig, LayoutRenderer); do not implement your own Twig renderer in the project. See [AI_REFERENCE.md](AI_REFERENCE.md) or [guides/CONVENTIONS.md](guides/CONVENTIONS.md).
 3. **Shared docs** — read [AI_REFERENCE.md](AI_REFERENCE.md), then [architecture/](architecture/) and [guides/](guides/) as needed.
 4. **Per-package** — for attributes use [core/docs/attributes/](../core/docs/attributes/); for ORM use [orm/docs/](../orm/docs/); for dev-tools/window-manager use their READMEs.
 5. **Package map** — use the table above to see which packages exist and what to install for a given feature.

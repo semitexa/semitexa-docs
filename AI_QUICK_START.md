@@ -5,8 +5,8 @@
 1. **New routes = only via modules**  
    Put Request/Handler in **modules** (`src/modules/`, `packages/`, or `vendor/`). Do **not** add routes in project `src/Request/` or `src/Handler/` (namespace `App\`) — they are not discovered. See [core/docs/ADDING_ROUTES.md](../core/docs/ADDING_ROUTES.md).
 
-2. **HTML pages = Response DTO + Twig**  
-   Do **not** render HTML manually in the Handler. Use a Response class with `#[AsResponse(template: 'path/file.html.twig')]` and Twig templates in the module (e.g. `Application/View/templates/`). Package **core-frontend** provides Twig and layouts. See [AI_REFERENCE.md](AI_REFERENCE.md) and [guides/CONVENTIONS.md](guides/CONVENTIONS.md).
+2. **HTML/SSR = only syntexa/core-frontend (Twig, LayoutRenderer)**  
+   Do **not** render HTML manually in the Handler. Do **not** implement your own Twig renderer in the project. Use **syntexa/core-frontend**: install it (`composer require syntexa/core-frontend`), then use Response DTO with `#[AsResponse(template: '...')]` and Twig templates in the module. See [RECOMMENDED_STACK.md](RECOMMENDED_STACK.md), [AI_REFERENCE.md](AI_REFERENCE.md) and [guides/CONVENTIONS.md](guides/CONVENTIONS.md).
 
 3. **Working directory = var/docs**  
    Use the project's **`var/docs/`** for temporary or intermediate files (plans, notes, drafts). Content is not committed (`.gitignore`). Keeps `docs/` and project root clean.
