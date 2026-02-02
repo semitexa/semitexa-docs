@@ -12,6 +12,7 @@ packages/syntexa/
 ├── docs/                      # Shared docs (you are here)
 │   ├── README.md              # This file — index + package map
 │   ├── AI_REFERENCE.md        # AI quick reference
+│   ├── AI_QUICK_START.md      # 5 key rules for AI (read first if project AI_ENTRY is outdated)
 │   ├── architecture/          # Architecture and overlay
 │   └── guides/                # Conventions, examples
 ├── core/
@@ -43,10 +44,21 @@ You may be prompted to allow the plugin: `composer config allow-plugins.syntexa/
 
 To scaffold manually (or overwrite): `vendor/bin/syntexa init` (use `--force` to overwrite, `--dir=/path` for another directory). The command creates: `bin/`, `public/`, `src/modules/`, `src/infrastructure/`, `var/`, `.env.example`, `server.php`, `bin/syntexa`, `.gitignore`.
 
+## Upgrading (existing projects)
+
+After upgrading **syntexa/core** in an existing project, you can refresh the AI entry point and project docs so AI sees current conventions (var/docs, ADDING_ROUTES, Twig for HTML):
+
+```bash
+bin/syntexa init --only-docs
+```
+
+This updates `AI_ENTRY.md`, `README.md`, and `docs/` (CONVENTIONS, DEPENDENCIES, RUNNING, ADDING_ROUTES stub) from the framework template. Use `--force` to overwrite existing files. If you prefer not to overwrite, update `AI_ENTRY.md` manually from the template in vendor/syntexa/core (InitCommand) or copy the new conventions (var/docs, ADDING_ROUTES link, Twig for HTML) from the latest docs.
+
 ## Quick links (shared docs)
 
 | Topic | Location |
 |-------|----------|
+| **AI quick start** (5 key rules) | [AI_QUICK_START.md](AI_QUICK_START.md) — read first if project AI_ENTRY is outdated |
 | **AI quick reference** | [AI_REFERENCE.md](AI_REFERENCE.md) |
 | **Adding new pages/routes** | Start with [core/docs/ADDING_ROUTES.md](../core/docs/ADDING_ROUTES.md) (how to create a module). For **HTML pages** use [AI_REFERENCE.md](AI_REFERENCE.md) or [guides/CONVENTIONS.md](guides/CONVENTIONS.md) (Response DTO, Twig, templates) — do not render HTML manually in the Handler. |
 | **Architecture** | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) |
@@ -74,7 +86,7 @@ Use this table to see what the framework offers and which packages to add to you
 
 ## For AI assistants
 
-1. **Start with** the app’s `AI_ENTRY.md` (e.g. in project root); it points here.
+1. **Start with** the app’s `AI_ENTRY.md` (e.g. in project root); it points here. If the project was created before recent framework updates, read [AI_QUICK_START.md](AI_QUICK_START.md) in vendor for the 5 key rules (routes, HTML/Twig, var/docs, no vendor patches, links).
 2. **Adding new pages/routes** — first read [core/docs/ADDING_ROUTES.md](../core/docs/ADDING_ROUTES.md) (how to create a module). For **HTML pages** (not JSON API) use [AI_REFERENCE.md](AI_REFERENCE.md) or [guides/CONVENTIONS.md](guides/CONVENTIONS.md) (Response DTO + Twig, templates); do not implement HTML rendering manually in the Handler.
 3. **Shared docs** — read [AI_REFERENCE.md](AI_REFERENCE.md), then [architecture/](architecture/) and [guides/](guides/) as needed.
 4. **Per-package** — for attributes use [core/docs/attributes/](../core/docs/attributes/); for ORM use [orm/docs/](../orm/docs/); for dev-tools/window-manager use their READMEs.
