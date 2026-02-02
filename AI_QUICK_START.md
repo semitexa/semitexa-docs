@@ -19,4 +19,6 @@
    - Full AI reference: [AI_REFERENCE.md](AI_REFERENCE.md)  
    - Conventions & examples: [guides/CONVENTIONS.md](guides/CONVENTIONS.md), [guides/EXAMPLES.md](guides/EXAMPLES.md)
 
+6. **Module layout** — Use the **Standard Module Layout** from [AI_REFERENCE.md](AI_REFERENCE.md) → **Module Structure**: `Application/Input/`, `Application/Output/`, `Application/Handler/Request/`, `Application/View/templates/`. Do not invent `Request/`, `Handler/`, `Response/` in the module root; follow AI_REFERENCE so structure stays consistent.
+
 **After upgrading syntexa/core:** run `bin/syntexa init --only-docs` in the project to refresh AI_ENTRY.md and project docs from the framework template.
