@@ -36,7 +36,7 @@ Comprehensive guide for building applications on Semitexa. All examples are deri
 ### Package layout
 
 ```
-pakages/semitexa-{name}/
+packages/semitexa-{name}/
   src/
     Attributes/           # Package-specific attributes
     Application/
@@ -66,7 +66,7 @@ pakages/semitexa-{name}/
 ### Rules
 
 - **Do** follow the directory convention strictly. The framework auto-discovers classes by namespace and attribute.
-- **Do** place your module under `pakages/` (local packages) or `src/modules/` (app modules).
+- **Do** place your module under `packages/` (local packages) or `src/modules/` (app modules).
 - **Do** ensure `composer.json` declares `"type": "semitexa-module"`.
 - **Don't** place business logic outside `Application/` or `Domain/` directories.
 - **Don't** create utility classes in the root `src/` of a package — use `Service/`, `Contract/`, etc.
@@ -829,7 +829,7 @@ When two modules provide the same service contract, the **child** wins.
 |---|---|---|
 | `src/modules/{Name}/` | 400 | `Semitexa\Modules\{Name}` |
 | Project `src/` | 300 | `App\` |
-| `pakages/` | 200 | Varies |
+| `packages/` | 200 | Varies |
 | `vendor/` | 100 | Varies |
 
 ### Rules
