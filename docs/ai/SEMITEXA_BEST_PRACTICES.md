@@ -1607,7 +1607,7 @@ declare(strict_types=1);
 // Every handler, listener, event listener:
 final class MyHandler { ... }
 
-// Config objects and DTOs:
+// Config objects and value-object / internal DTOs (not Payload/Resource DTOs):
 readonly class MyConfig { ... }
 
 // Constructor property promotion (always):
