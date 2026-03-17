@@ -99,7 +99,7 @@ bin/semitexa server:stop
 |------|----------------------|
 | Why Semitexa (vision, goals) | [README.md](../../README.md) · [AI_REFERENCE.md](../../AI_REFERENCE.md) |
 | **First page with Twig** (minimal route + Payload + Handler + template) | [A minimal working page (AI)](MINIMAL_PAGE.md) · [for humans](../hm/MINIMAL_PAGE.md) |
-| Add new pages / routes | `vendor/semitexa/core/docs/ADDING_ROUTES.md` (or package path `pakages/semitexa-core/docs/ADDING_ROUTES.md`) |
+| Add new pages / routes | `vendor/semitexa/core/docs/ADDING_ROUTES.md` (or package path `packages/semitexa-core/docs/ADDING_ROUTES.md`) |
 | Run / Docker / ports / logs | `vendor/semitexa/core/docs/RUNNING.md` |
 | Service contracts, DI, bindings | `vendor/semitexa/core/docs/SERVICE_CONTRACTS.md` · `bin/semitexa contracts:list --json` |
 | Project entry point for agents | Project root `AI_ENTRY.md` (created by `semitexa init`) |
