@@ -35,7 +35,7 @@ Comprehensive guide for building applications on Semitexa. All examples are deri
 
 ### Package layout
 
-```
+```text
 packages/semitexa-{name}/
   src/
     Attributes/           # Package-specific attributes
@@ -167,7 +167,7 @@ A Resource DTO is the **typed output contract** of the handler pipeline. It decl
 
 The Resource DTO is the single object that travels through the entire request lifecycle:
 
-```
+```text
 Payload attribute (responseWith: HomepageResource::class)
   → Framework instantiates HomepageResource
     → #[AsResource] attribute read (cached): setRenderHandle(), declaredTemplate stored
@@ -331,14 +331,14 @@ Handlers never pass a context array to `renderTemplate()`. The Resource DTO accu
 
 When a page has deferred layout slots, `#[AsResource(handle: '...')]` drives the entire deferred rendering pipeline automatically. The handler populates typed context via `with*()` methods — nothing else is required.
 
-```
-#[AsResource(handle: 'catalog_list', template: '@catalog/pages/list.html.twig')]
+```text
+#[AsResource(handle: 'catalog_list', template: '@project-layouts-Catalog/pages/list.html.twig')]
 CatalogListResource
   │
-  │  toCoreResponse() → renderTemplate('@catalog/pages/list.html.twig')
+  │  toCoreResponse() → renderTemplate('@project-layouts-Catalog/pages/list.html.twig')
   │                      injects page_handle='catalog_list' into Twig context
   ▼
-Twig renders page template ({% extends '@.../layouts/base.html.twig' %})
+Twig renders page template ({% extends '@project-layouts-Catalog/layouts/base.html.twig' %})
   ├── Layout: Renders SEO-critical content immediately
   ├── Layout slots with deferred: true:
   │   ├── Emits <div data-ssr-deferred="slot-id">skeleton</div>
@@ -815,7 +815,7 @@ A module is any package with `"type": "semitexa-module"` in its `composer.json`:
 
 The `extends` field defines parent-child relationships. `ModuleRegistry` topologically sorts modules so that child modules override parent contracts.
 
-```
+```text
 ParentModule
   └─ ChildModule (extends: "ParentModule")
        └─ GrandchildModule (extends: "ChildModule")
@@ -1288,7 +1288,7 @@ final class SendOrderConfirmationHandler implements TypedHandlerInterface
 ```php
 #[AsPayload(path: '/api/login', methods: ['POST'], responseWith: GenericResponse::class)]
 #[TestablePayload(
-    strategies: [ParanoiaProfileStrategy::class, LoginEmailFormatStrategy::class],
+    strategies: [ParanoidProfileStrategy::class, LoginEmailFormatStrategy::class],
 )]
 class LoginPayload implements ValidatablePayload { ... }
 ```
@@ -1375,7 +1375,7 @@ class AdminUsersPayload {}
 
 ### Pipeline execution order
 
-```
+```text
 AuthCheck phase:
   1. AuthBootstrapper runs auth handlers (session, token, etc.)
   2. #[RequiresAuth] checked — throws AuthenticationException → 401
@@ -1478,7 +1478,7 @@ final class MyContextStore
 
 All domain errors extend `Semitexa\Core\Exception\DomainException` and map to HTTP status codes automatically via `ExceptionMapper`:
 
-```
+```text
 DomainException (abstract, extends \RuntimeException)
   ├─ NotFoundException              → 404  (error code: "not_found")
   ├─ ValidationException            → 422  (error code: "validation_failed", carries field errors)
@@ -1556,8 +1556,13 @@ class InsufficientBalanceException extends DomainException
 {
     public function __construct(float $balance, float $required)
     {
+        $this->balance = $balance;
+        $this->required = $required;
         parent::__construct("Insufficient balance: {$balance}, required: {$required}");
     }
+
+    private float $balance;
+    private float $required;
 
     public function getStatusCode(): HttpStatus { return HttpStatus::UnprocessableEntity; }
 
@@ -1607,7 +1612,8 @@ declare(strict_types=1);
 // Every handler, listener, event listener:
 final class MyHandler { ... }
 
-// Config objects and value-object / internal DTOs (not Payload/Resource DTOs):
+// Config objects and value-object / internal DTOs:
+// never Payload/Resource DTOs (they must stay mutable for hydrators).
 readonly class MyConfig { ... }
 
 // Constructor property promotion (always):
