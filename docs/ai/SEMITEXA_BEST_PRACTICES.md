@@ -44,12 +44,14 @@ packages/semitexa-{name}/
         Request/          # PayloadDTOs (#[AsPayload])
         Event/            # Event classes
         Part/             # #[AsPayloadPart] traits
-      Resource/           # ResourceDTOs (#[AsResource])
+      Resource/           # Render ResourceDTOs
+        Response/         # Page/HTTP ResourceDTOs
+        Slot/             # Slot ResourceDTOs (#[AsSlotResource])
       Handler/
         PayloadHandler/   # #[AsPayloadHandler] classes
+        SlotHandler/      # #[AsSlotHandler] classes
         DomainListener/   # #[AsEventListener] classes
       Service/            # #[SatisfiesServiceContract] implementations
-      Slot/               # #[AsLayoutSlot] classes
       Static/             # Static assets (manifest-driven)
         css/
         js/
@@ -78,11 +80,13 @@ src/modules/{ModuleName}/
       Request/
       Event/
     Resource/
+      Response/
+      Slot/
     Handler/
       PayloadHandler/
+      SlotHandler/
       DomainListener/
     Service/
-    Slot/                 # #[AsLayoutSlot] classes
     Static/               # Static assets (manifest-driven)
       css/
       js/
@@ -121,7 +125,9 @@ Theme is activated via the `THEME` environment variable. Resolution order: theme
 - **Do** follow the directory convention strictly. The framework auto-discovers classes by namespace and attribute.
 - **Do** place your module under `packages/` (local packages) or `src/modules/` (app modules).
 - **Do** ensure `composer.json` declares `"type": "semitexa-module"`.
-- **Do** place slot definitions in `Application/Slot/`, not `Application/View/Slot/` — slots are configuration, not views.
+- **Do** place page response DTOs in `Application/Resource/Response/`.
+- **Do** place slot resource DTOs in `Application/Resource/Slot/`.
+- **Do** place slot hydration logic in `Application/Handler/SlotHandler/`.
 - **Do** place static assets in `Application/Static/` for both app modules and packages.
 - **Do** use the canonical `templates/` subdirectories: `pages/`, `layouts/`, `partials/`, `components/`, `deferred/`.
 - **Don't** place business logic outside `Application/` or `Domain/` directories.
@@ -314,14 +320,14 @@ Context is never passed as an array to `renderTemplate()`. It is pre-populated v
 
 ### Custom Resource classes — SSR pages
 
-Create a custom Resource class for every SSR page. Use `#[AsResource]` to declare:
+Create a custom Resource class for every SSR page. Place it in `Application/Resource/Response/`. Use `#[AsResource]` to declare:
 - `handle` — the layout identity. Used to inject `page_handle` and `layout_handle` into Twig context, enabling `{{ layout_slot() }}` calls, driving deferred rendering and SSE.
 - `template` — the page body Twig template. When set, the handler does not need to call `renderTemplate()` — the framework calls it automatically.
 
 The framework reads `#[AsResource]` at instantiation (once per class, cached in a static array). It calls `setRenderHandle()` with `handle` and stores `template` as `$declaredTemplate`. After all handlers complete, `toCoreResponse()` calls `renderTemplate($declaredTemplate)` automatically if no content was set. The page template uses `{% extends %}` Twig inheritance to pull in the layout — no explicit `LayoutRenderer` call needed from the handler.
 
 ```php
-// Application/Resource/CatalogListResource.php
+// Application/Resource/Response/CatalogListResource.php
 #[AsResource(
     handle: 'catalog_list',
     template: '@project-layouts-Catalog/pages/list.html.twig',
@@ -381,13 +387,13 @@ final class CatalogListHandler implements TypedHandlerInterface
 
 Handlers never pass a context array to `renderTemplate()`. The Resource DTO accumulates context via typed `with*()` methods. `renderTemplate()` merges `$renderContext` with any `$extraContext` automatically.
 
-**The `$renderHandle` is the link between the Resource DTO and the layout system.** Every `#[AsLayoutSlot(handle: 'catalog_list', ...)]` registered in any module is associated with this handle. When `renderTemplate()` is called (explicitly or via auto-render), `page_handle` and `layout_handle` are injected into the Twig context — enabling `{{ layout_slot() }}` calls inside layout templates.
+**The `$renderHandle` is the link between the page Resource DTO and the slot system.** Every `#[AsSlotResource(handle: 'catalog_list', ...)]` registered in any module is associated with this handle. When `renderTemplate()` is called (explicitly or via auto-render), `page_handle` and `layout_handle` are injected into the Twig context — enabling `{{ layout_slot() }}` calls inside layout templates.
 
 ---
 
-### Resource DTO and isomorphic SSR (deferred rendering)
+### Response Resources and slot rendering
 
-When a page has deferred layout slots, `#[AsResource(handle: '...')]` drives the entire deferred rendering pipeline automatically. The handler populates typed context via `with*()` methods — nothing else is required.
+When a page has layout slots, `#[AsResource(handle: '...')]` drives slot selection automatically. The handler populates page-level typed context via `with*()` methods. Independent layout blocks are hydrated through slot resources and slot handlers, not through the page handler.
 
 ```text
 #[AsResource(handle: 'catalog_list', template: '@project-layouts-Catalog/pages/list.html.twig')]
@@ -397,19 +403,44 @@ CatalogListResource
   │                      injects page_handle='catalog_list' into Twig context
   ▼
 Twig renders page template ({% extends '@project-layouts-Catalog/layouts/base.html.twig' %})
-  ├── Layout: Renders SEO-critical content immediately
-  ├── Layout slots with deferred: true:
-  │   ├── Emits <div data-ssr-deferred="slot-id">skeleton</div>
-  │   ├── Emits <link rel="preload"> for template files
-  │   └── Stores {page_handle, page_context, slots} in DeferredRequestRegistry
-  ├── Injects __SSR_DEFERRED manifest (requestId, sessionId, slots)
-  └── Injects <script src="semitexa-twig.js">
-
-→ Client opens SSE → DeferredBlockOrchestrator resolves DataProviders
-  → streams deferred blocks using the page_handle from DeferredRequestRegistry
+  ├── Layout resolves matching #[AsSlotResource(...)] registrations
+  ├── For each slot resource:
+  │   ├── create slot DTO instance
+  │   ├── execute #[AsSlotHandler] pipeline
+  │   ├── collect clientModules
+  │   └── render slot template
+  ├── Deferred/live slots use the same slot pipeline
+  └── The asset pipeline emits collected slot client modules into <head>
 ```
 
-The handler does not know about deferred slots. Deferred slot data is resolved by `DataProvider` classes, not the handler.
+The page handler does not hydrate independent slot blocks directly. Slot data belongs to slot resources and slot handlers.
+
+---
+
+### Slot Resource DTOs
+
+Semitexa now distinguishes two resource categories:
+
+- **Response Resources** in `Application/Resource/Response/`
+- **Slot Resources** in `Application/Resource/Slot/`
+
+Response resources are instantiated from `responseWith:` on payloads and travel through the request handler pipeline.
+
+Slot resources are instantiated by the slot rendering system and travel through the slot handler pipeline.
+
+Use a slot resource when all of the following are true:
+
+- the data belongs to a renderable page region or layout block;
+- the block may be reused or extended independently of the page handler;
+- the block may need its own browser behavior via `clientModules`;
+- the block should work the same way in sync, deferred, and live rendering.
+
+Use a response resource when the data belongs to the page as a whole.
+
+The rule is simple:
+
+- page-level data belongs to response resources;
+- block-level data belongs to slot resources.
 
 ---
 
@@ -467,8 +498,9 @@ final class TenantThemeListener implements PipelineListenerInterface
 | Scenario | Resource class |
 |---|---|
 | JSON API endpoint | `GenericResponse::class` (inline in `responseWith:`) |
-| SSR page with layout slots | Custom class extending `HtmlResponse` — one per page type |
-| SSR page with deferred slots | Same as above — `$renderHandle` drives deferred orchestration automatically |
+| SSR page with layout slots | Custom class extending `HtmlResponse` in `Application/Resource/Response/` |
+| SSR page with deferred or live slots | Same as above — `$renderHandle` drives slot orchestration automatically |
+| Layout block / sidebar / widget | Custom class extending `HtmlSlotResponse` in `Application/Resource/Slot/` |
 | Redirect (no page) | `GenericResponse::class`, handler calls `$resource->setRedirect(...)` |
 | Binary / raw content | `GenericResponse::class`, handler calls `$resource->setContent(...)` + `setHeader(...)` |
 
@@ -476,9 +508,10 @@ final class TenantThemeListener implements PipelineListenerInterface
 
 ### Rules
 
-- **Do** create one custom `*Resource` class per SSR page type, placed in `Application/Resource/`.
+- **Do** create one custom `*Resource` class per SSR page type, placed in `Application/Resource/Response/`.
 - **Do** always declare `#[AsResource(handle: '...', template: '...')]` on every `HtmlResponse` subclass — `handle` drives `LayoutRenderer` and slot resolution; `template` declares the page body.
 - **Do** declare typed `with*()` methods on Resource subclasses — one per template variable. Call `$this->with('key', $value)` inside them.
+- **Do** keep page response resources page-focused. Move block-local data into slot resources.
 - **Do** call `->pageTitle()` and `->seoTag()` on the Resource — never call `SeoMeta::setTitle()` directly in handlers.
 - **Do** use `GenericResponse::class` inline for API endpoints — no custom class needed.
 - **Do** implement `ResourceInterface` on all custom resource classes.
@@ -491,6 +524,7 @@ final class TenantThemeListener implements PipelineListenerInterface
 - **Don't** call `with()` directly from handlers — it is `protected`, for Resource methods only.
 - **Don't** instantiate Resource DTOs manually in handlers — the framework creates them.
 - **Don't** use `handle` for routing or branching logic in handler code — it is a layout identity, read only by `LayoutRenderer`.
+- **Don't** hydrate independent sidebar/widget/footer blocks inside page handlers when they belong to slot resources.
 
 ---
 
@@ -1127,21 +1161,46 @@ class AlertComponent {}
 {{ component('Alert', {type: 'warning', message: 'Hello'}) }}
 ```
 
-### Layout slots
+### Slot resources
 
 ```php
-#[AsLayoutSlot(
+#[AsSlotResource(
     handle: 'demo-page',
     slot: 'sidebar_left',
     template: '@project-layouts-SsrDemo/partials/sidebar-left.html.twig',
     priority: 10,
+    clientModules: ['@project-static-SsrDemo/slots/sidebar-left.js'],
 )]
-class DemoPageSidebarLeftSlot {}
+final class DemoPageSidebarLeftSlot extends HtmlSlotResponse
+{
+    public function withItems(array $items): self
+    {
+        return $this->with('items', $items);
+    }
+}
 ```
 
 ```twig
 {{ layout_slot('sidebar_left') }}
 ```
+
+### Slot handlers
+
+```php
+#[AsSlotHandler(slot: DemoPageSidebarLeftSlot::class, priority: 10)]
+final class DemoPageSidebarLeftSlotHandler implements TypedSlotHandlerInterface
+{
+    public function handle(DemoPageSidebarLeftSlot $slot): DemoPageSidebarLeftSlot
+    {
+        return $slot->withItems([
+            ['label' => 'Docs', 'url' => '/docs'],
+            ['label' => 'Blog', 'url' => '/blog'],
+        ]);
+    }
+}
+```
+
+Use slot resources for renderable page regions and slot handlers for their data hydration. This applies to sync, deferred, and live slot rendering alike.
 
 ### Built-in Twig functions
 
@@ -1242,13 +1301,18 @@ Twig's namespace fallback chain handles this automatically — both theme and mo
 
 - **Do** use `@project-layouts-{ModuleName}/` namespace for all template references.
 - **Do** declare the page template in `#[AsResource(template: '...')]` — let auto-render handle it.
-- **Do** use components for reusable UI pieces and layout slots for page regions.
+- **Do** use components for reusable UI pieces and slot resources for page regions.
+- **Do** declare slot blocks in `Application/Resource/Slot/` via `#[AsSlotResource]`.
+- **Do** hydrate slot blocks via `#[AsSlotHandler]`.
+- **Do** declare slot-owned browser logic via `clientModules` on the slot resource.
 - **Do** set SEO metadata via `$resource->pageTitle()` / `$resource->seoTag()` in handlers — never call `SeoMeta::setTitle()` or `SeoMeta::tag()` directly.
 - **Do** use the canonical template subdirectories (`pages/`, `layouts/`, `partials/`, `components/`, `deferred/`).
 - **Do** place new CSS/JS files in `Application/Static/` and ensure the default include rules (`css/**/*.css`, `js/**/*.js`) cover them.
 - **Do** use theme overrides (`src/theme/{THEME}/{Module}/`) for theme-specific templates and assets.
 - **Don't** put business logic in Twig templates.
 - **Don't** pass a context array to `renderTemplate()` — pre-populate via `with*()` methods on the Resource.
+- **Don't** put inline JavaScript snippets into slot metadata — use `clientModules` asset references.
+- **Don't** use provider classes as the canonical slot hydration model.
 - **Don't** list every asset file in `assets.json`; use include rules and optional overrides/exclude.
 - **Don't** use non-canonical template subdirectory names (e.g., `blocks/` instead of `components/`).
 
