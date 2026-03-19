@@ -48,28 +48,86 @@ packages/semitexa-{name}/
       Handler/
         PayloadHandler/   # #[AsPayloadHandler] classes
         DomainListener/   # #[AsEventListener] classes
-      Service/            # #[SatisfiesServiceContract] implementations  
+      Service/            # #[SatisfiesServiceContract] implementations
+      Slot/               # #[AsLayoutSlot] classes
+      Static/             # Static assets (manifest-driven)
+        css/
+        js/
+        assets.json       # Asset manifest (v2, required)
       View/
-        Slot/             # #[AsLayoutSlot] classes
         templates/        # Twig templates
       Component/          # #[AsComponent] classes
     Domain/
       Model/              # Domain entities
-      Repository/         # Repository interfaces    
+      Repository/         # Repository interfaces
       Contract/           # Interfaces
       Exception/          # Domain exceptions
     Context/              # Coroutine/request context stores
     Configuration/        # Readonly config classes
-  composer.json           # type: "semitexa-module"
+composer.json             # type: "semitexa-module"
 ```
+
+### Application module layout
+
+Application modules under `src/modules/` follow the same structure as packages. Static assets live inside `Application/Static/` and are discovered via a required v2 `assets.json` manifest.
+
+```text
+src/modules/{ModuleName}/
+  Application/
+    Payload/
+      Request/
+      Event/
+    Resource/
+    Handler/
+      PayloadHandler/
+      DomainListener/
+    Service/
+    Slot/                 # #[AsLayoutSlot] classes
+    Static/               # Static assets (manifest-driven)
+      css/
+      js/
+      assets.json         # Required v2 manifest (include rules)
+    View/
+      locales/
+      templates/
+        pages/            # Page-level templates (one per route)
+        layouts/          # Layout templates (extend chains)
+        partials/         # Reusable fragments
+        components/       # Component-specific templates
+        deferred/         # Templates for deferred/async slots
+    Component/
+  composer.json
+```
+
+### Theme directory
+
+Themes provide sparse overrides for module templates and static assets. Only files that differ from the module default need to exist.
+
+```text
+src/theme/{THEME_NAME}/{ModuleName}/
+  Static/                 # Asset overrides (same relative paths as module)
+    css/
+    js/
+  templates/              # Template overrides
+    layouts/
+    pages/
+    partials/
+```
+
+Theme is activated via the `THEME` environment variable. Resolution order: theme first, module as fallback — for both templates and static assets.
 
 ### Rules
 
 - **Do** follow the directory convention strictly. The framework auto-discovers classes by namespace and attribute.
 - **Do** place your module under `packages/` (local packages) or `src/modules/` (app modules).
 - **Do** ensure `composer.json` declares `"type": "semitexa-module"`.
+- **Do** place slot definitions in `Application/Slot/`, not `Application/View/Slot/` — slots are configuration, not views.
+- **Do** place static assets in `Application/Static/` for both app modules and packages.
+- **Do** use the canonical `templates/` subdirectories: `pages/`, `layouts/`, `partials/`, `components/`, `deferred/`.
 - **Don't** place business logic outside `Application/` or `Domain/` directories.
 - **Don't** create utility classes in the root `src/` of a package — use `Service/`, `Contract/`, etc.
+- **Don't** put a `resources/` directory at module root — assets live under `Application/Static/`.
+- **Don't** list every asset file manually; use `assets.json` include rules.
 
 ---
 
@@ -802,10 +860,10 @@ A module is any package with `"type": "semitexa-module"` in its `composer.json`:
     "type": "semitexa-module",
     "version": "1.0.0",
     "extra": {
-        "semitexa-module": {
+            "semitexa-module": {
             "extends": "ParentModuleName",
             "template_alias": "my-module",
-            "template_paths": ["resources/views"]
+            "template_paths": ["Application/View/templates"]
         }
     }
 }
@@ -1113,14 +1171,86 @@ $resource->seoTag('og:title', 'My Page');               // sets Open Graph tag
 
 `pageTitle()` and `seoTag()` wrap `SeoMeta::setTitle()` / `SeoMeta::tag()` and return `$this` for fluent chaining. `SeoMeta` can still be called directly in Twig templates via `{{ page_title() }}` and `{{ semantic_head() }}`.
 
+### Template directory convention
+
+All modules must follow the canonical `templates/` subdirectory layout:
+
+| Directory | Purpose |
+|-----------|---------|
+| `templates/pages/` | Page-level templates (one per route) |
+| `templates/layouts/` | Layout templates (extend chains) |
+| `templates/partials/` | Reusable fragments (included by multiple pages) |
+| `templates/components/` | Component-specific templates |
+| `templates/deferred/` | Templates for deferred/async slots |
+
+Not all subdirectories need to exist — only create what the module uses. The `semitexa:lint:templates` CLI command validates structure across all modules (runs in CI as a blocking check).
+
+### Theme resolution
+
+Templates resolve theme-first, module-as-fallback. The `THEME` environment variable activates a theme. Theme overrides live in `src/theme/{THEME}/{ModuleName}/templates/` and are sparse — only override what differs.
+
+```twig
+{# This resolves to theme template if it exists, otherwise module template #}
+{% extends '@project-layouts-Website/layouts/base.html.twig' %}
+```
+
+Twig's namespace fallback chain handles this automatically — both theme and module paths are registered per namespace.
+
+### Static assets
+
+**Modules and packages:** Static assets live in `Application/Static/css/` and `Application/Static/js/` and are discovered at worker boot via a **required** `Application/Static/assets.json` manifest. The manifest uses include rules, so developers do not list every file.
+
+**Naming convention:** `{ModuleName}:{type}:{relative-path-without-extension}`
+
+| File | Logical Name |
+|------|-------------|
+| `Static/css/demo.css` | `SsrDemo:css:demo` |
+| `Static/css/components/card.css` | `SsrDemo:css:components/card` |
+| `Static/js/sse-client.js` | `SsrDemo:js:sse-client` |
+
+**Defaults by convention:**
+
+| Location | Position | Default scope | Default priority |
+|----------|----------|---------------|-----------------|
+| `Static/css/**/*.css` | `head` | `module` | `50` |
+| `Static/js/**/*.js` | `body` | `page` | `90` |
+
+**`Application/Static/assets.json` (v2, required):**
+
+```json
+{
+    "$schema": "semitexa://asset-manifest/v2",
+    "module": "SsrDemo",
+    "include": {
+        "css": ["css/**/*.css"],
+        "js": ["js/**/*.js"]
+    },
+    "overrides": {
+        "css/theme-dark.css": { "scope": "page", "priority": 10 }
+    },
+    "exclude": ["js/dev-only.js"]
+}
+```
+
+**Theme asset overrides:** Place files at `src/theme/{THEME}/{ModuleName}/Static/` with the same relative path. The theme version wins; the logical name and URL remain unchanged.
+
+**Packages:** Follow the same `Application/Static/` + v2 manifest rules as app modules (One Way).
+
+**Load ordering:** priority (ascending) → module topological order → lexicographic file path.
+
 ### Rules
 
 - **Do** use `@project-layouts-{ModuleName}/` namespace for all template references.
 - **Do** declare the page template in `#[AsResource(template: '...')]` — let auto-render handle it.
 - **Do** use components for reusable UI pieces and layout slots for page regions.
 - **Do** set SEO metadata via `$resource->pageTitle()` / `$resource->seoTag()` in handlers — never call `SeoMeta::setTitle()` or `SeoMeta::tag()` directly.
+- **Do** use the canonical template subdirectories (`pages/`, `layouts/`, `partials/`, `components/`, `deferred/`).
+- **Do** place new CSS/JS files in `Application/Static/` and ensure the default include rules (`css/**/*.css`, `js/**/*.js`) cover them.
+- **Do** use theme overrides (`src/theme/{THEME}/{Module}/`) for theme-specific templates and assets.
 - **Don't** put business logic in Twig templates.
 - **Don't** pass a context array to `renderTemplate()` — pre-populate via `with*()` methods on the Resource.
+- **Don't** list every asset file in `assets.json`; use include rules and optional overrides/exclude.
+- **Don't** use non-canonical template subdirectory names (e.g., `blocks/` instead of `components/`).
 
 ---
 
