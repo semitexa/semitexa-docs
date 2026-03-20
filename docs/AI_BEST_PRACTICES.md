@@ -471,7 +471,7 @@ Twig renders page template ({% extends '@project-layouts-Catalog/layouts/base.ht
   │   ├── collect clientModules
   │   └── render slot template
   ├── Deferred/live slots use the same slot pipeline
-  └── The asset pipeline emits collected slot client modules into <head>
+  └── The asset pipeline emits collected slot client modules into <head> (slot-specific exception: clientModules are loaded in <head>, unlike regular page JS which is body-positioned by convention)
 ```
 
 The page handler does not hydrate independent slot blocks directly. Slot data belongs to slot resources and slot handlers.

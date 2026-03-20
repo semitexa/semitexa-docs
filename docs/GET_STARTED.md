@@ -61,6 +61,14 @@ This creates the project locally with the Semitexa scaffold already in place.
 
 Change into the created project folder before starting the app.
 
+```bash
+# If you used the installer:
+cd my-project
+
+# If you cloned an existing repo:
+cd <cloned-repo>
+```
+
 ### 3. Prepare the environment
 
 ```bash

@@ -41,7 +41,7 @@ If a page does not clearly serve one of those goals, it should be shortened, mer
 - Use `docs/ai/` and `docs/hm/` only as audience-specific entry points.
 - Put philosophy in `README.md` and `AI_REFERENCE.md`.
 - Put practical how-to content in `docs/*.md`.
-- Put deep package internals in package docs such as `semitexa-core/docs/`.
+- Put deep package internals in package docs such as `vendor/semitexa/core/docs/`.
 
 ## Navigation Rule
 
