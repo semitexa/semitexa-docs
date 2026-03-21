@@ -807,11 +807,13 @@ Use pipeline listeners for system-wide concerns that should stay outside applica
 
 If a concern applies to many routes, it probably belongs here instead of being repeated in handlers.
 
-### Three built-in phases (in order)
+### Two built-in phases (in order)
 
 1. **`AuthCheck`** — authentication
-2. **`AccessCheck`** — authorization / permission gates
-3. **`HandleRequest`** — triggers handler group execution
+2. **`HandleRequest`** — triggers handler group execution
+
+Authorization now runs inside the `AuthCheck` phase via pipeline listeners such as
+`AuthorizationListener`, so there is no separate `AccessCheck` phase anymore.
 
 ### Writing a pipeline listener
 
@@ -1693,6 +1695,19 @@ class AdminUsersPayload {}
 ```
 
 All three attributes (`#[PublicEndpoint]`, `#[RequiresCapability]`, `#[RequiresPermission]`) are from `Semitexa\Authorization\Attributes`.
+
+Capability vs permission:
+
+- `#[RequiresCapability]` is a coarse-grained gate for broad access such as `admin`, `staff`, or `backoffice`.
+- `#[RequiresPermission]` is a fine-grained RBAC check for concrete actions such as `users.manage` or `orders.refund`.
+
+Example:
+
+```php
+#[RequiresCapability('admin')]
+#[AsPayload(path: '/api/admin/dashboard', methods: ['GET'], responseWith: GenericResponse::class)]
+class AdminDashboardPayload {}
+```
 
 ### Pipeline execution order
 
