@@ -807,11 +807,13 @@ Use pipeline listeners for system-wide concerns that should stay outside applica
 
 If a concern applies to many routes, it probably belongs here instead of being repeated in handlers.
 
-### Three built-in phases (in order)
+### Two built-in phases (in order)
 
 1. **`AuthCheck`** — authentication
-2. **`AccessCheck`** — authorization / permission gates
-3. **`HandleRequest`** — triggers handler group execution
+2. **`HandleRequest`** — triggers handler group execution
+
+Authorization now runs inside the `AuthCheck` phase via pipeline listeners such as
+`AuthorizationListener`, so there is no separate `AccessCheck` phase anymore.
 
 ### Writing a pipeline listener
 
@@ -1674,27 +1676,51 @@ final class LoginEmailFormatStrategy implements TestingStrategyInterface
 
 ### Auth guards on payloads
 
+The authorization model is default-deny: every payload requires authentication unless explicitly marked `#[PublicEndpoint]`.
+
 ```php
-#[RequiresAuth]
+// Protected by default — no attribute needed.
 #[AsPayload(path: '/api/profile', methods: ['GET'], responseWith: GenericResponse::class)]
 class ProfilePayload {}
 
-#[RequiresAuth]
+// Explicitly public — anonymous access allowed.
+#[PublicEndpoint]
+#[AsPayload(path: '/api/login', methods: ['POST'], responseWith: GenericResponse::class)]
+class LoginPayload {}
+
+// Protected with fine-grained permission check.
 #[RequiresPermission('users.manage')]
 #[AsPayload(path: '/api/admin/users', methods: ['GET'], responseWith: GenericResponse::class)]
 class AdminUsersPayload {}
 ```
 
+All three attributes (`#[PublicEndpoint]`, `#[RequiresCapability]`, `#[RequiresPermission]`) are from `Semitexa\Authorization\Attributes`.
+
+Capability vs permission:
+
+- `#[RequiresCapability]` is a coarse-grained gate for broad access such as `admin`, `staff`, or `backoffice`.
+- `#[RequiresPermission]` is a fine-grained RBAC check for concrete actions such as `users.manage` or `orders.refund`.
+
+Example:
+
+```php
+#[RequiresCapability('admin')]
+#[AsPayload(path: '/api/admin/dashboard', methods: ['GET'], responseWith: GenericResponse::class)]
+class AdminDashboardPayload {}
+```
+
 ### Pipeline execution order
 
 ```text
-AuthCheck phase:
+Built-in pipeline phases:
+  1. AuthCheck
   1. AuthBootstrapper runs auth handlers (session, token, etc.)
-  2. #[RequiresAuth] checked — throws AuthenticationException → 401
-  3. #[RequiresPermission] checked — throws AccessDeniedException → 403
-
-AccessCheck phase:
-  1. #[RequiresAbility] checked via Gate — throws AccessDeniedException → 403
+     — in BestEffort mode for public endpoints, Mandatory mode for protected.
+  2. AuthorizationListener resolves access policy from payload attributes.
+  3. Policy evaluation: public → allow; guest on protected → 401;
+     missing capability → 403; missing permission → 403.
+  2. HandleRequest
+  1. The matched payload handler executes after AuthCheck passes.
 
 All exceptions are caught by ExceptionMapper → content-negotiated error response.
 ```
@@ -1707,8 +1733,9 @@ All exceptions are caught by ExceptionMapper → content-negotiated error respon
 
 ### Rules
 
-- **Do** use `#[RequiresAuth]` on every non-public endpoint.
-- **Do** use `#[RequiresPermission]` for RBAC.
+- **Do** mark every explicitly public endpoint with `#[PublicEndpoint]` — all others are protected by default.
+- **Do** use `#[RequiresPermission]` for fine-grained RBAC.
+- **Do** use `#[RequiresCapability]` for coarse-grained endpoint access gating.
 - **Do** call `$session->regenerate()` after authentication state changes.
 - **Do** validate and sanitize all input in the payload's `validate()` method.
 - **Don't** trust client-provided IDs without authorization checks.
@@ -2033,8 +2060,7 @@ final class AdminAuthHandler implements TypedHandlerInterface {
     }
 }
 
-// GOOD — use pipeline listener or #[RequiresPermission] attribute
-#[RequiresAuth]
+// GOOD — use pipeline listener or authorization attributes
 #[RequiresPermission('admin.access')]
 #[AsPayload(path: '/api/admin/...', ...)]
 class AdminPayload {}
