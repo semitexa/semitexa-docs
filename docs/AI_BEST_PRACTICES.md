@@ -1712,12 +1712,15 @@ class AdminDashboardPayload {}
 ### Pipeline execution order
 
 ```text
-AuthCheck phase (single phase — AccessCheck has been removed):
+Built-in pipeline phases:
+  1. AuthCheck
   1. AuthBootstrapper runs auth handlers (session, token, etc.)
      — in BestEffort mode for public endpoints, Mandatory mode for protected.
   2. AuthorizationListener resolves access policy from payload attributes.
   3. Policy evaluation: public → allow; guest on protected → 401;
      missing capability → 403; missing permission → 403.
+  2. HandleRequest
+  1. The matched payload handler executes after AuthCheck passes.
 
 All exceptions are caught by ExceptionMapper → content-negotiated error response.
 ```
