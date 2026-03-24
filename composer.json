@@ -12,5 +12,12 @@
     ],
     "require": {
         "php": ">=8.0"
-    }
+    },
+    "keywords": [
+        "semitexa",
+        "docs",
+        "documentation",
+        "guides",
+        "architecture"
+    ]
 }
