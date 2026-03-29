@@ -266,6 +266,36 @@ class UserGetPayload
 
 Syntax: `env::VAR_NAME::default_value`.
 
+### Response formats and alternate representations
+
+`produces` belongs on the payload DTO because the payload owns the route contract.
+
+```php
+#[AsPayload(
+    path: '/products',
+    methods: ['GET'],
+    responseWith: ProductPageResource::class,
+    produces: ['text/html', 'application/json'],
+)]
+final class ProductPagePayload
+{
+}
+```
+
+Use this when one route intentionally serves multiple representations of the same resource.
+
+What Semitexa does with `produces`:
+
+- negotiates the response format from `Accept` or `?_format=...`
+- keeps the route contract explicit in one place
+- on SSR pages, emits `<link rel="alternate" type="...">` tags for the non-HTML variants declared by the current payload DTO
+
+What not to do:
+
+- do not add `application/json` just because a JSON serializer exists somewhere in the stack
+- do not hardcode alternate links in Twig when the payload DTO already defines the formats
+- do not declare alternate formats that the handler/resource pair does not actually support
+
 ### Rules
 
 - **Do** always provide `responseWith:` — it links the payload to its resource.
@@ -1331,7 +1361,7 @@ Today the slot handler contract is intentionally broad (`handle(object $slot): o
 | `layout_slot(slot, extraContext)` | Render a layout slot |
 | `page_title(?title)` | Get/set SEO title |
 | `asset(path, ?module)` | Asset URL |
-| `semantic_head()` | JSON-LD output |
+| `semantic_head()` | JSON-LD output plus route-derived alternate links for declared non-HTML formats |
 
 ### SEO
 
@@ -1345,6 +1375,8 @@ $resource->seoTag('og:title', 'My Page');               // sets Open Graph tag
 ```
 
 `pageTitle()` and `seoTag()` wrap `SeoMeta::setTitle()` / `SeoMeta::tag()` and return `$this` for fluent chaining. In Twig, use the public helpers such as `{{ page_title() }}` and `{{ semantic_head() }}` rather than wiring SEO state manually inside handlers.
+
+`semantic_head()` is also where SSR emits route-derived `<link rel="alternate" ...>` tags. Those alternates come from the current payload DTO's declared `produces` formats, not from template-local guesses.
 
 ### Template directory convention
 
