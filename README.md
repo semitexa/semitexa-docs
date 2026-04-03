@@ -1,4 +1,4 @@
-# semitexa/docs
+# Semitexa Docs
 
 Shared framework documentation: guides, architecture references, and AI-optimized developer resources.
 
