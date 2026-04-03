@@ -72,10 +72,10 @@ cd <cloned-repo>
 ### 3. Prepare the environment
 
 ```bash
-cp .env.example .env
+$EDITOR .env.local
 ```
 
-Default HTTP port is **9502**. Change `SWOOLE_PORT` in `.env` if needed.
+Semitexa now boots from committed `.env.default`. Create `.env.local` only if you need machine-specific overrides such as a different `SWOOLE_PORT`.
 
 ### 4. Start the application
 
@@ -130,7 +130,7 @@ If you reached a running app, move on quickly. The next page is where Semitexa u
 1. Get project.
 2. `curl -fsSL https://semitexa.com/install.sh | bash -s my-project`
 3. `cd my-project`
-4. `cp .env.example .env`
+4. `test -f .env.local || printf 'SWOOLE_PORT=9502\n' > .env.local`
 5. `bin/semitexa server:start`
 
 For the first route with Twig, use [MINIMAL_PAGE.md](MINIMAL_PAGE.md).

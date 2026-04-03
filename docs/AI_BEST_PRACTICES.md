@@ -1149,7 +1149,8 @@ readonly class MyFeatureConfig
 
 1. Process env (`getenv()`) — Docker / OS
 2. `.env.local` — local overrides (gitignored)
-3. `.env` — committed defaults
+3. `.env.default` — committed local baseline
+4. `.env` — legacy compatibility layer during migration only
 
 System env variables are **never** overwritten by `.env` files.
 
