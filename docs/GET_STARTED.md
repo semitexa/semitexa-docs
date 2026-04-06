@@ -71,10 +71,10 @@ cd <cloned-repo>
 
 ### 3. Prepare the environment
 
-Optional: create `.env.local` only if you need machine-specific overrides such as a different `SWOOLE_PORT`.
+Optional: create `.env` only if you need local overrides such as a different `SWOOLE_PORT`.
 
 ```bash
-$EDITOR .env.local
+$EDITOR .env
 ```
 
 ### 4. Start the application

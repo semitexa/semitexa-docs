@@ -9,7 +9,7 @@ Use this file as a short AI-oriented entry point, not as a separate full guide.
 1. Get or create the project.
 2. Use `curl -fsSL https://semitexa.com/install.sh | bash -s my-project` for a new local install.
 3. `cd my-project`
-4. Create `.env.local` only if you need machine-specific overrides.
+4. Create `.env` only if you need local overrides.
 5. Start with `bin/semitexa server:start`.
 
 Read the full canonical guide for details, constraints, and troubleshooting:
