@@ -72,6 +72,7 @@ cd <cloned-repo>
 ### 3. Prepare the environment
 
 Optional: create `.env` only if you need local overrides such as a different `SWOOLE_PORT`.
+Do not commit `.env` to version control. It is a local override file and can contain machine-specific settings.
 
 ```bash
 $EDITOR .env

@@ -1145,7 +1145,7 @@ readonly class MyFeatureConfig
 }
 ```
 
-### Environment loading order
+### Environment precedence order
 
 1. Process env (`getenv()`) — Docker / OS
 2. `.env` — local overrides (gitignored)
