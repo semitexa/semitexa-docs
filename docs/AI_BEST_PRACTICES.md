@@ -1145,12 +1145,11 @@ readonly class MyFeatureConfig
 }
 ```
 
-### Environment loading order
+### Environment precedence order
 
 1. Process env (`getenv()`) — Docker / OS
-2. `.env.local` — local overrides (gitignored)
+2. `.env` — local overrides (gitignored)
 3. `.env.default` — committed project defaults
-4. `.env` — legacy project overrides still read during the migration window to `.env.default` + `.env.local`
 
 System env variables are **never** overwritten by `.env` files.
 
