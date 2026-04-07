@@ -1078,7 +1078,7 @@ final class DoctrineUserRepository implements UserRepositoryInterface { ... }
 Use `bin/semitexa registry:sync:contracts` when you are working on resolver generation for multi-implementation contracts:
 
 ```php
-// Auto-generated: src/registry/Contracts/SettingsStoreResolver.php
+// Auto-generated: src/Registry/Contracts/SettingsStoreResolver.php
 final class SettingsStoreResolver
 {
     public function __construct(
