@@ -1580,7 +1580,7 @@ LocaleContextStore::setFallbackLocale('en');
     payload: OrderPlacedPayload::class,
     resource: GenericResponse::class,
     execution: HandlerExecution::Async,
-    transport: 'rabbitmq',
+    transport: 'nats',
     queue: 'orders',
     maxRetries: 3,
     retryDelay: 5,
@@ -1612,9 +1612,9 @@ final class SendOrderConfirmationHandler implements TypedHandlerInterface
 
 | Env Config | Transport |
 |---|---|
-| `EVENTS_TRANSPORT=rabbitmq` | Force RabbitMQ transport |
+| `EVENTS_TRANSPORT=nats` | Force NATS transport |
 | `EVENTS_TRANSPORT=in-memory` | Force in-memory transport |
-| `EVENTS_ASYNC=1` | RabbitMQ by default unless `EVENTS_TRANSPORT` overrides it |
+| `EVENTS_ASYNC=1` | NATS by default unless `EVENTS_TRANSPORT` overrides it |
 | Default | In-memory transport |
 
 ### Rules
