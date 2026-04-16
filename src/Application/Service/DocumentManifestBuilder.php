@@ -19,6 +19,7 @@ final class DocumentManifestBuilder
      */
     public function buildBySection(string $locale = 'en'): array
     {
+        $locale = FileDocumentRepository::normalizeLocale($locale);
         $grouped = [];
 
         foreach ($this->repository->all($locale) as $item) {

@@ -6,6 +6,7 @@ namespace Semitexa\Docs\Application\Service;
 
 use Semitexa\Core\Attribute\AsService;
 use Semitexa\Core\Attribute\InjectAsReadonly;
+use Semitexa\Core\Log\StaticLoggerBridge;
 use Semitexa\Docs\Application\Document\DocumentId;
 use Semitexa\Docs\Application\Document\DocumentManifestItem;
 use Semitexa\Docs\Application\Document\DocumentMetadata;
@@ -19,6 +20,8 @@ final class FileDocumentRepository
 
     public function find(DocumentId $id, string $locale = 'en'): ?ResolvedDocument
     {
+        $locale = self::normalizeLocale($locale);
+
         foreach ($this->candidatePaths($id, $locale) as $candidate) {
             if (!is_file($candidate)) {
                 continue;
@@ -35,6 +38,7 @@ final class FileDocumentRepository
      */
     public function all(string $locale = 'en'): array
     {
+        $locale = self::normalizeLocale($locale);
         $root = $this->docsRoot() . '/' . $locale;
         if (!is_dir($root)) {
             return [];
@@ -52,7 +56,15 @@ final class FileDocumentRepository
 
             $relativePath = str_replace($root . '/', '', $fileInfo->getPathname());
             $normalized = str_replace('.md', '', $relativePath);
-            $id = DocumentId::fromString(str_replace(DIRECTORY_SEPARATOR, '/', $normalized));
+            $rawId = str_replace(DIRECTORY_SEPARATOR, '/', $normalized);
+
+            try {
+                $id = DocumentId::fromString($rawId);
+            } catch (\InvalidArgumentException $e) {
+                $this->warnSkippedDocument($rawId, $e->getMessage());
+                continue;
+            }
+
             $document = $this->loadFromPath($id, $fileInfo->getPathname());
             $items[] = new DocumentManifestItem($document->id, $document->metadata, $document->path);
         }
@@ -70,29 +82,40 @@ final class FileDocumentRepository
 
     private function loadFromPath(DocumentId $id, string $path): ResolvedDocument
     {
-        $contents = (string) file_get_contents($path);
+        $contents = file_get_contents($path);
+        if ($contents === false) {
+            throw new \RuntimeException(sprintf('Failed to read document file "%s".', $path));
+        }
+
         $parsed = $this->frontMatterParser->parse($contents, $path);
         $meta = $parsed['meta'];
 
         $this->assertRequired($meta, ['id', 'section', 'slug', 'title', 'summary', 'order', 'locale', 'status'], $path);
 
         if ($meta['id'] !== $id->toString()) {
+            $declaredId = is_scalar($meta['id']) || $meta['id'] === null ? (string) $meta['id'] : get_debug_type($meta['id']);
             throw new \RuntimeException(sprintf(
                 'Document id mismatch for "%s": front matter says "%s", expected "%s".',
                 $path,
-                $meta['id'],
+                $declaredId,
                 $id->toString(),
             ));
         }
 
+        $title = is_scalar($meta['title']) || $meta['title'] === null ? (string) $meta['title'] : '';
+        $summary = is_scalar($meta['summary']) || $meta['summary'] === null ? (string) $meta['summary'] : '';
+        $order = is_numeric($meta['order']) ? (int) $meta['order'] : 0;
+        $documentLocale = is_scalar($meta['locale']) || $meta['locale'] === null ? (string) $meta['locale'] : '';
+        $status = is_scalar($meta['status']) || $meta['status'] === null ? (string) $meta['status'] : '';
+
         return new ResolvedDocument(
             id: $id,
             metadata: new DocumentMetadata(
-                title: (string) $meta['title'],
-                summary: (string) $meta['summary'],
-                order: (int) $meta['order'],
-                locale: (string) $meta['locale'],
-                status: (string) $meta['status'],
+                title: $title,
+                summary: $summary,
+                order: $order,
+                locale: $documentLocale,
+                status: $status,
                 aliases: $this->normalizeList($meta['aliases'] ?? []),
                 keywords: $this->normalizeList($meta['keywords'] ?? []),
                 demoPreview: is_string($meta['demo_preview'] ?? null) ? $meta['demo_preview'] : null,
@@ -163,5 +186,25 @@ final class FileDocumentRepository
     private function docsRoot(): string
     {
         return dirname(__DIR__, 3) . '/docs';
+    }
+
+    public static function normalizeLocale(string $locale): string
+    {
+        if (!preg_match('/^[a-z]{2}(?:-[A-Z]{2})?$/', $locale)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid locale "%s". Expected formats like "en" or "en-US".',
+                $locale,
+            ));
+        }
+
+        return $locale;
+    }
+
+    private function warnSkippedDocument(string $rawId, string $reason): void
+    {
+        StaticLoggerBridge::warning('docs', 'Skipping malformed docs manifest entry.', [
+            'document_id' => $rawId,
+            'reason' => $reason,
+        ]);
     }
 }

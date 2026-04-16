@@ -36,21 +36,24 @@ final class DocsGetCommand extends BaseCommand
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        $documentId = $input->getArgument('document-id');
+        $localeOption = $input->getOption('locale');
+        $formatOption = $input->getOption('format');
 
         try {
-            $id = DocumentId::fromString((string) $input->getArgument('document-id'));
+            $id = DocumentId::fromString(is_string($documentId) ? $documentId : '');
+            $document = $this->repository->find($id, is_string($localeOption) ? $localeOption : '');
         } catch (\InvalidArgumentException $e) {
             $io->error($e->getMessage());
             return self::FAILURE;
         }
 
-        $document = $this->repository->find($id, (string) $input->getOption('locale'));
         if ($document === null) {
             $io->error(sprintf('Document "%s" was not found.', $id->toString()));
             return self::FAILURE;
         }
 
-        $format = strtolower((string) $input->getOption('format'));
+        $format = strtolower(is_string($formatOption) ? $formatOption : '');
         $rendered = match ($format) {
             'markdown' => $this->renderer->renderMarkdown($document),
             'html' => $this->renderer->renderHtml($document),

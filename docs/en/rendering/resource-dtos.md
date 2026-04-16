@@ -6,7 +6,7 @@ title: Resource DTOs
 summary: A Resource DTO is the one typed source of presentation data: handlers shape it once, templates consume it everywhere, and no view has to dissect random arrays.
 order: 20
 locale: en
-status: published
+status: canonical
 keywords:
   - "#[AsResource]"
   - HtmlResponse

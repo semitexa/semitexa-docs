@@ -32,12 +32,21 @@ final class DocsShowSectionCommand extends BaseCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $section = (string) $input->getArgument('section');
-        $locale = (string) $input->getOption('locale');
-        $manifest = $this->manifestBuilder->buildBySection((string) $input->getOption('locale'));
+        $io = new SymfonyStyle($input, $output);
+        $sectionArgument = $input->getArgument('section');
+        $localeOption = $input->getOption('locale');
+        $section = is_string($sectionArgument) ? $sectionArgument : '';
+        $locale = is_string($localeOption) ? $localeOption : '';
+
+        try {
+            $manifest = $this->manifestBuilder->buildBySection($locale);
+        } catch (\InvalidArgumentException $e) {
+            $io->error($e->getMessage());
+            return self::FAILURE;
+        }
 
         if (!isset($manifest[$section])) {
-            (new SymfonyStyle($input, $output))->error(sprintf('Section "%s" was not found.', $section));
+            $io->error(sprintf('Section "%s" was not found.', $section));
             return self::FAILURE;
         }
 
@@ -58,11 +67,16 @@ final class DocsShowSectionCommand extends BaseCommand
                 ),
             ];
 
-            $output->writeln(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $encoded = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            if ($encoded === false) {
+                $io->error('Failed to encode docs section JSON: ' . json_last_error_msg());
+                return self::FAILURE;
+            }
+
+            $output->writeln($encoded);
             return self::SUCCESS;
         }
 
-        $io = new SymfonyStyle($input, $output);
         $io->title(sprintf('Docs Section: %s', $section));
         foreach ($manifest[$section] as $item) {
             $io->text(sprintf('- %s: %s', $item->id->toString(), $item->metadata->summary));

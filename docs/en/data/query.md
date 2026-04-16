@@ -12,8 +12,8 @@ keywords:
   - where()
   - orderBy()
   - limit()
-  - fetchAll()
-  - fetchOne()
+  - fetchAllAs()
+  - fetchOneAs()
 ---
 # Query Builder
 

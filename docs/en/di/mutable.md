@@ -19,7 +19,7 @@ Execution-scoped services are cloned for each framework execution, preventing st
 
 ## How it works
 
-The container keeps a readonly tier for shared worker services and an execution-scoped tier for cloned prototypes. `#[InjectAsMutable]` marks the second case explicitly.
+`Semitexa\Core` keeps a readonly tier for shared worker services and an execution-scoped tier for cloned prototypes. `#[InjectAsMutable]` marks dependencies that should be re-injected on the execution-scoped clone, while the owning service itself should opt into explicit execution scoping.
 
 ## Why this matters
 

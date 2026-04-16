@@ -13,7 +13,6 @@ keywords:
   - application/ld+json
   - fields
   - expand
-  - X-Response-Profile
 ---
 # REST API
 

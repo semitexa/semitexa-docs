@@ -40,4 +40,4 @@ return $resource
 
 ## Why this matters
 
-Template-level SEO hacks — overriding block variables, injecting strings through config, or writing per-page Twig blocks — make metadata a hidden concern that drifts away from the handler logic that owns the data. Keeping SEO declarations on the response resource means the full page contract is visible in one place.
+Template-level SEO hacks — overriding block variables, injecting strings through config, or writing per-page Twig blocks — make metadata a hidden concern that drifts away from the handler logic that owns the data. Keeping SEO declarations on the response resource means the full-page contract is visible in one place.

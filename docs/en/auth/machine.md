@@ -20,7 +20,7 @@ Service-to-service authentication via Bearer tokens — scoped, revocable, and a
 
 ## How it works
 
-Clients send an `Authorization: Bearer {client_id}:{secret}` header. The `MachineAuthHandler` (priority 50) extracts and verifies the credential against the `MachineCredential` store, checks that it has not been revoked, confirms the required scopes are granted, and resolves a `MachinePrincipal` for the request.
+Clients send an `Authorization: Bearer {client_id}:{secret}` header. `MachineAuthHandler` in `semitexa/api` reads that header from the live request, splits the token once into id and secret, and verifies it against the `MachineCredential` store without persisting the raw secret. Secret verification delegates to `MachineCredential::verifySecret()` (`password_verify()` under the hood), successful auth updates only usage audit fields such as `lastUsedAt` and `requestCount`, and the resolved `MachinePrincipal` exposes credential identity and scopes without echoing the secret back into application state.
 
 ## Why this matters
 

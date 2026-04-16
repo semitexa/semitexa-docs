@@ -3,7 +3,7 @@ id: auth/protected
 section: auth
 slug: protected
 title: Protected Route
-summary: Add one attribute to any route and the framework enforces access — 403 returned automatically.
+summary: Add one attribute to any route and the framework enforces access — 401 for unauthenticated requests, 403 for unauthorized ones.
 order: 50
 locale: en
 status: published
@@ -15,7 +15,7 @@ keywords:
 ---
 # Protected Route
 
-Add one attribute to any route and the framework enforces access — 403 returned automatically.
+Add one attribute to any route and the framework enforces access — 401 for unauthenticated requests, 403 for authenticated subjects without the required permission.
 
 ## How it works
 

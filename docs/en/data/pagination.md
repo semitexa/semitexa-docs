@@ -20,7 +20,7 @@ Semitexa ORM repositories support both offset-based and cursor-based pagination 
 
 ## How it works
 
-A handler reads `mode`, `limit`, and `page` from the payload, computes `offset = (page - 1) * limit`, and calls `findPage($limit, $offset)` on the repository. The repository uses `limit()` and `offset()` on the query builder. Switching to cursor mode changes only the query strategy — the handler and repository interface stay identical. A `countAll()` call provides the total for page count computation.
+A handler reads `mode`, `limit`, and `page` from the payload, validates bounds (`page >= 1`, `limit > 0` with an upper cap), computes `offset = (page - 1) * limit`, and calls `findPage($limit, $offset)` on the repository. The repository uses `limit()` and `offset()` on the query builder. Switching to cursor mode changes only the query strategy — the handler and repository interface stay identical. A `countAll()` call provides the total for page count computation, and the validated bounds keep offsets non-negative.
 
 ## Why this matters
 

@@ -18,7 +18,7 @@ The active version should feel intentionally boring: same response shape, stable
 
 ## How it works
 
-`#[ApiVersion]` on the Payload DTO declares the version string and lifecycle state. When the state is active, the framework emits `X-Api-Version` on every response and nothing else. No `Deprecation` header, no `Sunset` header — just a stable version token that makes the serving contract traceable in logs and observability tooling.
+`#[ApiVersion]` on the Payload DTO declares the version string and lifecycle state. When the state is active, the framework emits `X-Api-Version` on every response without additional lifecycle headers. No `Deprecation` header, no `Sunset` header — just a stable version token that makes the serving contract traceable in logs and observability tooling.
 
 ## Why this matters
 

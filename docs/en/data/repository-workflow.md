@@ -20,7 +20,7 @@ The canonical Semitexa persistence path keeps business code working with domain 
 
 ## How it works
 
-Handlers receive a repository contract interface through `#[InjectAsReadonly]`. The repository implementation performs the read via `ResourceModel` → mapper → domain model, and persists through `insert(domainModel)` or `update(domainModel)`. Low-level ResourceModel reads remain available but are an explicit infrastructure concern.
+Handlers receive repository dependencies through `#[InjectAsReadonly]`, preferably via contract interfaces where the module defines them. The repository implementation performs the read via `ResourceModel` → mapper → domain model, and persists through `insert(domainModel)` or `update(domainModel)`. Low-level ResourceModel reads remain available but are an explicit infrastructure concern.
 
 ## Why this matters
 

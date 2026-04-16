@@ -19,7 +19,7 @@ Async listeners run after the response via Swoole defer in the same worker. The 
 
 ## How it works
 
-The container schedules the listener using Swoole's defer mechanism. The HTTP response is flushed first, then the listener runs in the same worker process without blocking any subsequent request handling.
+The container schedules the listener using Swoole's defer mechanism. The HTTP response is flushed first, then the listener runs in the same worker process. This avoids delaying the current response, but heavy deferred work can still reduce throughput on that worker.
 
 ## Why this matters
 

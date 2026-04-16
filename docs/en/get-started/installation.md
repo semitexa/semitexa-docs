@@ -35,8 +35,10 @@ Installation in Semitexa should end with a running runtime and a trustworthy ope
 ## Commands
 
 ```bash
-curl -fsSL https://semitexa.com/install.sh | bash
-curl -fsSL https://semitexa.com/install.sh | bash -s my-project
+curl -fsSLo install.sh https://semitexa.com/install.sh
+# verify checksum/signature from release notes before execution
+bash install.sh
+bash install.sh my-project
 cd my-project
 bin/semitexa server:start
 bin/semitexa self-test

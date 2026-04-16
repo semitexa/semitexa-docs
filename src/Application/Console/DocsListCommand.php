@@ -30,7 +30,15 @@ final class DocsListCommand extends BaseCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $manifest = $this->manifestBuilder->buildBySection((string) $input->getOption('locale'));
+        $io = new SymfonyStyle($input, $output);
+        $localeOption = $input->getOption('locale');
+
+        try {
+            $manifest = $this->manifestBuilder->buildBySection(is_string($localeOption) ? $localeOption : '');
+        } catch (\InvalidArgumentException $e) {
+            $io->error($e->getMessage());
+            return self::FAILURE;
+        }
 
         if ((bool) $input->getOption('json')) {
             $payload = [];
@@ -47,11 +55,16 @@ final class DocsListCommand extends BaseCommand
                 );
             }
 
-            $output->writeln(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $encoded = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            if ($encoded === false) {
+                $io->error('Failed to encode docs manifest JSON: ' . json_last_error_msg());
+                return self::FAILURE;
+            }
+
+            $output->writeln($encoded);
             return self::SUCCESS;
         }
 
-        $io = new SymfonyStyle($input, $output);
         $io->title('Semitexa Docs');
 
         foreach ($manifest as $section => $items) {
