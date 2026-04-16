@@ -55,5 +55,4 @@ This document states **why** Semitexa exists and **what problems** it tries to s
 
 Technical details — request lifecycle, modules, registry, commands, sessions, attributes — are documented in the project and in the `semitexa-core` (and other) package docs. Those docs use a simple structure (Purpose, When to use, Rules/Steps, Where it lives) and often include a short **Why** or **Rationale** for key decisions. This file is the **philosophy**: the pain and the intent behind Semitexa, in a form you can use to align your suggestions and generated code with the project’s goals.
 
-**Canonical guides:** [Get Started](./docs/GET_STARTED.md) · [A minimal working page](./docs/MINIMAL_PAGE.md) · [AI Best Practices](./docs/AI_BEST_PRACTICES.md).  
-**Agent entry points:** [docs/ai/](./docs/ai/).
+**Canonical guides:** [Get Started](./docs/GET_STARTED.md) · [A minimal working page](./docs/MINIMAL_PAGE.md) · [AI Best Practices](./docs/AI_BEST_PRACTICES.md).

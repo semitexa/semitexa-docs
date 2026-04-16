@@ -38,7 +38,6 @@ If a page does not clearly serve one of those goals, it should be shortened, mer
 ## Content Rules
 
 - Keep one canonical page per topic.
-- Use `docs/ai/` and `docs/hm/` only as audience-specific entry points.
 - Put philosophy in `README.md` and `AI_REFERENCE.md`.
 - Put practical how-to content in `docs/*.md`.
 - Put deep package internals in package docs such as `vendor/semitexa/core/docs/`.
