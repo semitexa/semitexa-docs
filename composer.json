@@ -1,7 +1,7 @@
 {
   "name": "semitexa/docs",
   "description": "Semitexa Framework documentation (shared docs, architecture, guides, package map)",
-  "type": "library",
+  "type": "semitexa-module",
   "license": "MIT",
   "authors": [
     {
@@ -10,7 +10,24 @@
     }
   ],
   "require": {
-    "php": ">=8.0"
+    "php": "^8.4",
+    "league/commonmark": "^2.8",
+    "semitexa/core": "*",
+    "symfony/console": "^7.3"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Semitexa\\Docs\\": "src/"
+    }
+  },
+  "extra": {
+    "semitexa-module": {
+      "name": "Semitexa Docs",
+      "description": "Canonical Semitexa documentation content and runtime document services"
+    }
   },
   "keywords": [
     "semitexa",
