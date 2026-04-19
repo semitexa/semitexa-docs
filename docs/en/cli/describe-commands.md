@@ -2,25 +2,28 @@
 id: cli/describe-commands
 section: cli
 slug: describe-commands
-title: Project Describe Commands
-summary: Routes, modules, contracts, and handlers can be described directly from the CLI instead of reverse-engineering the framework graph by hand.
+title: Project Graph Introspection
+summary: Routes, modules, contracts, and handlers can be introspected directly from the CLI instead of reverse-engineering the framework graph by hand.
 order: 10
 locale: en
 status: canonical
 keywords:
-  - describe:route
-  - describe:project
+  - ai:ask
+  - dev:graph:route
+  - dev:graph:project
+  - dev:graph:module
+  - dev:graph:event
   - routes:list
   - contracts:list
   - semitexa:lint:*
 ---
-# Project Describe Commands
+# Project Graph Introspection
 
 A mature framework should explain itself under pressure. These commands turn route and container introspection into a first-class debugging surface.
 
 ## How it works
 
-`describe:route` shows the full execution chain for one endpoint — payload, handlers, resource, template, and auth posture. `describe:project` and `routes:list` expose the module-level structure and all discovered request surfaces. `contracts:list` and `semitexa:lint:*` help validate DI bindings and architectural invariants before runtime incidents.
+`ai:ask route --path=/…` (backed by `dev:graph:route`) shows the full execution chain for one endpoint — payload, handlers, resource, template, and auth posture. `ai:ask project` and `routes:list` expose the module-level structure and all discovered request surfaces. `ai:ask module --name=…` drills into a single module. `contracts:list` and `semitexa:lint:*` help validate DI bindings and architectural invariants before runtime incidents.
 
 ## Why this matters
 

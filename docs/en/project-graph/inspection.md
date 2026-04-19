@@ -3,15 +3,15 @@ id: project-graph/inspection
 section: project-graph
 slug: inspection
 title: Inspecting the Graph
-summary: Explore modules, dependencies, usages, and capabilities directly from the graph instead of piecing them together from file-by-file searches.
+summary: Use Project Graph queries and intelligence views to inspect modules, dependencies, flows, events, and hotspots without reconstructing the repository manually.
 order: 20
 locale: en
 status: canonical
 keywords:
   - ai:review-graph:show
   - ai:review-graph:query
-  - cross-module edges
-  - capability manifest
+  - ai:review-graph:module
+  - ai:review-graph:intelligence
 demo_preview: get-started-playbook
 related_documents:
   - project-graph/overview
@@ -19,13 +19,13 @@ related_documents:
 ---
 # Inspecting the Graph
 
-After generation, Project Graph becomes an exploration surface rather than a static artifact.
+Once the graph exists, Project Graph becomes an explicit inspection surface rather than a one-off artifact.
 
 ## Canonical flow
 
-1. Render the graph in the format that matches the question.
-2. Run focused structural queries instead of broad repository search.
-3. Project capabilities when the consumer is an operator or an AI workflow.
+1. Render the slice that matches the question.
+2. Query dependencies, usages, or cross-module edges directly.
+3. Reach for module and intelligence views when raw edges are not enough.
 
 ## Commands
 
@@ -33,9 +33,10 @@ After generation, Project Graph becomes an exploration surface rather than a sta
 bin/semitexa ai:review-graph:show --format=markdown --module=Demo
 bin/semitexa ai:review-graph:query --search=DemoCatalogService
 bin/semitexa ai:review-graph:query --dependencies=Semitexa\\Demo\\Application\\Service\\DemoCatalogService
-bin/semitexa ai:review-graph:capabilities --markdown
+bin/semitexa ai:review-graph:module Demo --include-events --include-flows --format=json
+bin/semitexa ai:review-graph:intelligence --hotspots
 ```
 
 ## Why this matters
 
-Architectural questions become terminal queries rather than archaeology. That improves review speed, onboarding, and AI context quality.
+Architectural questions become focused graph-backed answers instead of archaeology. That improves onboarding, review speed, and the quality of AI context.

@@ -8,7 +8,8 @@ order: 50
 locale: en
 status: canonical
 keywords:
-  - ai:capabilities
+  - ai:ask
+  - dev:graph:capabilities
   - ai:skills
   - logs:app
   - ai
@@ -20,7 +21,7 @@ If the framework wants to be AI-native, the console surface has to be machine-re
 
 ## How it works
 
-`ai:capabilities` exports a manifest of generator-style commands with intended use, required inputs, and avoid-when guidance. `ai:skills` exposes AI-executable skills with risk level and confirmation policy. `logs:app` queries application logs in stable structured JSON. The `ai` entrypoint opens the local assistant backed by the registered skill manifest.
+`ai:ask capabilities` (backed by `dev:graph:capabilities`) exports a manifest of generator and introspection commands with intended use, required inputs, and avoid-when guidance. `ai:skills` exposes AI-executable skills with risk level and confirmation policy. `logs:app` queries application logs in stable structured JSON. The `ai` entrypoint opens the local assistant backed by the registered skill manifest.
 
 ## Why this matters
 
