@@ -3,7 +3,7 @@ id: project-graph/impact
 section: project-graph
 slug: impact
 title: Impact, Context, and Watch Mode
-summary: Use the graph to estimate blast radius, package precise context for AI, and keep the architecture map current while the repository changes.
+summary: Use impact analysis, context packing, and watch mode to scope risky changes and keep graph-backed answers current during long work sessions.
 order: 30
 locale: en
 status: canonical
@@ -38,4 +38,4 @@ bin/semitexa ai:review-graph:watch --full-on-start
 
 ## Why this matters
 
-This is where the graph becomes engineering profit: smaller prompts, clearer blast-radius decisions, fewer accidental side effects, and safer refactors.
+This is where the graph becomes engineering safety: clearer blast-radius decisions, smaller prompts, fewer accidental side effects, and safer refactors.
