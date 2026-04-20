@@ -15,3 +15,14 @@ If a topic changes, update the canonical guide first. Do not reintroduce audienc
 - [Reference](REFERENCE.md)
 - [AI](AI.md)
 - [Site Map](SITE_MAP.md)
+
+## Workspace and Framework Documentation
+
+Monorepo-level architecture, cross-package policies, toolchain reference, and technical-debt tracking live under [`workspace/`](workspace/). These docs are the canonical home for material that used to live in root `./docs/`.
+
+- [Workspace index](workspace/README.md)
+- [Documentation ownership](workspace/DOCUMENTATION_OWNERSHIP.md)
+- [Architecture](workspace/ARCHITECTURE.md)
+- [DI — One Way](workspace/DI_ONE_WAY.md)
+- [PHPStan workflow](workspace/PHPSTAN.md)
+- [Technical design audits](workspace/technical-design/)
