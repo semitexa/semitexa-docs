@@ -25,4 +25,4 @@ Monorepo-level architecture, cross-package policies, toolchain reference, and te
 - [Architecture](workspace/ARCHITECTURE.md)
 - [DI — One Way](workspace/DI_ONE_WAY.md)
 - [PHPStan workflow](workspace/PHPSTAN.md)
-- [Technical debt](workspace/TECHNICAL_DEBT.md)
+- [Technical design audits](workspace/technical-design/)

@@ -39,8 +39,7 @@ Framework-level, cross-cutting material that does not belong to any one package 
 
 ### Technical debt and audits
 
-- [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) — current known debt and recommended order of work.
-- [technical-design/](technical-design/) — targeted audit reports (ORM, payload testing, tenancy, testing, WM improvement).
+- [technical-design/](technical-design/) — targeted audit reports and follow-up recommendations (ORM, payload testing, tenancy, testing, WM improvement).
 
 ## Cross-links to package docs
 
