@@ -14,6 +14,8 @@ keywords:
   - text/event-stream
   - SSE_PUBLIC_ANONYMOUS
   - SSE_MAX_CONN_PER_IP
+  - SSE_MAX_CONN_GLOBAL
+  - SSE_MAX_CONNECTION_AGE_SECONDS
 ---
 # SSE Stream
 
@@ -33,7 +35,7 @@ A long-lived SSE connection holds a Swoole coroutine, a file descriptor, and a r
 
 **Defaults:**
 
-- **Authentication is required.** `/sse` and `/__semitexa_kiss` enforce an authenticated session. An unauthenticated request receives `401 Unauthorized`.
+- **Authentication is required.** `/sse` and `/__semitexa_kiss` enforce an authenticated session. `/__semitexa_kiss` is the internal alias used by Semitexa's browser-side SSE bootstrap; treat it as the same protected stream endpoint. An unauthenticated request receives `401 Unauthorized`.
 - **Per-IP connection cap.** `SSE_MAX_CONN_PER_IP` (default `5`) bounds concurrent streams from a single client. Exceeding the cap returns `429 Too Many Requests` with `Retry-After: 30`.
 - **Per-worker global cap.** `SSE_MAX_CONN_GLOBAL` (default `500`) bounds total concurrent streams in one worker. Production deployments should size this against available FD and coroutine budget.
 - **Hard connection age.** `SSE_MAX_CONNECTION_AGE_SECONDS` (default `600`) forces the server to send a `close` event and disconnect after ten minutes. Browser `EventSource` auto-reconnects; long-lived clients must handle the reconnect path.
