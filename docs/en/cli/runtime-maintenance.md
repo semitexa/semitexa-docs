@@ -11,7 +11,7 @@ keywords:
   - server:reload
   - cache:clear
   - registry:sync
-  - semitexa:lint:*
+  - lint:*
   - test:handler
 ---
 # Runtime Maintenance
@@ -20,7 +20,7 @@ Strong CLI does not stop at code generation. It also gives operators and develop
 
 ## How it works
 
-`server:reload` picks up code changes without a full container restart. `cache:clear` handles stale compiled Twig templates and other artifacts. `registry:sync` regenerates DI-oriented registry bindings. `semitexa:lint:*` validates handler signatures and architectural invariants. `test:handler` probes instantiation and DI wiring for a specific handler class.
+`server:reload` picks up code changes without a full container restart. `cache:clear` handles stale compiled Twig templates and other artifacts. `registry:sync` regenerates DI-oriented registry bindings. `lint:*` validates handler signatures and architectural invariants. `test:handler` probes instantiation and DI wiring for a specific handler class.
 
 ## Why this matters
 

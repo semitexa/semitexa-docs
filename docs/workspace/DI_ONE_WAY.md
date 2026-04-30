@@ -163,7 +163,7 @@ Ask these three questions in order:
   `phpstan.neon`.
 - **Runtime:** `GraphBuilder::createInstance()` throws `InjectionException`
   when a container-managed class has `__construct` with parameters.
-- **CLI lint:** `bin/semitexa semitexa:lint:di` reports the same violation
+- **CLI lint:** `bin/semitexa lint:di` reports the same violation
   with matching wording.
 
 All three emit messages that explicitly call this out as constructor

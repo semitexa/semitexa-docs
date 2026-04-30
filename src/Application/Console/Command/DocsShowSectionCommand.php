@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Semitexa\Docs\Application\Console;
+namespace Semitexa\Docs\Application\Console\Command;
 
 use Semitexa\Core\Attribute\AsCommand;
-use Semitexa\Core\Console\Command\BaseCommand;
+use Semitexa\Core\Console\BaseCommand;
 use Semitexa\Docs\Application\Service\DocumentManifestBuilder;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;

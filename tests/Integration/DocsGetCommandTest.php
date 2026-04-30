@@ -6,7 +6,7 @@ namespace Semitexa\Docs\Tests\Integration;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Semitexa\Docs\Application\Console\DocsGetCommand;
+use Semitexa\Docs\Application\Console\Command\DocsGetCommand;
 use Semitexa\Docs\Application\Service\DocumentFrontMatterParser;
 use Semitexa\Docs\Application\Service\DocumentHtmlRenderer;
 use Semitexa\Docs\Application\Service\FileDocumentRepository;

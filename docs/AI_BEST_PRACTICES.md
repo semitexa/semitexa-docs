@@ -39,6 +39,42 @@ This document exists to make those defaults operational.
 
 ---
 
+## Before You Begin (read this first)
+
+Before you write code, read this. It is the cheapest way to avoid the most common mistakes AI agents make in this repository.
+
+### Where the canonical instructions live
+
+- `AGENTS.md` (repo root) is the **operator manual**. Read it cold-start every session. `AGENTS_DOCTRINE.md` holds full flows / lifecycle / hygiene detail and is consulted on cross-reference.
+- `packages/semitexa-docs/docs/` is the **canonical framework documentation**. This file lives there. Treat its siblings (`AI_GUIDE.md`, package guides, etc.) as authoritative for framework behavior.
+- `packages/<pkg>/docs/` (when present) is canonical *package-local* documentation — owned by the package, narrower scope.
+- `var/docs/` is **scratch only**. Audits, reports, planning notes, design drafts go there. Nothing in `var/docs/` is authoritative — treat it as in-flight working notes, not framework truth.
+- Project root (`README.md`, `AGENTS.md`, `CLAUDE.md`, `AI_*.md`) is reserved for the framework scaffold. Do **not** add new root-level `.md` files for ad-hoc reports — write them to `var/docs/<slug>.md` instead.
+
+### Where the backlog lives
+
+Ideas, tasks, and status are tracked by `ai:epic` (in `var/ai-work/epics/`) and `ai:work` (in `var/ai-work/tasks/`). Documents are never the backlog. If a feature is "planned" but not in `ai:epic`, it does not exist as committed work — propose capturing it before treating it as real.
+
+### How to run tests
+
+The only blessed test entry point is the containerized command:
+
+```bash
+bin/semitexa test:run                           # full suite
+bin/semitexa test:run tests/Unit/SomeTest.php   # narrowed path
+bin/semitexa test:run -- --filter someTest      # extra phpunit args after a single double-dash
+```
+
+Do **not** run `vendor/bin/phpunit` directly. The container guarantees the correct PHP/Swoole/extension surface; running phpunit on the host produces unreliable results and is not how CI executes.
+
+### Avoid inventing architecture
+
+If a class, attribute, command, or path is not in the repository today, do not document it as if it were. Aspirational behavior gets captured as an `ai:epic`, not as best-practices guidance. When you are uncertain about whether a piece of architecture exists, search before you write — `ai:ask`, `ai:review-graph:query`, or a targeted `Grep` is cheaper than a wrong claim.
+
+If a feature is referenced in this guide but verification at the time of reading shows it is missing or moved, prefer the repository over the guide and propose an update.
+
+---
+
 ## Table of Contents
 
 1. [Project Structure](#1-project-structure)
@@ -71,6 +107,10 @@ This document exists to make those defaults operational.
 Project structure is not cosmetic in Semitexa. It is part of the framework contract.
 
 If the tree is clean, readers can predict behavior before opening files. If the tree drifts, both humans and AI lose confidence quickly.
+
+> **Authoritative spec:** the on-disk shape of a module is defined in [`MODULE_STRUCTURE.md`](MODULE_STRUCTURE.md). That document is enforced by the `module_structure` check inside `bin/semitexa ai:verify` — drift is a hard failure.
+>
+> Section 1 of this file is the human-readable summary. If the two ever disagree, `MODULE_STRUCTURE.md` wins, and the discrepancy is a defect to be reported.
 
 ### Package layout
 
@@ -131,6 +171,9 @@ src/modules/{ModuleName}/
       PayloadHandler/
       SlotHandler/
       DomainListener/
+    Console
+      Command/            # Console commands (#[AsCommand]) — see §1.1
+    Update/               # Post-schema data patches (#[AsDataPatch]) — see §1.2
     Service/
     Static/               # Static assets (manifest-driven)
       css/
@@ -145,29 +188,171 @@ src/modules/{ModuleName}/
         components/       # Component-specific templates
         deferred/         # Templates for deferred/async slots
     Component/
+  Domain/
+    Model/
+    Repository/
+    Contract/
+    Service/
   composer.json
 ```
 
 Semitexa is strongest when application modules and packages feel like the same architectural language.
 
-### Theme directory
+### 1.1 Console command placement
 
-Themes provide sparse overrides for module templates and static assets. Only files that differ from the module default need to exist.
+Console commands are first-class module artifacts, discovered the same way handlers are: by attribute scan over the composer classmap.
 
-```text
-src/theme/{THEME_NAME}/{ModuleName}/
-  Static/                 # Asset overrides (same relative paths as module)
-    css/
-    js/
-  templates/              # Template overrides
-    layouts/
-    pages/
-    partials/
+**Where they go:**
+
+| Location | Path | Namespace |
+|---|---|---|
+| App module | `src/modules/{Module}/Application/Command/{Name}Command.php` | `Semitexa\Modules\{Module}\Application\Command` |
+| Package | `packages/semitexa-{pkg}/src/Console/Command/{Name}Command.php` | `Semitexa\{Pkg}\Console\Command` |
+
+**Discovery:** any class carrying `#[AsCommand(name: '...', description: '...')]` from `Semitexa\Core\Attribute\AsCommand` is registered with the framework console kernel. There is no manual wiring step.
+
+**Scaffold the right shape:**
+
+```bash
+bin/semitexa make:command --module=Catalog --name=Reindex --command-name=catalog:reindex --description='Rebuild the catalog search index.'
 ```
 
-Sparse overrides matter because they reduce duplication and preserve the module as the primary source of truth.
+**Canonical example** (illustrative module-owned command):
 
-Theme is activated via the `THEME` environment variable. Resolution order: theme first, module as fallback — for both templates and static assets.
+```php
+// src/modules/Catalog/Application/Command/CatalogReindexCommand.php
+namespace Semitexa\Modules\Catalog\Application\Command;
+
+use Semitexa\Core\Attribute\AsCommand;
+use Semitexa\Core\Console\BaseCommand;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
+
+#[AsCommand(name: 'catalog:reindex', description: 'Rebuild the catalog search index.')]
+final class CatalogReindexCommand extends BaseCommand
+{
+    public function __construct(
+        private readonly CatalogIndexer $indexer,
+    ) {
+        parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addOption('yes', 'y', InputOption::VALUE_NONE, 'Skip confirmation.');
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $io = new SymfonyStyle($input, $output);
+        // …
+        return self::SUCCESS;
+    }
+}
+```
+
+**Rules:**
+
+- **Do** name commands with a `module:verb` form (`catalog:reindex`, `update:plan`, `theme:scaffold`).
+- **Do** extend `Semitexa\Core\Console\BaseCommand` so the framework can wire DI cleanly.
+- **Do** use Symfony Console primitives (`InputInterface`, `OutputInterface`, `SymfonyStyle`) inside `execute()`.
+- **Do** put destructive commands behind explicit `--yes` / `--force` and refuse to run outside dev environments unless the operator has confirmed.
+- **Don't** put commands in random locations like `src/{Module}/Cli/`, `bin/`, `scripts/`, or the project's `App\` namespace — discovery walks `Application/Command/` (modules) and `src/Console/Command/` (packages).
+- **Don't** wire commands into `bin/semitexa` by hand or register them in a global list; the attribute is the registration.
+- **Don't** call out to `bin/semitexa` from inside another command (process-fork loop) — depend on the underlying service or invoke a command class directly through the kernel if absolutely necessary.
+
+### 1.2 Post-schema data patch placement
+
+Data patches sit on top of the ORM schema. They never change the schema. Schema changes go through `semitexa-orm` (`orm:diff` / `orm:sync`); `semitexa-update` runs the post-schema data work that depends on the new schema being live.
+
+**Where they go:**
+
+| Location | Path (suggested) | Namespace (suggested) |
+|---|---|---|
+| App module | `src/modules/{Module}/Application/Update/{PatchName}.php` | `Semitexa\Modules\{Module}\Application\Update` |
+| Package | `packages/semitexa-{pkg}/src/Update/{PatchName}.php` | `Semitexa\{Pkg}\Update` |
+
+> Discovery is namespace-agnostic — `DataPatchDiscovery` walks every class in the composer classmap that carries `#[AsDataPatch]`. The paths above are the convention. Following them keeps patches alongside the rest of the module's `Application/` artifacts; placing them anywhere reachable by autoload still works but loses the structural cue.
+
+**The contract:**
+
+```php
+namespace Semitexa\Modules\Catalog\Application\Update;
+
+use Semitexa\Modules\Catalog\Domain\Model\Article;
+use Semitexa\Update\Attribute\AsDataPatch;
+use Semitexa\Update\Context\DataPatchContext;
+use Semitexa\Update\Contract\DataPatchInterface;
+use Semitexa\Update\Enum\UpdatePhase;
+
+#[AsDataPatch(
+    id: 'backfill-article-slugs',     // per-module stable id; MUST NOT change once shipped
+    module: 'acme/catalog',           // composer package name — identity is (module, id)
+    phase: UpdatePhase::Apply,        // Pre / Apply / Post relative to ORM schema sync
+    dependencies: [],                 // ['acme/catalog:create-default-tags', ...]
+    requires: [Article::class],       // entities the patch reads/writes; runner verifies the table is live
+    description: 'Backfill slugs for legacy articles missing one.',
+)]
+final class BackfillArticleSlugs implements DataPatchInterface
+{
+    public function apply(DataPatchContext $ctx): void
+    {
+        // Idempotent — re-runs after a crash must not corrupt data.
+        $ctx->execute("UPDATE articles SET slug = LOWER(REPLACE(title, ' ', '-')) WHERE slug IS NULL");
+    }
+}
+```
+
+**How patches are discovered, gated, and run:**
+
+- Identity is `module:id`, not the FQCN — class renames do not re-run a patch.
+- The runner sweeps in three phases per ORM run: **Pre patches → ORM schema sync → Apply patches → Post patches**, abort on first failure.
+- Within a phase, patches resolve through a DAG built from `dependencies`.
+- The schema-compatibility gate inspects the live DB before each patch. If a `requires` entity's table or a `requiresColumns` column is missing, the patch is **skipped** (not failed) and journaled separately — fix the schema with `orm:sync` first.
+- `DataPatchContext::execute()` and `query()` reject SQL whose first non-comment token is `CREATE`, `ALTER`, `DROP`, `RENAME`, or `TRUNCATE` — `PatchSafetyException` fires. DDL belongs to ORM.
+- State is persisted in a per-database journal — `pending`, `applied`, `failed`, `skipped`.
+
+**CLI commands:**
+
+| Command | What it does |
+|---|---|
+| `bin/semitexa update` | Run pending patches in phase + DAG order. `--dry-run` prints the plan. |
+| `bin/semitexa update:plan` | Show pending patches without applying. |
+| `bin/semitexa update:status` | Counts by phase: applied, pending, failed, skipped. |
+| `bin/semitexa update:lint:patches` | Static validation of `#[AsDataPatch]` declarations. |
+
+**Rules:**
+
+- **Do** make patches idempotent — they may re-run after a partial failure.
+- **Do** declare `requires` (entity FQCNs) and/or `requiresColumns` (table → columns map) so the schema gate can protect the patch.
+- **Do** keep `id` stable for the lifetime of the patch — once shipped, never rename it; the journal keys on `module:id`.
+- **Do** use `dependencies: ['<other-module>:<other-id>', …]` when the patch must follow another patch.
+- **Don't** issue DDL inside a patch — `CREATE`/`ALTER`/`DROP`/`RENAME`/`TRUNCATE` are blocked at runtime and rejected by the lint command.
+- **Don't** rely on `class FQCN` matching — the runner does not care what the class is named, only `(module, id)`.
+- **Don't** use this attribute for ad-hoc maintenance scripts — those are console commands. Patches are part of the deploy/upgrade lifecycle.
+
+### Theme directory
+
+Themes are manifest-driven (see §13 for the full theme + skin model). The override surface for templates and assets lives at:
+
+```text
+src/theme/{theme-id}/
+  theme.json              # Manifest: id, extends, active_when, skin
+  {parent-theme-id}/
+    templates/            # Sparse template overrides (same relative paths as parent)
+      layouts/
+      pages/
+      partials/
+    Static/               # Sparse asset overrides (same relative paths)
+      css/
+      js/
+```
+
+Only override files that differ from the parent. Resolution chains through `extends` — when the theme does not override a template, lookup falls back to the parent theme, and ultimately to the module that owns the template.
+
+A theme is **activated per request** based on its `active_when` rules in `theme.json` (typically domain-gated). There is no `THEME` env var for selection — that mechanism has been replaced by manifest matching.
 
 ### Rules
 
@@ -177,12 +362,15 @@ Theme is activated via the `THEME` environment variable. Resolution order: theme
 - **Do** place page response DTOs in `Application/Resource/Response/`.
 - **Do** place slot resource DTOs in `Application/Resource/Slot/`.
 - **Do** place slot hydration logic in `Application/Handler/SlotHandler/`.
+- **Do** place console commands in `Application/Command/` (modules) or `src/Console/Command/` (packages) — see §1.1.
+- **Do** place data patches in `Application/Update/` (modules) or `src/Update/` (packages) — see §1.2.
 - **Do** place static assets in `Application/Static/` for both app modules and packages.
 - **Do** use the canonical `templates/` subdirectories: `pages/`, `layouts/`, `partials/`, `components/`, `deferred/`.
 - **Don't** place business logic outside `Application/` or `Domain/` directories.
 - **Don't** create utility classes in the root `src/` of a package — use `Service/`, `Contract/`, etc.
 - **Don't** put a `resources/` directory at module root — assets live under `Application/Static/`.
 - **Don't** list every asset file manually; use `assets.json` include rules.
+- **Don't** scatter console commands into `bin/`, `scripts/`, or top-level `App\` — discovery only walks the canonical command paths.
 
 If a future contributor cannot guess where a feature belongs from the directory tree, the structure is already losing value.
 
@@ -1390,18 +1578,140 @@ All modules must follow the canonical `templates/` subdirectory layout:
 | `templates/components/` | Component-specific templates |
 | `templates/deferred/` | Templates for deferred/async slots |
 
-Not all subdirectories need to exist — only create what the module uses. The `semitexa:lint:templates` CLI command validates structure across all modules (runs in CI as a blocking check).
+Not all subdirectories need to exist — only create what the module uses. The `lint:templates` CLI command validates structure across all modules (runs in CI as a blocking check).
 
 ### Theme resolution
 
-Templates resolve theme-first, module-as-fallback. The `THEME` environment variable activates a theme. Theme overrides live in `src/theme/{THEME}/{ModuleName}/templates/` and are sparse — only override what differs.
+Themes are **manifest-driven**, not env-driven. The legacy `THEME` environment variable is no longer how themes are selected.
 
-```twig
-{# This resolves to theme template if it exists, otherwise module template #}
-{% extends '@project-layouts-Website/layouts/base.html.twig' %}
+**Theme = manifest + sparse override surface.** A theme is anything declared by a `theme.json`:
+
+```text
+packages/<vendor>-<pkg>/theme.json     # packaged theme (e.g. semitexa-theme ships theme-base)
+src/theme/<theme-id>/theme.json        # project-local theme
 ```
 
-Twig's namespace fallback chain handles this automatically — both theme and module paths are registered per namespace.
+A `theme.json` declares:
+
+```json
+{
+    "id": "marketing-site",
+    "extends": "theme-base",
+    "active_when": { "domain": "marketing.example.test" },
+    "skin": { "default": "marketing-coral" }
+}
+```
+
+| Field | Purpose |
+|---|---|
+| `id` | Unique theme identity. Must not collide with `theme-base` (the framework root). |
+| `extends` | Parent theme — drives template fallback chain. |
+| `active_when` | Per-request gate: `{ "always": true }` (root only — `theme-base` claims this), `{ "domain": "..." }`, or other axes. Exactly one manifest may be `always`. |
+| `skin` | Skin selection — `{ "default": "<slug>" }` or conditional. The skin slug must exist (see §13 Skins). |
+
+**Selection at request time.** `ApplyThemeOnAuthCheckListener` walks the discovered theme set and picks the first whose `active_when` matches the current request (host, path, etc.). The chosen theme + its `extends` chain becomes the fallback path for template resolution. There is no global env switch.
+
+**Template override paths.** Inside the theme directory, override sub-paths mirror the parent module's tree:
+
+```text
+src/theme/marketing-site/
+  theme.json
+  theme-base/                        # overrides into theme-base templates/static
+    templates/layouts/base.html.twig
+    Static/css/marketing-overrides.css
+  Hello/                             # overrides into the Hello module
+    templates/pages/index.html.twig
+```
+
+Sparse: create only files that differ from the parent. Twig's namespace fallback walks the extends-chain automatically.
+
+**Useful commands:**
+
+| Command | What it does |
+|---|---|
+| `bin/semitexa theme:scaffold --slug=<id>` | Creates `src/theme/<id>/` with a starter `theme.json` extending `theme-base`. |
+| `bin/semitexa theme:validate` | CI-safe validation across every `theme.json` (parses, ids unique, extends targets exist, no cycles, exactly one `always` root, every skin slug resolves). |
+| `bin/semitexa theme:resolve` | Diagnose which theme matches a given request context. |
+
+**Rules:**
+
+- **Do** create new themes via `theme:scaffold` so the manifest is well-formed.
+- **Do** gate non-root themes with a real `active_when` axis (domain/path/etc.) — only `theme-base` may be `always: true`.
+- **Do** keep theme directories sparse — every override is a maintenance cost.
+- **Don't** read or set a `THEME` env var to pick a theme — it is not how selection works anymore.
+- **Don't** put runtime business logic in a theme; themes are presentation overrides only.
+
+### 13.1 Skins
+
+A **skin** is the visual token set referenced by a theme — colors, surfaces, borders, radii, shadows, motion, charts. Themes pick which skin is active; modules consume the resulting CSS variables.
+
+**Where skins live:**
+
+| Source | Path | Discovery |
+|---|---|---|
+| Framework default | `vendor/semitexa/theme/src/Application/Static/skins/<slug>/` | `SkinDiscovery::FRAMEWORK_SKINS_DIR` |
+| Project-local | `src/skins/<slug>/` | `SkinDiscovery::PROJECT_SKINS_DIR` (project wins on slug collision) |
+
+Each skin directory contains exactly two files:
+
+```text
+src/skins/<slug>/
+  skin.json             # source of truth (algorithm, seed, knobs, history, light+dark token map)
+  tokens.css            # generated artifact (canonical structure: 7 sections, light-dark() per token)
+```
+
+Both sources are served at the unified URL `/assets/skins/<slug>/tokens.css`.
+
+**`skin.json` (schema 3.0) — what it declares:**
+
+```json
+{
+    "name": "marketing-coral",
+    "schema_version": "3.0",
+    "source": "seed",
+    "algorithm": "balanced",          // "balanced" | "glass" | "brutalist"
+    "seed": "#c96d49",
+    "knobs": { "radius_scale": "default", "shadow_intensity": "default", "motion_speed": "default" },
+    "generated_at": "...",
+    "updated_at": "...",
+    "history": [ { "at": "...", "kind": "generate", "algorithm": "balanced", "seed": "...", "knobs": {…} } ],
+    "tokens": {
+        "light": { "--ui-surface-page": "#…", "--ui-accent-brand": "#…", "…": "…" },
+        "dark":  { "--ui-surface-page": "#…", "--ui-accent-brand": "#…", "…": "…" }
+    }
+}
+```
+
+**`tokens.css` is generated from `skin.json` — never hand-edited.** Layout is canonical: a 5-line header block, `:root { color-scheme: light dark; ... }` with seven labeled sections in fixed order — `COLOR · STATE · CHART · FORM · DEPTH · MOTION · EFFECT` — every variant token wrapped in `light-dark(L, D)`, mode-invariant tokens emitted as a single value, plus `:root[data-skin-mode="light|dark"]{ color-scheme: ...; }` mode-pinning blocks. `bin/semitexa lint:skin-tokens` is a regression guard that re-emits `tokens.css` from `skin.json` and fails on drift.
+
+**Public token surface** is the `--ui-*` set declared by `TokenContract` (currently 41 tokens across 7 sections). Module CSS consumes only those names. Algorithm internals and primitives are intentionally **not** part of the surface — they would freeze algorithm choices if exposed.
+
+**Workflow (canonical, project-local):**
+
+1. **Edit the source.** Modify `src/skins/<slug>/skin.json` (seed, knobs, or explicit token overrides).
+2. **Re-emit the artifact.** Run `bin/semitexa skins:rebuild <slug>` to regenerate `tokens.css` deterministically from `skin.json`.
+3. **Lint.** `bin/semitexa lint:skin-tokens` verifies no drift between source and artifact across every skin.
+4. **Reference from a theme.** Add `"skin": { "default": "<slug>" }` in the theme's `theme.json`.
+
+> **Caveat:** the `skins:generate` / `skins:refine` / `skins:rebuild` commands are produced by a skin-generation toolkit that ships in a separate package. The framework-side classes (`TokenEmitter`, `SkinBuilder`, `SkinManifest`, `SkinAlgorithmRegistry`) are present in `packages/semitexa-theme/src/Skin/` and reference these commands in operator-facing messages. If a fresh checkout does not include the toolkit, the corresponding commands may be unavailable — verify with `bin/semitexa list` or `bin/semitexa help` before depending on them. The lint guard (`bin/semitexa lint:skin-tokens`) is always available.
+
+**What gets committed vs. what is generated:**
+
+| File | Status | Edit by hand? |
+|---|---|---|
+| `skin.json` | Source of truth — committed | Yes — this is the authored input |
+| `tokens.css` | Generated artifact — committed | **No — regenerate via `skins:rebuild`** |
+
+Committing both lets the lint guard catch drift on PRs. Treat `tokens.css` like a code-generated file: delete it locally if needed, but never edit it by hand.
+
+**Rules:**
+
+- **Do** edit `skin.json`, re-emit `tokens.css` via `skins:rebuild`, and let `lint:skin-tokens` guard the result.
+- **Do** consume only `--ui-*` tokens from module CSS. The algorithm-internal variables are not part of the public contract.
+- **Do** put a project-local skin under `src/skins/<slug>/` — it overrides any framework-default of the same slug.
+- **Don't** hand-edit `tokens.css`. The lint guard will fail; fix the source instead.
+- **Don't** introduce new tokens to `--ui-*` casually — that surface is a contract; expand it deliberately, not per skin.
+- **Don't** confuse skin with theme: theme = template/asset override + selection; skin = visual token set referenced by the theme.
 
 ### Static assets
 
@@ -1441,7 +1751,7 @@ The more the rendering layer follows convention, the less every team has to rein
 }
 ```
 
-**Theme asset overrides:** Place files at `src/theme/{THEME}/{ModuleName}/Static/` with the same relative path. The theme version wins; the logical name and URL remain unchanged.
+**Theme asset overrides:** Place files at `src/theme/{theme-id}/{parent-or-module}/Static/` with the same relative path. The theme version wins; the logical name and URL remain unchanged. Theme selection is per-request and manifest-driven (see §13.1 Theme resolution) — there is no `THEME` env var.
 
 **Packages:** Follow the same `Application/Static/` + v2 manifest rules as app modules (One Way).
 
@@ -1458,7 +1768,7 @@ The more the rendering layer follows convention, the less every team has to rein
 - **Do** set SEO metadata via `$resource->pageTitle()` / `$resource->seoTag()` in handlers — never call `SeoMeta::setTitle()` or `SeoMeta::tag()` directly.
 - **Do** use the canonical template subdirectories (`pages/`, `layouts/`, `partials/`, `components/`, `deferred/`).
 - **Do** place new CSS/JS files in `Application/Static/` and ensure the default include rules (`css/**/*.css`, `js/**/*.js`) cover them.
-- **Do** use theme overrides (`src/theme/{THEME}/{Module}/`) for theme-specific templates and assets.
+- **Do** use theme overrides (`src/theme/{theme-id}/`) for theme-specific templates and assets, scaffolded via `bin/semitexa theme:scaffold`.
 - **Do** let page resources auto-render by default; reach for `disableAutoRender()` only in genuinely custom response flows.
 - **Don't** put business logic in Twig templates.
 - **Don't** pass a context array to `renderTemplate()` — pre-populate via `with*()` methods on the Resource.
@@ -1629,6 +1939,33 @@ final class SendOrderConfirmationHandler implements TypedHandlerInterface
 
 ## 17. Testing
 
+### Running tests — always through `bin/semitexa test:run`
+
+The only blessed entry point is the containerized command:
+
+```bash
+bin/semitexa test:run                                     # full suite
+bin/semitexa test:run tests/Unit/SomeTest.php             # narrowed path
+bin/semitexa test:run -- --filter someTestName            # extra phpunit args after one '--'
+bin/semitexa test:run -- --testsuite Unit                 # phpunit testsuite filter
+```
+
+Why this matters:
+
+- the container guarantees the right PHP / Swoole / extension surface;
+- it mirrors how CI runs;
+- direct host-side `vendor/bin/phpunit` invocations silently produce different results and are not supported.
+
+**Argument passing gotcha:** `bin/semitexa test:run` accepts a single trailing `--` to forward the rest as PHPUnit arguments. Never use a leading `--` separator before phpunit arguments.
+
+```bash
+# CORRECT — first non-option is the path, then '--' once before phpunit flags
+bin/semitexa test:run tests/Unit/X.php -- --filter foo
+
+# WRONG — leading '--' before phpunit args breaks parsing
+bin/semitexa test:run -- tests/Unit/X.php --filter foo
+```
+
 ### `#[TestablePayload]` attribute
 
 ```php
@@ -1697,10 +2034,12 @@ final class LoginEmailFormatStrategy implements TestingStrategyInterface
 
 ### Rules
 
+- **Do** run all tests via `bin/semitexa test:run` — never `vendor/bin/phpunit` from the host.
 - **Do** add `#[TestablePayload]` to every payload.
 - **Do** start with `StandardProfileStrategy` and escalate to `ParanoidProfileStrategy` for sensitive endpoints.
 - **Do** write custom strategies for domain-specific validation rules.
 - **Don't** skip security strategy on public endpoints — it tests for injection, XSS, header attacks.
+- **Don't** invoke `vendor/bin/phpunit` directly — it bypasses the container and may produce false positives or false negatives.
 
 ---
 
@@ -2183,7 +2522,7 @@ final class MyHandler implements HandlerInterface { ... }
 final class MyHandler implements TypedHandlerInterface { ... }
 ```
 
-> Run `bin/semitexa semitexa:lint:handlers` to find all remaining legacy handlers. PHPStan also flags `HandlerInterface` usage with the `semitexa.deprecatedHandlerInterface` identifier.
+> Run `bin/semitexa lint:handlers` to find all remaining legacy handlers. PHPStan also flags `HandlerInterface` usage with the `semitexa.deprecatedHandlerInterface` identifier.
 
 ### Don't: Implement PayloadInterface
 
@@ -2196,4 +2535,75 @@ class MyPayload {}
 
 // GOOD — with validation (ValidatablePayload is still required)
 class MyPayload implements ValidatablePayload { ... }
+```
+
+### Don't: Run `vendor/bin/phpunit` directly
+
+```bash
+# BAD — bypasses the container, picks up the host PHP/Swoole, may diverge from CI
+vendor/bin/phpunit tests/Unit/MyTest.php
+
+# GOOD — runs inside the framework container, matches CI
+bin/semitexa test:run tests/Unit/MyTest.php
+```
+
+### Don't: Hand-edit `tokens.css`
+
+```css
+/* BAD — tokens.css is generated; lint:skin-tokens will fail and your edit will be lost on rebuild */
+:root { --ui-accent-brand: #ff0000; }
+```
+
+```jsonc
+// GOOD — edit src/skins/<slug>/skin.json, then bin/semitexa skins:rebuild <slug>
+{ "tokens": { "light": { "--ui-accent-brand": "#ff0000" } } }
+```
+
+### Don't: Place console commands or update patches outside the canonical location
+
+```text
+# BAD — discovery does not walk these paths
+bin/my-script.php
+scripts/cleanup.php
+src/Console/Reset.php           # only valid inside packages, not under src/
+
+# GOOD — discovered via #[AsCommand]
+src/modules/{Module}/Application/Command/{Name}Command.php
+packages/semitexa-{pkg}/src/Console/Command/{Name}Command.php
+
+# GOOD — discovered via #[AsDataPatch]
+src/modules/{Module}/Application/Update/{PatchName}.php
+packages/semitexa-{pkg}/src/Update/{PatchName}.php
+```
+
+### Don't: Treat `THEME` as the way to switch themes
+
+```bash
+# BAD — has no effect; theme selection is manifest-driven via active_when
+THEME=dark bin/semitexa server:start
+
+# GOOD — gate the theme manifest with active_when (domain, path, etc.)
+# src/theme/dark/theme.json:
+# { "id": "dark", "extends": "theme-base", "active_when": { "domain": "dark.example.test" }, "skin": { "default": "dark" } }
+```
+
+### Don't: Treat `var/docs/` as authoritative documentation
+
+```text
+# BAD — relying on a long-lived contract document inside scratch
+"see var/docs/HANDLER_REFACTORING_TECHNICAL_DESIGN.md for the canonical handler contract"
+
+# GOOD — canonical docs live in packages/semitexa-docs/docs/; var/docs/ is in-flight scratch
+"see packages/semitexa-docs/docs/AI_BEST_PRACTICES.md §4 (Handlers)"
+```
+
+### Don't: Document planned features as if they exist
+
+```text
+# BAD — the doc claims a command/path that no fresh checkout has
+"Run `make:patch` to scaffold a data patch."          # no such generator exists today
+
+# GOOD — describe what is in the repo; capture the rest as an ai:epic
+"Author the patch class manually under Application/Update/ following §1.2; a make:patch
+generator is not part of the framework today (would be a follow-up epic)."
 ```
