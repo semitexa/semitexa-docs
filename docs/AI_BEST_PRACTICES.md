@@ -284,8 +284,8 @@ namespace Semitexa\Modules\Catalog\Application\Update;
 use Semitexa\Modules\Catalog\Domain\Model\Article;
 use Semitexa\Update\Attribute\AsDataPatch;
 use Semitexa\Update\Context\DataPatchContext;
-use Semitexa\Update\Contract\DataPatchInterface;
-use Semitexa\Update\Enum\UpdatePhase;
+use Semitexa\Update\Domain\Contract\DataPatchInterface;
+use Semitexa\Update\Domain\Enum\UpdatePhase;
 
 #[AsDataPatch(
     id: 'backfill-article-slugs',     // per-module stable id; MUST NOT change once shipped
