@@ -313,7 +313,7 @@ Two layers carry the name "Contract"; they serve different purposes.
 
 | Layer | Path | Contains | Owner |
 |---|---|---|---|
-| Framework `Contract` | `packages/semitexa-core/src/Contract/` | Framework-level interfaces implemented by the runtime: `TypedHandlerInterface`, `ExceptionResponseMapperInterface`, `RouteMetadataResolverInterface`, etc. Plus the `ValidatablePayload` contract base. | semitexa-core only — gated by `packageSpecificCodeRoot.core` |
+| Framework `Contract` | `packages/semitexa-core/src/Contract/` | Framework-level interfaces implemented by the runtime: `TypedHandlerInterface`, `ExceptionResponseMapperInterface`, `RouteMetadataResolverInterface`, etc. Every file in this leaf ends in `Interface.php`. | semitexa-core only — gated by `packageSpecificCodeRoot.core` |
 | Module `Domain/Contract` | `<package>/src/Domain/Contract/` and `src/modules/{Name}/Domain/Contract/` | Module-level / domain interfaces, including all repository interfaces (`*RepositoryInterface.php`). | every package + every application module |
 
 The two never overlap: a framework `Contract/` can only appear inside `semitexa-core`; a `Domain/Contract/` can appear in any package or module. They are also at different paths so a misplaced file fails before any name conflict can arise.
@@ -410,7 +410,7 @@ Beyond Application/Db (already covered above), the following layers have explici
 | `Error` (semitexa-core) | `/^Error[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — basenames must start with Error. Phase 3 batch 3. |
 | `Acl` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | Phase 3 batch 3 tightening: drift deny-list added. |
 | `Authorization` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | Phase 3 batch 3 tightening: drift deny-list added. |
-| `Contract` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Interface\.php$/` + exact `[ValidatablePayload.php]` | — | LEAF. Framework-level interfaces. **NOT** the same as Domain/Contract — see "Contract vs Domain/Contract" above. Phase 4. |
+| `Contract` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Interface\.php$/` | — | LEAF. Framework-level interfaces. **NOT** the same as Domain/Contract — see "Contract vs Domain/Contract" above. Phase 4. |
 | `Locale` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | LEAF + drift deny-list. Phase 4. |
 | `Tenant` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | Children: `Layer/`, `Scope/` only + PascalCase root files. Drift deny-list. Phase 4. |
 | `Tenant/Layer` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*(Layer\|Value\|Interface)\.php$/` | — | LEAF — basenames end in Layer.php / Value.php / Interface.php. Phase 4. |

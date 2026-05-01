@@ -399,29 +399,45 @@ class OrmIndexPayload {}
     methods: ['POST'],
     responseWith: GenericResponse::class,
 )]
-class UserCreatePayload implements ValidatablePayload
+class UserCreatePayload
 {
-    use NotBlankValidationTrait;
-    use EmailValidationTrait;
-    use LengthValidationTrait;
-
     protected string $email = '';
     protected string $name  = '';
     protected string $password = '';
 
     public function getEmail(): string { return $this->email; }
-    public function setEmail(string $email): void { $this->email = $email; }
-    // ... other getters/setters ...
-
-    public function validate(): PayloadValidationResult
+    public function setEmail(string $email): void
     {
-        $errors = [];
-        $this->validateNotBlank('email', $this->email, $errors);
-        $this->validateEmail('email', $this->email, $errors);
-        $this->validateNotBlank('name', $this->name, $errors);
-        $this->validateNotBlank('password', $this->password, $errors);
-        $this->validateLength('password', $this->password, 8, null, $errors);
-        return new PayloadValidationResult(empty($errors), $errors);
+        $trimmed = trim($email);
+        if ($trimmed === '') {
+            throw new ValidationException(['email' => ['Must not be blank.']]);
+        }
+        if (filter_var($trimmed, FILTER_VALIDATE_EMAIL) === false) {
+            throw new ValidationException(['email' => ['Must be a valid email address.']]);
+        }
+        $this->email = $trimmed;
+    }
+
+    public function getName(): string { return $this->name; }
+    public function setName(string $name): void
+    {
+        $trimmed = trim($name);
+        if ($trimmed === '') {
+            throw new ValidationException(['name' => ['Must not be blank.']]);
+        }
+        $this->name = $trimmed;
+    }
+
+    public function getPassword(): string { return $this->password; }
+    public function setPassword(string $password): void
+    {
+        if ($password === '') {
+            throw new ValidationException(['password' => ['Must not be blank.']]);
+        }
+        if (strlen($password) < 8) {
+            throw new ValidationException(['password' => ['Must be at least 8 characters.']]);
+        }
+        $this->password = $password;
     }
 }
 ```
@@ -487,9 +503,8 @@ What not to do:
 ### Rules
 
 - **Do** always provide `responseWith:` — it links the payload to its resource.
-- **Do** implement `ValidatablePayload` for any payload that accepts user input.
-- **Do** use validation traits (`NotBlankValidationTrait`, `EmailValidationTrait`, `LengthValidationTrait`) rather than inline validation.
-- **Do** use `protected` properties with explicit getters/setters. The `RequestDtoHydrator` calls setters to populate the DTO.
+- **Do** validate user input in setters: throw `Semitexa\Core\Exception\ValidationException` from any `setX()` that receives an invalid value. The framework converts the exception to a `422` response with a `{ errors: { field: [...] } }` envelope.
+- **Do** use `protected` properties with explicit getters/setters. The `RequestDtoHydrator` calls setters to populate the DTO, so setter-time validation runs before the handler ever sees the payload.
 - **Do** use `requirements:` for path params — it constrains what the router will match.
 - **Don't** implement `PayloadInterface` — it is deprecated (v2.0). Payloads no longer need a marker interface; the pipeline accepts `object` typed parameters.
 - **Don't** put business logic in a payload. It is a data carrier only.
@@ -1354,43 +1369,69 @@ System env variables are **never** overwritten by `.env` files.
 
 ## 11. Validation
 
-### Built-in validation traits
+### Setter-time validation in payloads
+
+Validation lives in setters. Each `setX()` is responsible for its field's
+own constraints; failures throw `Semitexa\Core\Exception\ValidationException`
+with a field-keyed `errors` map. The `RequestDtoHydrator` calls setters in
+turn, so an invalid value never makes it past hydration — the handler only
+ever sees a fully-valid payload.
+
+### Reusable assertions: validation traits
+
+Common single-rule assertions live in
+`Semitexa\Core\Validation\Trait\` and are designed for the setter-throw
+flow (return the normalised value on success, throw on failure):
+
+| Trait | Method | Returns | Throws on |
+|---|---|---|---|
+| `NotBlankValidationTrait` | `self::requireNotBlank(string $field, string $value, string $message = 'Must not be blank.'): string` | trimmed value | blank-after-trim |
+
+Drop the trait into the payload, call the assertion from the relevant
+`setX()`, and store the return value. Don't reinvent the helper inline —
+add new assertions to the framework trait set instead so every payload
+shares one canonical rule.
 
 ```php
-use NotBlankValidationTrait;   // validateNotBlank(field, value, &errors)
-use EmailValidationTrait;      // validateEmail(field, value, &errors)
-use LengthValidationTrait;     // validateLength(field, value, min, max, &errors)
-```
+use Semitexa\Core\Attribute\AsPayload;
+use Semitexa\Core\Validation\Trait\NotBlankValidationTrait;
 
-### Validation in payloads
-
-```php
 #[AsPayload(path: '/api/users', methods: ['POST'], responseWith: GenericResponse::class)]
-class CreateUserPayload implements ValidatablePayload
+class CreateUserPayload
 {
     use NotBlankValidationTrait;
-    use EmailValidationTrait;
-    use LengthValidationTrait;
 
     protected string $email = '';
-    protected string $password = '';
+    protected string $name  = '';
 
-    public function setEmail(string $email): void { $this->email = $email; }
-    public function setPassword(string $password): void { $this->password = $password; }
-
-    public function validate(): PayloadValidationResult
+    public function getEmail(): string { return $this->email; }
+    public function setEmail(string $email): void
     {
-        $errors = [];
-        $this->validateNotBlank('email', $this->email, $errors);
-        $this->validateEmail('email', $this->email, $errors);
-        $this->validateNotBlank('password', $this->password, $errors);
-        $this->validateLength('password', $this->password, 8, null, $errors);
-        return new PayloadValidationResult(empty($errors), $errors);
+        $this->email = self::requireNotBlank('email', $email);
+    }
+
+    public function getName(): string { return $this->name; }
+    public function setName(string $name): void
+    {
+        $this->name = self::requireNotBlank('name', $name);
     }
 }
 ```
 
-Validation runs after hydration and before the handler executes.
+Field-specific rules that don't fit a framework trait throw
+`ValidationException` directly:
+
+```php
+use Semitexa\Core\Exception\ValidationException;
+
+public function setIssuedAt(int $issuedAt): void
+{
+    if ($issuedAt <= 0) {
+        throw new ValidationException(['issuedAt' => ['Must be a positive UNIX timestamp.']]);
+    }
+    $this->issuedAt = $issuedAt;
+}
+```
 
 On failure, the framework returns HTTP 422:
 ```json
@@ -1403,11 +1444,13 @@ On failure, the framework returns HTTP 422:
 
 ### Rules
 
-- **Do** implement `ValidatablePayload` on any payload accepting user input.
-- **Do** compose validation via traits — don't duplicate validation logic.
-- **Do** return structured errors keyed by field name.
-- **Don't** validate in handlers — validate in the payload itself.
-- **Don't** rely on type casting for validation — explicitly check business rules in `validate()`.
+- **Do** validate user input inside setters; throw `ValidationException` with a `[field => [messages]]` map.
+- **Do** reach for the framework traits (`Semitexa\Core\Validation\Trait\…`) when an assertion is reusable — and add new traits there instead of pasting an inline helper into a payload.
+- **Do** keep each setter responsible for one field's constraints — the first failure short-circuits hydration with a clear, scoped error.
+- **Do** use `protected` properties with explicit getters/setters so the `RequestDtoHydrator` can drive validation.
+- **Don't** add a separate post-hydration `validate()` method — validation is a setter-time contract now.
+- **Don't** validate in handlers — validate in the setter itself.
+- **Don't** rely on type casting for validation — write the business rule explicitly in the setter.
 
 ---
 
@@ -1973,7 +2016,7 @@ bin/semitexa test:run -- tests/Unit/X.php --filter foo
 #[TestablePayload(
     strategies: [ParanoidProfileStrategy::class, LoginEmailFormatStrategy::class],
 )]
-class LoginPayload implements ValidatablePayload { ... }
+class LoginPayload { ... }
 ```
 
 ### Strategy profiles
@@ -2530,11 +2573,9 @@ final class MyHandler implements TypedHandlerInterface { ... }
 // BAD — deprecated marker interface, no longer required
 class MyPayload implements PayloadInterface {}
 
-// GOOD — plain class, no marker interface needed
+// GOOD — plain class, no marker interface needed; validation lives in setters
+//        (throw Semitexa\Core\Exception\ValidationException from setX() to reject input).
 class MyPayload {}
-
-// GOOD — with validation (ValidatablePayload is still required)
-class MyPayload implements ValidatablePayload { ... }
 ```
 
 ### Don't: Run `vendor/bin/phpunit` directly
