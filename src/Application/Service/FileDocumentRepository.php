@@ -7,10 +7,10 @@ namespace Semitexa\Docs\Application\Service;
 use Semitexa\Core\Attribute\AsService;
 use Semitexa\Core\Attribute\InjectAsReadonly;
 use Semitexa\Core\Log\StaticLoggerBridge;
-use Semitexa\Docs\Application\Document\DocumentId;
-use Semitexa\Docs\Application\Document\DocumentManifestItem;
-use Semitexa\Docs\Application\Document\DocumentMetadata;
-use Semitexa\Docs\Application\Document\ResolvedDocument;
+use Semitexa\Docs\Domain\Model\DocumentId;
+use Semitexa\Docs\Domain\Model\DocumentManifestItem;
+use Semitexa\Docs\Domain\Model\DocumentMetadata;
+use Semitexa\Docs\Domain\Model\ResolvedDocument;
 
 #[AsService]
 final class FileDocumentRepository

@@ -188,7 +188,7 @@ For package modules, rule P005 additionally reads `*Command.php` files under pac
 
 ## 5. Issue codes
 
-Each violation emitted by the validator carries one of these stable, AI-facing codes. Codes are constants on `Semitexa\Dev\Ai\Verify\Structure\ModuleStructureViolation`.
+Each violation emitted by the validator carries one of these stable, AI-facing codes. Codes are constants on `Semitexa\Dev\Application\Service\Ai\Verify\Structure\ModuleStructureViolation`.
 
 | Code | Trigger | What to do |
 |---|---|---|
@@ -461,7 +461,8 @@ The directory list is **closed**: only these adapter directory names are accepte
 
 | Path | Contains | Allowed file patterns |
 |---|---|---|
-| `Application/Db/<Adapter>/Model/`      | `*Resource`, `*ResourceModel`, `*Mapper` classes — the ORM-facing schema and the mappers that translate between rows and domain entities. Feature grouping (`Application/Db/<Adapter>/Model/Customer/…`) is allowed. | `*Resource.php`, `*ResourceModel.php`, `*Mapper.php` only — `SomeService.php` / `SomeHelper.php` / `SomeManager.php` etc. fail with `module_structure.invalid_location`. |
+| `Application/Db/<Adapter>/Model/`      | `*Resource` and `*ResourceModel` classes — the ORM-facing schema. Feature grouping (`Application/Db/<Adapter>/Model/Customer/…`) is allowed. | `*Resource.php`, `*ResourceModel.php` only — `*Mapper.php` belongs in the peer `Mapper/` sub-tree; `SomeService.php` / `SomeHelper.php` / `SomeManager.php` etc. fail with `module_structure.invalid_location`. |
+| `Application/Db/<Adapter>/Mapper/`     | `*Mapper` classes — translate between resource models and domain entities. Peer of `Model/`, not a child of it. Feature grouping (`Application/Db/<Adapter>/Mapper/Customer/…`) is allowed. | `*Mapper.php` only — `*Resource.php` / `*ResourceModel.php` / `SomeService.php` etc. fail with `module_structure.invalid_location`. |
 | `Application/Db/<Adapter>/Repository/` | Concrete repository implementations that implement the interfaces under `Domain/Repository/` (or `Domain/Contract/`). Feature grouping allowed. | `*Repository.php` only — `SomeFactory.php` / `SomeHelper.php` / `SomeService.php` fail with `module_structure.invalid_location`. |
 
 **Adding a new storage adapter** requires three coordinated edits:
@@ -477,7 +478,8 @@ Until all three are done, the validator rejects the new adapter directory.
 * `Domain/Model/MachineCredentialResource.php` — `*Resource`/`*ResourceModel` classes are persistence implementation; they belong under `Application/Db/<Adapter>/Model/`, not `Domain/Model/`. (`Domain/Model/` holds entity types only.)
 * `Domain/Repository/MachineCredentialMysqlRepository.php` — concrete database-specific repositories belong under `Application/Db/<Adapter>/Repository/`, not `Domain/Repository/`. (`Domain/Repository/` holds the interfaces.)
 * `Application/Db/Oracle/Model/UserResource.php` — Oracle is not in the supported adapter list; the directory is rejected.
-* `Application/Db/MySQL/Model/UserService.php` — `Service` is not a persistence model class; rename to a `*Resource`/`*ResourceModel`/`*Mapper` or move to `Application/Service/`.
+* `Application/Db/MySQL/Model/UserService.php` — `Service` is not a persistence model class; rename to a `*Resource`/`*ResourceModel` or move to `Application/Service/`.
+* `Application/Db/MySQL/Model/UserMapper.php` — mappers are a peer sub-tree, not a child of `Model/`; move to `Application/Db/MySQL/Mapper/UserMapper.php`.
 * `Application/Db/MySQL/Repository/UserFactory.php` — `Factory` is not a repository class; rename to `*Repository.php` or move out of the persistence layer.
 
 ### Allowed Application/Console children
@@ -710,7 +712,7 @@ packages/semitexa-core/src/Application/Service/Sandbox/PocService.php
 
 ```text
 src/modules/ApiDemo/Application/Handler/PayloadHandler/CreateArticleHandler.php   ✓ (local sandbox)
-packages/semitexa-api/tests/Fixtures/Demo/Application/Handler/CreateArticleHandler.php ✓ (test fixture)
+tests/Playground/RestApi/Fixtures/Application/Handler/CreateArticleHandler.php    ✓ (host-app test fixture)
 ```
 
 ---
@@ -721,6 +723,138 @@ packages/semitexa-api/tests/Fixtures/Demo/Application/Handler/CreateArticleHandl
 * **After placing a file**: run `bin/semitexa ai:verify --files=<path>`. The `module_structure` check runs automatically on every affected module.
 * **On failure**: read the `violation` events, follow `doc_ref` and `suggested_fix`, move the file, re-run.
 * **To change a rule**: edit `packages/semitexa-dev/config/module-structure.php` (the executable spec) and update § 2 + § 5 of this document to match. Run `bin/semitexa test:run` to confirm the spec change is internally consistent.
+
+---
+
+## 9.5. Local package module-structure extensions
+
+Some Semitexa packages are themselves *framework primitives* — they define
+abstractions every other package consumes. `semitexa-orm` is the canonical
+example: it defines what an "adapter" is, what a "repository abstraction"
+is, the query DSL, and so on. Those layers cannot live under the
+consumer-side canonical structure (`Application/Db/<Adapter>/...`)
+because the package *is* the thing that defines `<Adapter>`.
+
+Rather than hardcode every framework-primitive directory in this global
+spec (which would let agents assume those directories are valid
+everywhere), Semitexa supports **package-local module-structure
+extensions**.
+
+### Mechanism
+
+A framework package may ship two files:
+
+| Path | Role |
+|---|---|
+| `packages/<pkg>/config/module-structure.php` | Executable local rules — returns a `LocalModuleStructureExtension`. |
+| `packages/<pkg>/docs/MODULE_STRUCTURE.md` | Human explanation — companion to the executable rules. |
+
+The executable file is the **only** source of validation truth. Markdown
+alone never validates anything — otherwise an agent could "fix" a
+violation by editing prose.
+
+### Effective rules
+
+For a package with a local extension:
+
+```
+effective_rules = global_module_structure_rules + local_extension
+```
+
+Local extensions are **strictly additive**:
+
+- they may add a small, named set of additional top-level directories and
+  root files specific to that one package;
+- every authorised directory must have an explicit `pathRules` entry
+  (silent skipping is forbidden — the same Phase 2 rule that applies to
+  `semitexa-core`'s `packageSpecificCodeRoot`);
+- top-level directories use one of the existing modes:
+  `MODE_LEAF_FILES_ONLY`, `MODE_DEEP_VALIDATED`, or — only with
+  documented owner / reason / todo — `MODE_OPAQUE_INTERNAL`.
+
+### Hard guard rails (enforced by `ModuleStructureSpecLoader`)
+
+A local extension **cannot**:
+
+- declare a top-level directory whose name is in the global
+  production-pollution deny-list (`Demo`, `Sandbox`, `Playground`,
+  `Example`, `Sample`, `Fake`, `Experimental`, `TestApp`, ...);
+- redeclare a canonical top-level layer (`Application`, `Domain`,
+  `Configuration`, `Context`, `Update`, `Static`, `View`, `Exception`,
+  `Attribute`, `Auth`, `Discovery`, `OpenApi`, `Pipeline`);
+- introduce a rule for `Domain/Contract/`, `Exception/`, or `Attribute/`
+  — the global `*Interface.php` / `*Exception.php` / singular
+  `Attribute/` conventions are non-negotiable;
+- declare a top-level file whose basename is not a `*.php` (non-PHP
+  package metadata stays in the global `packageRoot` rule);
+- apply to any other package or to `src/modules/*`.
+
+Violating any guard rail makes the loader throw at boot — the package
+fails to validate, not silently. Diagnostic codes:
+`module_structure.local_extension_invalid` and
+`module_structure.local_extension_forbidden_override`.
+
+### Scope isolation
+
+Per-package scoping is implemented via `ModuleStructureSpec::$packageScopedRules`
+(map of `package_name → relative_path → rule`). When the validator looks
+up a rule for path `X` inside package `P`, it consults
+`$packageScopedRules[P][X]` first and only falls back to the global
+`$codeRootRules[X]` if no scoped rule exists. This prevents a rule
+contributed by package `A`'s local extension from leaking into package
+`B`'s validation, even if both packages happened to declare the same
+top-level directory name.
+
+### Example: `semitexa-orm`
+
+`semitexa-orm` declares (and the spec docs at § 5.6 already document the
+canonical FQCNs for) these ORM-only top-level directories:
+
+`Adapter/`, `Trait/`, `Repository/`, `Query/`, `Metadata/`, plus the
+root file `OrmManager.php`.
+
+See:
+
+- [`packages/semitexa-orm/config/module-structure.php`](../../semitexa-orm/config/module-structure.php) — executable rules
+- [`packages/semitexa-orm/docs/MODULE_STRUCTURE.md`](../../semitexa-orm/docs/MODULE_STRUCTURE.md) — human explanation
+
+This local extension does **not** make `Adapter/`, `Query/`, `Repository/`,
+etc. valid in `semitexa-api`, `semitexa-cache`, `semitexa-mail`, or any
+other package — they continue to fail there with
+`module_structure.unknown_directory`. Consumer packages still use
+`Application/Db/<Adapter>/Model/` for `*Resource`, `*ResourceModel`,
+`*Mapper` files and `Application/Db/<Adapter>/Repository/` for concrete
+`*Repository` implementations. `Domain/Repository/` remains forbidden
+everywhere.
+
+### Querying which rules apply
+
+`ai:ask --path=<path>` (or `ai:ask path --path=<path>`) explains a path
+using both the global rules and any package-local extension. It reports:
+
+- detected package / module,
+- which docs were consulted,
+- which executable rule files were consulted,
+- whether the path is `allowed` / `invalid` / `unresolved` / `outside_module`,
+- `rule_scope`: `global` / `local` / `none`,
+- `exists`: whether the path actually exists on disk (allows hypothetical
+  classification — e.g. a feature-grouped child that would be allowed if
+  created),
+- whether the path is part of the package's public API (`public_api`),
+- a short `suggested_action` if the path is invalid,
+- a `warnings[]` list — including a hard reminder when a path is allowed
+  *only* because of a local extension, and a separate note when the rule
+  was inherited from a feature-grouping ancestor.
+
+`ai:ask --path` resolves rules with the **same feature-grouping
+inheritance** as `ai:verify`: when a parent rule has
+`allowFeatureGrouping: true` (e.g. `Application/Service`), every
+descendant feature-group directory inherits the parent rule. So
+`packages/<pkg>/src/Application/Service/Transaction/` reports `allowed`
+with a warning that the rule was inherited from `Application/Service`,
+not because `Transaction/` is a separately declared layer.
+
+Use this whenever you are unsure whether a directory is canonical.
 
 ---
 

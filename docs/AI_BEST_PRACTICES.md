@@ -1429,8 +1429,8 @@ In application code, prefer route names plus URL generation over coupling to dis
 
 ```php
 // In handlers or services:
-\Semitexa\Ssr\Routing\UrlGenerator::to('auth.login');                      // '/api/login'
-\Semitexa\Ssr\Routing\UrlGenerator::to('user.profile', ['id' => $userId]); // '/users/{id}' -> '/users/abc-123'
+\Semitexa\Ssr\Application\Service\Routing\UrlGenerator::to('auth.login');                      // '/api/login'
+\Semitexa\Ssr\Application\Service\Routing\UrlGenerator::to('user.profile', ['id' => $userId]); // '/users/{id}' -> '/users/abc-123'
 
 // In Twig:
 {{ url('auth.login') }}
@@ -1649,7 +1649,7 @@ A **skin** is the visual token set referenced by a theme — colors, surfaces, b
 
 | Source | Path | Discovery |
 |---|---|---|
-| Framework default | `vendor/semitexa/theme/src/Application/Static/skins/<slug>/` | `SkinDiscovery::FRAMEWORK_SKINS_DIR` |
+| Framework default | `vendor/semitexa/theme/src/Application/Static/css/skins/<slug>/` | `SkinDiscovery::FRAMEWORK_SKINS_DIR` |
 | Project-local | `src/skins/<slug>/` | `SkinDiscovery::PROJECT_SKINS_DIR` (project wins on slug collision) |
 
 Each skin directory contains exactly two files:

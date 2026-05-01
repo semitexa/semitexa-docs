@@ -147,7 +147,7 @@ namespace Semitexa\Modules\Website\Application\Resource\Response;
 
 use Semitexa\Core\Attributes\AsResource;
 use Semitexa\Core\Contract\ResourceInterface;
-use Semitexa\Ssr\Http\Response\HtmlResponse;
+use Semitexa\Ssr\Application\Service\Http\Response\HtmlResponse;
 
 #[AsResource(
     handle: 'minimal_page',

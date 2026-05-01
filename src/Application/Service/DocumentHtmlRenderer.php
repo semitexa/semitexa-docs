@@ -9,8 +9,8 @@ use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
 use League\CommonMark\MarkdownConverter;
 use Semitexa\Core\Attribute\AsService;
-use Semitexa\Docs\Application\Document\RenderedDocument;
-use Semitexa\Docs\Application\Document\ResolvedDocument;
+use Semitexa\Docs\Domain\Model\RenderedDocument;
+use Semitexa\Docs\Domain\Model\ResolvedDocument;
 
 #[AsService]
 final class DocumentHtmlRenderer

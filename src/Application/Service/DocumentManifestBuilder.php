@@ -6,7 +6,7 @@ namespace Semitexa\Docs\Application\Service;
 
 use Semitexa\Core\Attribute\AsService;
 use Semitexa\Core\Attribute\InjectAsReadonly;
-use Semitexa\Docs\Application\Document\DocumentManifestItem;
+use Semitexa\Docs\Domain\Model\DocumentManifestItem;
 
 #[AsService]
 final class DocumentManifestBuilder
