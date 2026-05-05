@@ -13,7 +13,7 @@
 **Verdict: Well-designed.** The package follows SOLID principles, maintains clear separation of concerns, and features a robust extension system.
 
 **Strengths:**
-- **Metadata Separation:** Distinction between production (`#[AsPayload]`) and test (`#[TestablePayload]`) metadata—test dependencies never enter the production container.
+- **Metadata Separation:** Distinction between production access attributes (`#[AsPublicPayload]` / `#[AsProtectedPayload]` / `#[AsServicePayload]`) and test metadata (`#[TestablePayload]`) — test dependencies never enter the production container.
 - **Strategy Pattern:** Implementation of `canRun()` and `skipReason()` allows elegant handling of `markTestSkipped()` semantics.
 - **Profile Expansion:** Recursive expansion with de-duplication prevents redundant execution.
 - **Transport Abstraction:** Supports `InProcessTransport` for speed and `HttpTransport` for full integration testing.

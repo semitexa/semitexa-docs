@@ -87,11 +87,9 @@ declare(strict_types=1);
 
 namespace Semitexa\Modules\Website\Application\Payload\Request;
 
-use Semitexa\Core\Attributes\AsPayload;
-use Semitexa\Core\Exception\ValidationException;
-use Semitexa\Modules\Website\Application\Resource\Response\MinimalPageResource;
+use Semitexa\Core\Attribute\AsPublicPayload;use Semitexa\Core\Exception\ValidationException;use Semitexa\Modules\Website\Application\Resource\Response\MinimalPageResource;
 
-#[AsPayload(path: '/minimal', methods: ['GET'], responseWith: MinimalPageResource::class)]
+#[AsPublicPayload(path: '/minimal', methods: ['GET'], responseWith: MinimalPageResource::class)]
 final class MinimalPagePayload
 {
     protected string $name = '';

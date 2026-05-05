@@ -120,7 +120,7 @@ packages/semitexa-{name}/
     Attributes/           # Package-specific attributes
     Application/
       Payload/
-        Request/          # PayloadDTOs (#[AsPayload])
+        Request/          # payload DTOs (one of #[AsPublicPayload] / #[AsProtectedPayload] / #[AsServicePayload])
         Event/            # Event classes
         Part/             # #[AsPayloadPart] traits
       Resource/           # Render ResourceDTOs
@@ -206,8 +206,8 @@ Console commands are first-class module artifacts, discovered the same way handl
 
 | Location | Path | Namespace |
 |---|---|---|
-| App module | `src/modules/{Module}/Application/Command/{Name}Command.php` | `Semitexa\Modules\{Module}\Application\Command` |
-| Package | `packages/semitexa-{pkg}/src/Console/Command/{Name}Command.php` | `Semitexa\{Pkg}\Console\Command` |
+| App module | `src/modules/{Module}/Application/Console/Command/{Name}Command.php` | `Semitexa\Modules\{Module}\Application\Console\Command` |
+| Package | `packages/semitexa-{pkg}/src/Application/Console/Command/{Name}Command.php` | `Semitexa\{Pkg}\Application\Console\Command` |
 
 **Discovery:** any class carrying `#[AsCommand(name: '...', description: '...')]` from `Semitexa\Core\Attribute\AsCommand` is registered with the framework console kernel. There is no manual wiring step.
 
@@ -220,8 +220,8 @@ bin/semitexa make:command --module=Catalog --name=Reindex --command-name=catalog
 **Canonical example** (illustrative module-owned command):
 
 ```php
-// src/modules/Catalog/Application/Command/CatalogReindexCommand.php
-namespace Semitexa\Modules\Catalog\Application\Command;
+// src/modules/Catalog/Application/Console/Command/CatalogReindexCommand.php
+namespace Semitexa\Modules\Catalog\Application\Console\Command;
 
 use Semitexa\Core\Attribute\AsCommand;
 use Semitexa\Core\Console\BaseCommand;
@@ -259,7 +259,7 @@ final class CatalogReindexCommand extends BaseCommand
 - **Do** extend `Semitexa\Core\Console\BaseCommand` so the framework can wire DI cleanly.
 - **Do** use Symfony Console primitives (`InputInterface`, `OutputInterface`, `SymfonyStyle`) inside `execute()`.
 - **Do** put destructive commands behind explicit `--yes` / `--force` and refuse to run outside dev environments unless the operator has confirmed.
-- **Don't** put commands in random locations like `src/{Module}/Cli/`, `bin/`, `scripts/`, or the project's `App\` namespace — discovery walks `Application/Command/` (modules) and `src/Console/Command/` (packages).
+- **Don't** put commands in random locations like `src/{Module}/Cli/`, `bin/`, `scripts/`, or the project's `App\` namespace — discovery walks `Application/Console/Command/` (modules and packages alike).
 - **Don't** wire commands into `bin/semitexa` by hand or register them in a global list; the attribute is the registration.
 - **Don't** call out to `bin/semitexa` from inside another command (process-fork loop) — depend on the underlying service or invoke a command class directly through the kernel if absolutely necessary.
 
@@ -362,7 +362,7 @@ A theme is **activated per request** based on its `active_when` rules in `theme.
 - **Do** place page response DTOs in `Application/Resource/Response/`.
 - **Do** place slot resource DTOs in `Application/Resource/Slot/`.
 - **Do** place slot hydration logic in `Application/Handler/SlotHandler/`.
-- **Do** place console commands in `Application/Command/` (modules) or `src/Console/Command/` (packages) — see §1.1.
+- **Do** place console commands in `Application/Console/Command/` (modules and packages alike) — see §1.1.
 - **Do** place data patches in `Application/Update/` (modules) or `src/Update/` (packages) — see §1.2.
 - **Do** place static assets in `Application/Static/` for both app modules and packages.
 - **Do** use the canonical `templates/` subdirectories: `pages/`, `layouts/`, `partials/`, `components/`, `deferred/`.
@@ -378,7 +378,7 @@ If a future contributor cannot guess where a feature belongs from the directory 
 
 ## 2. Payload DTOs
 
-A Payload DTO represents an incoming request. It is a plain PHP class with `#[AsPayload]`.
+A Payload DTO represents an incoming request. It is a plain PHP class carrying exactly one access attribute (`#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]`).
 
 This is where Semitexa starts to feel different from loosely structured frameworks.
 
@@ -387,14 +387,14 @@ The payload is not just a DTO. It is the point where the request becomes explici
 ### Minimal GET payload
 
 ```php
-#[AsPayload(path: '/demo/orm', methods: ['GET'], responseWith: OrmPageResource::class)]
+#[AsProtectedPayload(path: '/demo/orm', methods: ['GET'], responseWith: OrmPageResource::class)]
 class OrmIndexPayload {}
 ```
 
 ### POST payload with validation
 
 ```php
-#[AsPayload(
+#[AsProtectedPayload(
     path: '/api/platform/users',
     methods: ['POST'],
     responseWith: GenericResponse::class,
@@ -445,7 +445,7 @@ class UserCreatePayload
 ### Path parameters with regex constraints
 
 ```php
-#[AsPayload(
+#[AsProtectedPayload(
     path: '/api/platform/users/{id}',
     methods: ['GET'],
     responseWith: GenericResponse::class,
@@ -461,10 +461,11 @@ class UserGetPayload
 ### Environment variable interpolation in attributes
 
 ```php
-#[AsPayload(
+#[AsPublicPayload(
     path: 'env::API_LOGIN_PATH::/api/login',
     methods: ['POST'],
     name: 'env::API_LOGIN_ROUTE_NAME::api.login',
+    responseWith: LoginResource::class,
 )]
 ```
 
@@ -475,7 +476,7 @@ Syntax: `env::VAR_NAME::default_value`.
 `produces` belongs on the payload DTO because the payload owns the route contract.
 
 ```php
-#[AsPayload(
+#[AsPublicPayload(
     path: '/products',
     methods: ['GET'],
     responseWith: ProductPageResource::class,
@@ -578,7 +579,7 @@ $resource->setRendererClass(CustomRenderer::class); // custom renderer override
 **For JSON API endpoints, use `GenericResponse` directly** — no custom class needed:
 
 ```php
-#[AsPayload(path: '/api/users/{id}', methods: ['GET'], responseWith: GenericResponse::class)]
+#[AsProtectedPayload(path: '/api/users/{id}', methods: ['GET'], responseWith: GenericResponse::class)]
 class UserGetPayload { ... }
 
 // In handler:
@@ -652,7 +653,7 @@ class CatalogListResource extends HtmlResponse implements ResourceInterface
 
 ```php
 // Application/Payload/Request/CatalogListPayload.php
-#[AsPayload(path: '/catalog', methods: ['GET'], responseWith: CatalogListResource::class)]
+#[AsPublicPayload(path: '/catalog', methods: ['GET'], responseWith: CatalogListResource::class)]
 class CatalogListPayload { ... }
 ```
 
@@ -1393,10 +1394,10 @@ add new assertions to the framework trait set instead so every payload
 shares one canonical rule.
 
 ```php
-use Semitexa\Core\Attribute\AsPayload;
+use Semitexa\Authorization\Attribute\AsProtectedPayload;
 use Semitexa\Core\Validation\Trait\NotBlankValidationTrait;
 
-#[AsPayload(path: '/api/users', methods: ['POST'], responseWith: GenericResponse::class)]
+#[AsProtectedPayload(path: '/api/users', methods: ['POST'], responseWith: GenericResponse::class)]
 class CreateUserPayload
 {
     use NotBlankValidationTrait;
@@ -1461,7 +1462,7 @@ On failure, the framework returns HTTP 422:
 Routes are automatically named after the payload class short name. Override with `name:`:
 
 ```php
-#[AsPayload(path: '/api/login', methods: ['POST'], name: 'auth.login', ...)]
+#[AsPublicPayload(path: '/api/login', methods: ['POST'], name: 'auth.login', responseWith: LoginResource::class)]
 ```
 
 ### Route lookup
@@ -1484,7 +1485,7 @@ In application code, prefer route names plus URL generation over coupling to dis
 ### Special route: custom 404 page
 
 ```php
-#[AsPayload(path: '/404', methods: ['GET'], name: 'error.404', responseWith: Error404Resource::class)]
+#[AsPublicPayload(path: '/404', methods: ['GET'], name: 'error.404', responseWith: Error404Resource::class)]
 class Error404Payload {}
 ```
 
@@ -2012,7 +2013,7 @@ bin/semitexa test:run -- tests/Unit/X.php --filter foo
 ### `#[TestablePayload]` attribute
 
 ```php
-#[AsPayload(path: '/api/login', methods: ['POST'], responseWith: GenericResponse::class)]
+#[AsPublicPayload(path: '/api/login', methods: ['POST'], responseWith: GenericResponse::class)]
 #[TestablePayload(
     strategies: [ParanoidProfileStrategy::class, LoginEmailFormatStrategy::class],
 )]
@@ -2090,38 +2091,55 @@ final class LoginEmailFormatStrategy implements TestingStrategyInterface
 
 ### Auth guards on payloads
 
-The authorization model is default-deny: every payload requires authentication unless explicitly marked `#[PublicEndpoint]`.
+Access is explicit at the type level. Every payload picks exactly one of three access attributes:
 
 ```php
-// Protected by default — no attribute needed.
-#[AsPayload(path: '/api/profile', methods: ['GET'], responseWith: GenericResponse::class)]
-class ProfilePayload {}
-
-// Explicitly public — anonymous access allowed.
-#[PublicEndpoint]
-#[AsPayload(path: '/api/login', methods: ['POST'], responseWith: GenericResponse::class)]
+// Anonymous endpoint — opt in explicitly.
+#[AsPublicPayload(path: '/api/login', methods: ['POST'], responseWith: LoginResource::class)]
 class LoginPayload {}
 
+// Authenticated user endpoint — the safe default.
+#[AsProtectedPayload(path: '/api/profile', methods: ['GET'], responseWith: ProfileResource::class)]
+class ProfilePayload {}
+
+// Service-domain endpoint — webhook receivers, machine APIs, partner integrations.
+#[AsServicePayload(path: '/webhooks/incoming', methods: ['POST'], responseWith: WebhookAcceptedResource::class)]
+#[AsWebhookReceiver(name: 'partner.signed', secretRef: 'env:PARTNER_WEBHOOK_SECRET')]
+class IncomingWebhookPayload {}
+
 // Protected with fine-grained permission check.
+#[AsProtectedPayload(path: '/api/admin/users', methods: ['GET'], responseWith: AdminUsersResource::class)]
 #[RequiresPermission('users.manage')]
-#[AsPayload(path: '/api/admin/users', methods: ['GET'], responseWith: GenericResponse::class)]
 class AdminUsersPayload {}
 ```
 
-All three attributes (`#[PublicEndpoint]`, `#[RequiresCapability]`, `#[RequiresPermission]`) are from `Semitexa\Authorization\Attributes`.
+The access attributes (`#[AsPublicPayload]`, `#[AsProtectedPayload]`, `#[AsServicePayload]`) and the RBAC attributes (`#[RequiresCapability]`, `#[RequiresPermission]`) live in `Semitexa\Authorization\Attribute`. There is no implicit default-protected fallback — a payload that declares none of the three access attributes never reaches the route registry.
+
+User-domain auth and service-domain auth are distinct:
+
+- A protected payload requires a User-domain principal (session, token, OAuth). A service credential never satisfies a protected route.
+- A service payload requires a Service-domain principal (verified webhook signature, machine token). A user credential never satisfies a service route.
 
 Capability vs permission:
 
-- `#[RequiresCapability]` is a coarse-grained gate for broad access such as `admin`, `staff`, or `backoffice`.
-- `#[RequiresPermission]` is a fine-grained RBAC check for concrete actions such as `users.manage` or `orders.refund`.
+- `#[RequiresCapability]` is a coarse-grained gate for broad access such as `admin`, `staff`, or `backoffice`. Works on both user-domain and service-domain payloads.
+- `#[RequiresPermission]` is a fine-grained RBAC check for concrete actions such as `users.manage` or `orders.refund`. User-domain only.
 
 Example:
 
 ```php
+#[AsProtectedPayload(path: '/api/admin/dashboard', methods: ['GET'], responseWith: AdminDashboardResource::class)]
 #[RequiresCapability('admin')]
-#[AsPayload(path: '/api/admin/dashboard', methods: ['GET'], responseWith: GenericResponse::class)]
 class AdminDashboardPayload {}
 ```
+
+For service-domain capabilities, the wired `ServiceCapabilityProviderInterface` is consulted with the resolved tenant id:
+
+```php
+public function getCapabilitiesForService(string $serviceId, ?string $tenantId = null): array;
+```
+
+Multi-tenant production deployments MUST scope grants by tenant — see the [post-hardening migration guide](en/migration/post-hardening.md) for the full contract.
 
 ### Pipeline execution order
 
@@ -2147,9 +2165,9 @@ All exceptions are caught by ExceptionMapper → content-negotiated error respon
 
 ### Rules
 
-- **Do** mark every explicitly public endpoint with `#[PublicEndpoint]` — all others are protected by default.
-- **Do** use `#[RequiresPermission]` for fine-grained RBAC.
-- **Do** use `#[RequiresCapability]` for coarse-grained endpoint access gating.
+- **Do** declare exactly one access attribute (`#[AsPublicPayload]` / `#[AsProtectedPayload]` / `#[AsServicePayload]`) on every payload — there is no implicit fallback.
+- **Do** use `#[RequiresPermission]` for fine-grained RBAC on user-domain protected payloads.
+- **Do** use `#[RequiresCapability]` for coarse-grained gates (works on both user-domain and service-domain payloads).
 - **Do** call `$session->regenerate()` after authentication state changes.
 - **Do** validate and sanitize all input in the payload's `validate()` method.
 - **Don't** trust client-provided IDs without authorization checks.
@@ -2376,7 +2394,7 @@ public function __construct(
 ) {}
 
 // Named arguments in attributes (always):
-#[AsPayload(path: '/api/users', methods: ['POST'], responseWith: GenericResponse::class)]
+#[AsProtectedPayload(path: '/api/users', methods: ['POST'], responseWith: GenericResponse::class)]
 
 // match over switch:
 $result = match ($strategy) {
@@ -2475,8 +2493,8 @@ final class AdminAuthHandler implements TypedHandlerInterface {
 }
 
 // GOOD — use pipeline listener or authorization attributes
+#[AsProtectedPayload(path: '/api/admin/...', methods: ['GET'], responseWith: GenericResponse::class)]
 #[RequiresPermission('admin.access')]
-#[AsPayload(path: '/api/admin/...', ...)]
 class AdminPayload {}
 ```
 
@@ -2609,8 +2627,8 @@ scripts/cleanup.php
 src/Console/Reset.php           # only valid inside packages, not under src/
 
 # GOOD — discovered via #[AsCommand]
-src/modules/{Module}/Application/Command/{Name}Command.php
-packages/semitexa-{pkg}/src/Console/Command/{Name}Command.php
+src/modules/{Module}/Application/Console/Command/{Name}Command.php
+packages/semitexa-{pkg}/src/Application/Console/Command/{Name}Command.php
 
 # GOOD — discovered via #[AsDataPatch]
 src/modules/{Module}/Application/Update/{PatchName}.php

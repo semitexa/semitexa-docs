@@ -20,7 +20,7 @@ A payload can be extended by another module without reopening the original route
 
 ## How it works
 
-A base module declares the payload with `#[AsPayload]`. Another module contributes a trait marked with `#[AsPayloadPart(base: ...)]`. At runtime PayloadFactory composes a wrapper class that extends the base payload and uses all matching traits, so the added trait can own setters and guards for its own extra fields.
+A base module declares the payload with one of the access attributes (`#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]`). Another module contributes a trait marked with `#[AsPayloadPart(base: ...)]`. At runtime PayloadFactory composes a wrapper class that extends the base payload and uses all matching traits, so the added trait can own setters and guards for its own extra fields.
 
 ## Why this matters
 

@@ -46,7 +46,7 @@ The validator detects a module from a changed file path by walking up the direct
 {module-root}/
   Application/
     Payload/
-      Request/          # #[AsPayload] DTOs
+      Request/          # payload DTOs (one of #[AsPublicPayload] / #[AsProtectedPayload] / #[AsServicePayload])
       Event/            # event classes
       Part/             # #[AsPayloadPart] traits
     Resource/

@@ -7,7 +7,7 @@
 ---
 
 ## 1. LLM Context & Summary
-This document defines the technical design for automated testing of `PayloadDTO` classes in the Semitexa framework. It leverages the **Single Source of Truth (SSOT)** nature of DTOs (annotated with `#[AsPayload]`) to auto-generate test cases via Reflection. It separates production metadata from test metadata using the `#[TestablePayload]` attribute.
+This document defines the technical design for automated testing of `PayloadDTO` classes in the Semitexa framework. It leverages the **Single Source of Truth (SSOT)** nature of DTOs (annotated with one of the access attributes — `#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]`) to auto-generate test cases via Reflection. It separates production metadata from test metadata using the `#[TestablePayload]` attribute.
 
 ---
 
@@ -25,7 +25,7 @@ This document defines the technical design for automated testing of `PayloadDTO`
 ### 3.1. `#[TestablePayload]`
 Used to configure testing strategies and context for a specific payload.
 ```php
-#[AsPayload(path: '/api/v1/payments', methods: ['POST'])]
+#[AsServicePayload(path: '/api/v1/payments', methods: ['POST'], responseWith: PaymentResource::class)]
 #[TestablePayload(
     strategies: [ParanoidProfileStrategy::class],
     context: [
