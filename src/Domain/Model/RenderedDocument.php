@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Semitexa\Docs\Application\Document;
+namespace Semitexa\Docs\Domain\Model;
 
 final readonly class RenderedDocument
 {

@@ -23,7 +23,7 @@ Everything in Semitexa is a **Module**.
 1.  **Incoming Request (Swoole)**: Raw HTTP request is captured by Swoole.
 2.  **Kernel**: The Request is passed to the Kernel.
 3.  **Router**: Matches URL to a **Route Handler**.
-    - Routes are defined via Attributes (`#[AsPayload]`, `#[AsPayloadHandler]`) in Modules.
+    - Routes are defined by access attributes (`#[AsPublicPayload]` / `#[AsProtectedPayload]` / `#[AsServicePayload]`) on payload DTOs and `#[AsPayloadHandler]` on the matching handler classes inside each Module.
 4.  **Hydration**: The raw request data is hydrated into a **Request DTO**.
     - Type safety is enforced here.
 5.  **Validation**: The Request DTO is validated (attributes like `#[NotBlank]`).
@@ -64,7 +64,7 @@ src/modules/MyFeature/
 ├── composer.json           # Module definition (type: semitexa-module)
 ├── Application/
 │   ├── Payload/
-│   │   ├── Request/        # HTTP request DTOs (#[AsPayload])
+│   │   ├── Request/        # payload DTOs (one of #[AsPublicPayload] / #[AsProtectedPayload] / #[AsServicePayload])
 │   │   ├── Session/        # Session segment DTOs (#[SessionSegment])
 │   │   └── Event/          # Event DTOs (dispatch)
 │   ├── Resource/           # Response DTOs only (ResourceInterface)

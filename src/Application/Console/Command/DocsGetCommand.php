@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Semitexa\Docs\Application\Console;
+namespace Semitexa\Docs\Application\Console\Command;
 
 use Semitexa\Core\Attribute\AsCommand;
-use Semitexa\Core\Console\Command\BaseCommand;
-use Semitexa\Docs\Application\Document\DocumentId;
+use Semitexa\Core\Console\BaseCommand;
+use Semitexa\Docs\Domain\Model\DocumentId;
 use Semitexa\Docs\Application\Service\DocumentHtmlRenderer;
 use Semitexa\Docs\Application\Service\FileDocumentRepository;
 use Symfony\Component\Console\Input\InputArgument;

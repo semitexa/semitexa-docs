@@ -19,7 +19,7 @@ A payload can keep the route contract in PHP while still letting operations move
 
 ## How it works
 
-`AsPayload` path values support `env::VAR::/fallback` syntax. During route discovery, Semitexa resolves the env key first and falls back to the inline path when the variable is absent.
+The `path:` argument on the payload's access attribute supports `env::VAR::/fallback` syntax. During route discovery, Semitexa resolves the env key first and falls back to the inline path when the variable is absent.
 
 ## Why this matters
 

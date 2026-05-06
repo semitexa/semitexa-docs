@@ -15,7 +15,7 @@ keywords:
   - dev:graph:event
   - routes:list
   - contracts:list
-  - semitexa:lint:*
+  - lint:*
 ---
 # Project Graph Introspection
 
@@ -23,7 +23,7 @@ A mature framework should explain itself under pressure. These commands turn rou
 
 ## How it works
 
-`ai:ask route --path=/…` (backed by `dev:graph:route`) shows the full execution chain for one endpoint — payload, handlers, resource, template, and auth posture. `ai:ask project` and `routes:list` expose the module-level structure and all discovered request surfaces. `ai:ask module --name=…` drills into a single module. `contracts:list` and `semitexa:lint:*` help validate DI bindings and architectural invariants before runtime incidents.
+`ai:ask route --path=/…` (backed by `dev:graph:route`) shows the full execution chain for one endpoint — payload, handlers, resource, template, and auth posture. `ai:ask project` and `routes:list` expose the module-level structure and all discovered request surfaces. `ai:ask module --name=…` drills into a single module. `contracts:list` and `lint:*` help validate DI bindings and architectural invariants before runtime incidents.
 
 ## Why this matters
 

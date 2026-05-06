@@ -39,6 +39,42 @@ This document exists to make those defaults operational.
 
 ---
 
+## Before You Begin (read this first)
+
+Before you write code, read this. It is the cheapest way to avoid the most common mistakes AI agents make in this repository.
+
+### Where the canonical instructions live
+
+- `AGENTS.md` (repo root) is the **operator manual**. Read it cold-start every session. `AGENTS_DOCTRINE.md` holds full flows / lifecycle / hygiene detail and is consulted on cross-reference.
+- `packages/semitexa-docs/docs/` is the **canonical framework documentation**. This file lives there. Treat its siblings (`AI_GUIDE.md`, package guides, etc.) as authoritative for framework behavior.
+- `packages/<pkg>/docs/` (when present) is canonical *package-local* documentation — owned by the package, narrower scope.
+- `var/docs/` is **scratch only**. Audits, reports, planning notes, design drafts go there. Nothing in `var/docs/` is authoritative — treat it as in-flight working notes, not framework truth.
+- Project root (`README.md`, `AGENTS.md`, `CLAUDE.md`, `AI_*.md`) is reserved for the framework scaffold. Do **not** add new root-level `.md` files for ad-hoc reports — write them to `var/docs/<slug>.md` instead.
+
+### Where the backlog lives
+
+Ideas, tasks, and status are tracked by `ai:epic` (in `var/ai-work/epics/`) and `ai:work` (in `var/ai-work/tasks/`). Documents are never the backlog. If a feature is "planned" but not in `ai:epic`, it does not exist as committed work — propose capturing it before treating it as real.
+
+### How to run tests
+
+The only blessed test entry point is the containerized command:
+
+```bash
+bin/semitexa test:run                           # full suite
+bin/semitexa test:run tests/Unit/SomeTest.php   # narrowed path
+bin/semitexa test:run -- --filter someTest      # extra phpunit args after a single double-dash
+```
+
+Do **not** run `vendor/bin/phpunit` directly. The container guarantees the correct PHP/Swoole/extension surface; running phpunit on the host produces unreliable results and is not how CI executes.
+
+### Avoid inventing architecture
+
+If a class, attribute, command, or path is not in the repository today, do not document it as if it were. Aspirational behavior gets captured as an `ai:epic`, not as best-practices guidance. When you are uncertain about whether a piece of architecture exists, search before you write — `ai:ask`, `ai:review-graph:query`, or a targeted `Grep` is cheaper than a wrong claim.
+
+If a feature is referenced in this guide but verification at the time of reading shows it is missing or moved, prefer the repository over the guide and propose an update.
+
+---
+
 ## Table of Contents
 
 1. [Project Structure](#1-project-structure)
@@ -72,6 +108,10 @@ Project structure is not cosmetic in Semitexa. It is part of the framework contr
 
 If the tree is clean, readers can predict behavior before opening files. If the tree drifts, both humans and AI lose confidence quickly.
 
+> **Authoritative spec:** the on-disk shape of a module is defined in [`MODULE_STRUCTURE.md`](MODULE_STRUCTURE.md). That document is enforced by the `module_structure` check inside `bin/semitexa ai:verify` — drift is a hard failure.
+>
+> Section 1 of this file is the human-readable summary. If the two ever disagree, `MODULE_STRUCTURE.md` wins, and the discrepancy is a defect to be reported.
+
 ### Package layout
 
 ```text
@@ -80,7 +120,7 @@ packages/semitexa-{name}/
     Attributes/           # Package-specific attributes
     Application/
       Payload/
-        Request/          # PayloadDTOs (#[AsPayload])
+        Request/          # payload DTOs (one of #[AsPublicPayload] / #[AsProtectedPayload] / #[AsServicePayload])
         Event/            # Event classes
         Part/             # #[AsPayloadPart] traits
       Resource/           # Render ResourceDTOs
@@ -131,6 +171,9 @@ src/modules/{ModuleName}/
       PayloadHandler/
       SlotHandler/
       DomainListener/
+    Console
+      Command/            # Console commands (#[AsCommand]) — see §1.1
+    Update/               # Post-schema data patches (#[AsDataPatch]) — see §1.2
     Service/
     Static/               # Static assets (manifest-driven)
       css/
@@ -145,29 +188,171 @@ src/modules/{ModuleName}/
         components/       # Component-specific templates
         deferred/         # Templates for deferred/async slots
     Component/
+  Domain/
+    Model/
+    Repository/
+    Contract/
+    Service/
   composer.json
 ```
 
 Semitexa is strongest when application modules and packages feel like the same architectural language.
 
-### Theme directory
+### 1.1 Console command placement
 
-Themes provide sparse overrides for module templates and static assets. Only files that differ from the module default need to exist.
+Console commands are first-class module artifacts, discovered the same way handlers are: by attribute scan over the composer classmap.
 
-```text
-src/theme/{THEME_NAME}/{ModuleName}/
-  Static/                 # Asset overrides (same relative paths as module)
-    css/
-    js/
-  templates/              # Template overrides
-    layouts/
-    pages/
-    partials/
+**Where they go:**
+
+| Location | Path | Namespace |
+|---|---|---|
+| App module | `src/modules/{Module}/Application/Console/Command/{Name}Command.php` | `Semitexa\Modules\{Module}\Application\Console\Command` |
+| Package | `packages/semitexa-{pkg}/src/Application/Console/Command/{Name}Command.php` | `Semitexa\{Pkg}\Application\Console\Command` |
+
+**Discovery:** any class carrying `#[AsCommand(name: '...', description: '...')]` from `Semitexa\Core\Attribute\AsCommand` is registered with the framework console kernel. There is no manual wiring step.
+
+**Scaffold the right shape:**
+
+```bash
+bin/semitexa make:command --module=Catalog --name=Reindex --command-name=catalog:reindex --description='Rebuild the catalog search index.'
 ```
 
-Sparse overrides matter because they reduce duplication and preserve the module as the primary source of truth.
+**Canonical example** (illustrative module-owned command):
 
-Theme is activated via the `THEME` environment variable. Resolution order: theme first, module as fallback — for both templates and static assets.
+```php
+// src/modules/Catalog/Application/Console/Command/CatalogReindexCommand.php
+namespace Semitexa\Modules\Catalog\Application\Console\Command;
+
+use Semitexa\Core\Attribute\AsCommand;
+use Semitexa\Core\Console\BaseCommand;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
+
+#[AsCommand(name: 'catalog:reindex', description: 'Rebuild the catalog search index.')]
+final class CatalogReindexCommand extends BaseCommand
+{
+    public function __construct(
+        private readonly CatalogIndexer $indexer,
+    ) {
+        parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addOption('yes', 'y', InputOption::VALUE_NONE, 'Skip confirmation.');
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $io = new SymfonyStyle($input, $output);
+        // …
+        return self::SUCCESS;
+    }
+}
+```
+
+**Rules:**
+
+- **Do** name commands with a `module:verb` form (`catalog:reindex`, `update:plan`, `theme:scaffold`).
+- **Do** extend `Semitexa\Core\Console\BaseCommand` so the framework can wire DI cleanly.
+- **Do** use Symfony Console primitives (`InputInterface`, `OutputInterface`, `SymfonyStyle`) inside `execute()`.
+- **Do** put destructive commands behind explicit `--yes` / `--force` and refuse to run outside dev environments unless the operator has confirmed.
+- **Don't** put commands in random locations like `src/{Module}/Cli/`, `bin/`, `scripts/`, or the project's `App\` namespace — discovery walks `Application/Console/Command/` (modules and packages alike).
+- **Don't** wire commands into `bin/semitexa` by hand or register them in a global list; the attribute is the registration.
+- **Don't** call out to `bin/semitexa` from inside another command (process-fork loop) — depend on the underlying service or invoke a command class directly through the kernel if absolutely necessary.
+
+### 1.2 Post-schema data patch placement
+
+Data patches sit on top of the ORM schema. They never change the schema. Schema changes go through `semitexa-orm` (`orm:diff` / `orm:sync`); `semitexa-update` runs the post-schema data work that depends on the new schema being live.
+
+**Where they go:**
+
+| Location | Path (suggested) | Namespace (suggested) |
+|---|---|---|
+| App module | `src/modules/{Module}/Application/Update/{PatchName}.php` | `Semitexa\Modules\{Module}\Application\Update` |
+| Package | `packages/semitexa-{pkg}/src/Update/{PatchName}.php` | `Semitexa\{Pkg}\Update` |
+
+> Discovery is namespace-agnostic — `DataPatchDiscovery` walks every class in the composer classmap that carries `#[AsDataPatch]`. The paths above are the convention. Following them keeps patches alongside the rest of the module's `Application/` artifacts; placing them anywhere reachable by autoload still works but loses the structural cue.
+
+**The contract:**
+
+```php
+namespace Semitexa\Modules\Catalog\Application\Update;
+
+use Semitexa\Modules\Catalog\Domain\Model\Article;
+use Semitexa\Update\Attribute\AsDataPatch;
+use Semitexa\Update\Context\DataPatchContext;
+use Semitexa\Update\Domain\Contract\DataPatchInterface;
+use Semitexa\Update\Domain\Enum\UpdatePhase;
+
+#[AsDataPatch(
+    id: 'backfill-article-slugs',     // per-module stable id; MUST NOT change once shipped
+    module: 'acme/catalog',           // composer package name — identity is (module, id)
+    phase: UpdatePhase::Apply,        // Pre / Apply / Post relative to ORM schema sync
+    dependencies: [],                 // ['acme/catalog:create-default-tags', ...]
+    requires: [Article::class],       // entities the patch reads/writes; runner verifies the table is live
+    description: 'Backfill slugs for legacy articles missing one.',
+)]
+final class BackfillArticleSlugs implements DataPatchInterface
+{
+    public function apply(DataPatchContext $ctx): void
+    {
+        // Idempotent — re-runs after a crash must not corrupt data.
+        $ctx->execute("UPDATE articles SET slug = LOWER(REPLACE(title, ' ', '-')) WHERE slug IS NULL");
+    }
+}
+```
+
+**How patches are discovered, gated, and run:**
+
+- Identity is `module:id`, not the FQCN — class renames do not re-run a patch.
+- The runner sweeps in three phases per ORM run: **Pre patches → ORM schema sync → Apply patches → Post patches**, abort on first failure.
+- Within a phase, patches resolve through a DAG built from `dependencies`.
+- The schema-compatibility gate inspects the live DB before each patch. If a `requires` entity's table or a `requiresColumns` column is missing, the patch is **skipped** (not failed) and journaled separately — fix the schema with `orm:sync` first.
+- `DataPatchContext::execute()` and `query()` reject SQL whose first non-comment token is `CREATE`, `ALTER`, `DROP`, `RENAME`, or `TRUNCATE` — `PatchSafetyException` fires. DDL belongs to ORM.
+- State is persisted in a per-database journal — `pending`, `applied`, `failed`, `skipped`.
+
+**CLI commands:**
+
+| Command | What it does |
+|---|---|
+| `bin/semitexa update` | Run pending patches in phase + DAG order. `--dry-run` prints the plan. |
+| `bin/semitexa update:plan` | Show pending patches without applying. |
+| `bin/semitexa update:status` | Counts by phase: applied, pending, failed, skipped. |
+| `bin/semitexa update:lint:patches` | Static validation of `#[AsDataPatch]` declarations. |
+
+**Rules:**
+
+- **Do** make patches idempotent — they may re-run after a partial failure.
+- **Do** declare `requires` (entity FQCNs) and/or `requiresColumns` (table → columns map) so the schema gate can protect the patch.
+- **Do** keep `id` stable for the lifetime of the patch — once shipped, never rename it; the journal keys on `module:id`.
+- **Do** use `dependencies: ['<other-module>:<other-id>', …]` when the patch must follow another patch.
+- **Don't** issue DDL inside a patch — `CREATE`/`ALTER`/`DROP`/`RENAME`/`TRUNCATE` are blocked at runtime and rejected by the lint command.
+- **Don't** rely on `class FQCN` matching — the runner does not care what the class is named, only `(module, id)`.
+- **Don't** use this attribute for ad-hoc maintenance scripts — those are console commands. Patches are part of the deploy/upgrade lifecycle.
+
+### Theme directory
+
+Themes are manifest-driven (see §13 for the full theme + skin model). The override surface for templates and assets lives at:
+
+```text
+src/theme/{theme-id}/
+  theme.json              # Manifest: id, extends, active_when, skin
+  {parent-theme-id}/
+    templates/            # Sparse template overrides (same relative paths as parent)
+      layouts/
+      pages/
+      partials/
+    Static/               # Sparse asset overrides (same relative paths)
+      css/
+      js/
+```
+
+Only override files that differ from the parent. Resolution chains through `extends` — when the theme does not override a template, lookup falls back to the parent theme, and ultimately to the module that owns the template.
+
+A theme is **activated per request** based on its `active_when` rules in `theme.json` (typically domain-gated). There is no `THEME` env var for selection — that mechanism has been replaced by manifest matching.
 
 ### Rules
 
@@ -177,12 +362,15 @@ Theme is activated via the `THEME` environment variable. Resolution order: theme
 - **Do** place page response DTOs in `Application/Resource/Response/`.
 - **Do** place slot resource DTOs in `Application/Resource/Slot/`.
 - **Do** place slot hydration logic in `Application/Handler/SlotHandler/`.
+- **Do** place console commands in `Application/Console/Command/` (modules and packages alike) — see §1.1.
+- **Do** place data patches in `Application/Update/` (modules) or `src/Update/` (packages) — see §1.2.
 - **Do** place static assets in `Application/Static/` for both app modules and packages.
 - **Do** use the canonical `templates/` subdirectories: `pages/`, `layouts/`, `partials/`, `components/`, `deferred/`.
 - **Don't** place business logic outside `Application/` or `Domain/` directories.
 - **Don't** create utility classes in the root `src/` of a package — use `Service/`, `Contract/`, etc.
 - **Don't** put a `resources/` directory at module root — assets live under `Application/Static/`.
 - **Don't** list every asset file manually; use `assets.json` include rules.
+- **Don't** scatter console commands into `bin/`, `scripts/`, or top-level `App\` — discovery only walks the canonical command paths.
 
 If a future contributor cannot guess where a feature belongs from the directory tree, the structure is already losing value.
 
@@ -190,7 +378,7 @@ If a future contributor cannot guess where a feature belongs from the directory 
 
 ## 2. Payload DTOs
 
-A Payload DTO represents an incoming request. It is a plain PHP class with `#[AsPayload]`.
+A Payload DTO represents an incoming request. It is a plain PHP class carrying exactly one access attribute (`#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]`).
 
 This is where Semitexa starts to feel different from loosely structured frameworks.
 
@@ -199,41 +387,57 @@ The payload is not just a DTO. It is the point where the request becomes explici
 ### Minimal GET payload
 
 ```php
-#[AsPayload(path: '/demo/orm', methods: ['GET'], responseWith: OrmPageResource::class)]
+#[AsProtectedPayload(path: '/demo/orm', methods: ['GET'], responseWith: OrmPageResource::class)]
 class OrmIndexPayload {}
 ```
 
 ### POST payload with validation
 
 ```php
-#[AsPayload(
+#[AsProtectedPayload(
     path: '/api/platform/users',
     methods: ['POST'],
     responseWith: GenericResponse::class,
 )]
-class UserCreatePayload implements ValidatablePayload
+class UserCreatePayload
 {
-    use NotBlankValidationTrait;
-    use EmailValidationTrait;
-    use LengthValidationTrait;
-
     protected string $email = '';
     protected string $name  = '';
     protected string $password = '';
 
     public function getEmail(): string { return $this->email; }
-    public function setEmail(string $email): void { $this->email = $email; }
-    // ... other getters/setters ...
-
-    public function validate(): PayloadValidationResult
+    public function setEmail(string $email): void
     {
-        $errors = [];
-        $this->validateNotBlank('email', $this->email, $errors);
-        $this->validateEmail('email', $this->email, $errors);
-        $this->validateNotBlank('name', $this->name, $errors);
-        $this->validateNotBlank('password', $this->password, $errors);
-        $this->validateLength('password', $this->password, 8, null, $errors);
-        return new PayloadValidationResult(empty($errors), $errors);
+        $trimmed = trim($email);
+        if ($trimmed === '') {
+            throw new ValidationException(['email' => ['Must not be blank.']]);
+        }
+        if (filter_var($trimmed, FILTER_VALIDATE_EMAIL) === false) {
+            throw new ValidationException(['email' => ['Must be a valid email address.']]);
+        }
+        $this->email = $trimmed;
+    }
+
+    public function getName(): string { return $this->name; }
+    public function setName(string $name): void
+    {
+        $trimmed = trim($name);
+        if ($trimmed === '') {
+            throw new ValidationException(['name' => ['Must not be blank.']]);
+        }
+        $this->name = $trimmed;
+    }
+
+    public function getPassword(): string { return $this->password; }
+    public function setPassword(string $password): void
+    {
+        if ($password === '') {
+            throw new ValidationException(['password' => ['Must not be blank.']]);
+        }
+        if (strlen($password) < 8) {
+            throw new ValidationException(['password' => ['Must be at least 8 characters.']]);
+        }
+        $this->password = $password;
     }
 }
 ```
@@ -241,7 +445,7 @@ class UserCreatePayload implements ValidatablePayload
 ### Path parameters with regex constraints
 
 ```php
-#[AsPayload(
+#[AsProtectedPayload(
     path: '/api/platform/users/{id}',
     methods: ['GET'],
     responseWith: GenericResponse::class,
@@ -257,10 +461,11 @@ class UserGetPayload
 ### Environment variable interpolation in attributes
 
 ```php
-#[AsPayload(
+#[AsPublicPayload(
     path: 'env::API_LOGIN_PATH::/api/login',
     methods: ['POST'],
     name: 'env::API_LOGIN_ROUTE_NAME::api.login',
+    responseWith: LoginResource::class,
 )]
 ```
 
@@ -271,7 +476,7 @@ Syntax: `env::VAR_NAME::default_value`.
 `produces` belongs on the payload DTO because the payload owns the route contract.
 
 ```php
-#[AsPayload(
+#[AsPublicPayload(
     path: '/products',
     methods: ['GET'],
     responseWith: ProductPageResource::class,
@@ -299,9 +504,8 @@ What not to do:
 ### Rules
 
 - **Do** always provide `responseWith:` — it links the payload to its resource.
-- **Do** implement `ValidatablePayload` for any payload that accepts user input.
-- **Do** use validation traits (`NotBlankValidationTrait`, `EmailValidationTrait`, `LengthValidationTrait`) rather than inline validation.
-- **Do** use `protected` properties with explicit getters/setters. The `RequestDtoHydrator` calls setters to populate the DTO.
+- **Do** validate user input in setters: throw `Semitexa\Core\Exception\ValidationException` from any `setX()` that receives an invalid value. The framework converts the exception to a `422` response with a `{ errors: { field: [...] } }` envelope.
+- **Do** use `protected` properties with explicit getters/setters. The `RequestDtoHydrator` calls setters to populate the DTO, so setter-time validation runs before the handler ever sees the payload.
 - **Do** use `requirements:` for path params — it constrains what the router will match.
 - **Don't** implement `PayloadInterface` — it is deprecated (v2.0). Payloads no longer need a marker interface; the pipeline accepts `object` typed parameters.
 - **Don't** put business logic in a payload. It is a data carrier only.
@@ -375,7 +579,7 @@ $resource->setRendererClass(CustomRenderer::class); // custom renderer override
 **For JSON API endpoints, use `GenericResponse` directly** — no custom class needed:
 
 ```php
-#[AsPayload(path: '/api/users/{id}', methods: ['GET'], responseWith: GenericResponse::class)]
+#[AsProtectedPayload(path: '/api/users/{id}', methods: ['GET'], responseWith: GenericResponse::class)]
 class UserGetPayload { ... }
 
 // In handler:
@@ -449,7 +653,7 @@ class CatalogListResource extends HtmlResponse implements ResourceInterface
 
 ```php
 // Application/Payload/Request/CatalogListPayload.php
-#[AsPayload(path: '/catalog', methods: ['GET'], responseWith: CatalogListResource::class)]
+#[AsPublicPayload(path: '/catalog', methods: ['GET'], responseWith: CatalogListResource::class)]
 class CatalogListPayload { ... }
 ```
 
@@ -1166,43 +1370,69 @@ System env variables are **never** overwritten by `.env` files.
 
 ## 11. Validation
 
-### Built-in validation traits
+### Setter-time validation in payloads
+
+Validation lives in setters. Each `setX()` is responsible for its field's
+own constraints; failures throw `Semitexa\Core\Exception\ValidationException`
+with a field-keyed `errors` map. The `RequestDtoHydrator` calls setters in
+turn, so an invalid value never makes it past hydration — the handler only
+ever sees a fully-valid payload.
+
+### Reusable assertions: validation traits
+
+Common single-rule assertions live in
+`Semitexa\Core\Validation\Trait\` and are designed for the setter-throw
+flow (return the normalised value on success, throw on failure):
+
+| Trait | Method | Returns | Throws on |
+|---|---|---|---|
+| `NotBlankValidationTrait` | `self::requireNotBlank(string $field, string $value, string $message = 'Must not be blank.'): string` | trimmed value | blank-after-trim |
+
+Drop the trait into the payload, call the assertion from the relevant
+`setX()`, and store the return value. Don't reinvent the helper inline —
+add new assertions to the framework trait set instead so every payload
+shares one canonical rule.
 
 ```php
-use NotBlankValidationTrait;   // validateNotBlank(field, value, &errors)
-use EmailValidationTrait;      // validateEmail(field, value, &errors)
-use LengthValidationTrait;     // validateLength(field, value, min, max, &errors)
-```
+use Semitexa\Authorization\Attribute\AsProtectedPayload;
+use Semitexa\Core\Validation\Trait\NotBlankValidationTrait;
 
-### Validation in payloads
-
-```php
-#[AsPayload(path: '/api/users', methods: ['POST'], responseWith: GenericResponse::class)]
-class CreateUserPayload implements ValidatablePayload
+#[AsProtectedPayload(path: '/api/users', methods: ['POST'], responseWith: GenericResponse::class)]
+class CreateUserPayload
 {
     use NotBlankValidationTrait;
-    use EmailValidationTrait;
-    use LengthValidationTrait;
 
     protected string $email = '';
-    protected string $password = '';
+    protected string $name  = '';
 
-    public function setEmail(string $email): void { $this->email = $email; }
-    public function setPassword(string $password): void { $this->password = $password; }
-
-    public function validate(): PayloadValidationResult
+    public function getEmail(): string { return $this->email; }
+    public function setEmail(string $email): void
     {
-        $errors = [];
-        $this->validateNotBlank('email', $this->email, $errors);
-        $this->validateEmail('email', $this->email, $errors);
-        $this->validateNotBlank('password', $this->password, $errors);
-        $this->validateLength('password', $this->password, 8, null, $errors);
-        return new PayloadValidationResult(empty($errors), $errors);
+        $this->email = self::requireNotBlank('email', $email);
+    }
+
+    public function getName(): string { return $this->name; }
+    public function setName(string $name): void
+    {
+        $this->name = self::requireNotBlank('name', $name);
     }
 }
 ```
 
-Validation runs after hydration and before the handler executes.
+Field-specific rules that don't fit a framework trait throw
+`ValidationException` directly:
+
+```php
+use Semitexa\Core\Exception\ValidationException;
+
+public function setIssuedAt(int $issuedAt): void
+{
+    if ($issuedAt <= 0) {
+        throw new ValidationException(['issuedAt' => ['Must be a positive UNIX timestamp.']]);
+    }
+    $this->issuedAt = $issuedAt;
+}
+```
 
 On failure, the framework returns HTTP 422:
 ```json
@@ -1215,11 +1445,13 @@ On failure, the framework returns HTTP 422:
 
 ### Rules
 
-- **Do** implement `ValidatablePayload` on any payload accepting user input.
-- **Do** compose validation via traits — don't duplicate validation logic.
-- **Do** return structured errors keyed by field name.
-- **Don't** validate in handlers — validate in the payload itself.
-- **Don't** rely on type casting for validation — explicitly check business rules in `validate()`.
+- **Do** validate user input inside setters; throw `ValidationException` with a `[field => [messages]]` map.
+- **Do** reach for the framework traits (`Semitexa\Core\Validation\Trait\…`) when an assertion is reusable — and add new traits there instead of pasting an inline helper into a payload.
+- **Do** keep each setter responsible for one field's constraints — the first failure short-circuits hydration with a clear, scoped error.
+- **Do** use `protected` properties with explicit getters/setters so the `RequestDtoHydrator` can drive validation.
+- **Don't** add a separate post-hydration `validate()` method — validation is a setter-time contract now.
+- **Don't** validate in handlers — validate in the setter itself.
+- **Don't** rely on type casting for validation — write the business rule explicitly in the setter.
 
 ---
 
@@ -1230,7 +1462,7 @@ On failure, the framework returns HTTP 422:
 Routes are automatically named after the payload class short name. Override with `name:`:
 
 ```php
-#[AsPayload(path: '/api/login', methods: ['POST'], name: 'auth.login', ...)]
+#[AsPublicPayload(path: '/api/login', methods: ['POST'], name: 'auth.login', responseWith: LoginResource::class)]
 ```
 
 ### Route lookup
@@ -1241,8 +1473,8 @@ In application code, prefer route names plus URL generation over coupling to dis
 
 ```php
 // In handlers or services:
-\Semitexa\Ssr\Routing\UrlGenerator::to('auth.login');                      // '/api/login'
-\Semitexa\Ssr\Routing\UrlGenerator::to('user.profile', ['id' => $userId]); // '/users/{id}' -> '/users/abc-123'
+\Semitexa\Ssr\Application\Service\Routing\UrlGenerator::to('auth.login');                      // '/api/login'
+\Semitexa\Ssr\Application\Service\Routing\UrlGenerator::to('user.profile', ['id' => $userId]); // '/users/{id}' -> '/users/abc-123'
 
 // In Twig:
 {{ url('auth.login') }}
@@ -1253,7 +1485,7 @@ In application code, prefer route names plus URL generation over coupling to dis
 ### Special route: custom 404 page
 
 ```php
-#[AsPayload(path: '/404', methods: ['GET'], name: 'error.404', responseWith: Error404Resource::class)]
+#[AsPublicPayload(path: '/404', methods: ['GET'], name: 'error.404', responseWith: Error404Resource::class)]
 class Error404Payload {}
 ```
 
@@ -1390,18 +1622,140 @@ All modules must follow the canonical `templates/` subdirectory layout:
 | `templates/components/` | Component-specific templates |
 | `templates/deferred/` | Templates for deferred/async slots |
 
-Not all subdirectories need to exist — only create what the module uses. The `semitexa:lint:templates` CLI command validates structure across all modules (runs in CI as a blocking check).
+Not all subdirectories need to exist — only create what the module uses. The `lint:templates` CLI command validates structure across all modules (runs in CI as a blocking check).
 
 ### Theme resolution
 
-Templates resolve theme-first, module-as-fallback. The `THEME` environment variable activates a theme. Theme overrides live in `src/theme/{THEME}/{ModuleName}/templates/` and are sparse — only override what differs.
+Themes are **manifest-driven**, not env-driven. The legacy `THEME` environment variable is no longer how themes are selected.
 
-```twig
-{# This resolves to theme template if it exists, otherwise module template #}
-{% extends '@project-layouts-Website/layouts/base.html.twig' %}
+**Theme = manifest + sparse override surface.** A theme is anything declared by a `theme.json`:
+
+```text
+packages/<vendor>-<pkg>/theme.json     # packaged theme (e.g. semitexa-theme ships theme-base)
+src/theme/<theme-id>/theme.json        # project-local theme
 ```
 
-Twig's namespace fallback chain handles this automatically — both theme and module paths are registered per namespace.
+A `theme.json` declares:
+
+```json
+{
+    "id": "marketing-site",
+    "extends": "theme-base",
+    "active_when": { "domain": "marketing.example.test" },
+    "skin": { "default": "marketing-coral" }
+}
+```
+
+| Field | Purpose |
+|---|---|
+| `id` | Unique theme identity. Must not collide with `theme-base` (the framework root). |
+| `extends` | Parent theme — drives template fallback chain. |
+| `active_when` | Per-request gate: `{ "always": true }` (root only — `theme-base` claims this), `{ "domain": "..." }`, or other axes. Exactly one manifest may be `always`. |
+| `skin` | Skin selection — `{ "default": "<slug>" }` or conditional. The skin slug must exist (see §13 Skins). |
+
+**Selection at request time.** `ApplyThemeOnAuthCheckListener` walks the discovered theme set and picks the first whose `active_when` matches the current request (host, path, etc.). The chosen theme + its `extends` chain becomes the fallback path for template resolution. There is no global env switch.
+
+**Template override paths.** Inside the theme directory, override sub-paths mirror the parent module's tree:
+
+```text
+src/theme/marketing-site/
+  theme.json
+  theme-base/                        # overrides into theme-base templates/static
+    templates/layouts/base.html.twig
+    Static/css/marketing-overrides.css
+  Hello/                             # overrides into the Hello module
+    templates/pages/index.html.twig
+```
+
+Sparse: create only files that differ from the parent. Twig's namespace fallback walks the extends-chain automatically.
+
+**Useful commands:**
+
+| Command | What it does |
+|---|---|
+| `bin/semitexa theme:scaffold --slug=<id>` | Creates `src/theme/<id>/` with a starter `theme.json` extending `theme-base`. |
+| `bin/semitexa theme:validate` | CI-safe validation across every `theme.json` (parses, ids unique, extends targets exist, no cycles, exactly one `always` root, every skin slug resolves). |
+| `bin/semitexa theme:resolve` | Diagnose which theme matches a given request context. |
+
+**Rules:**
+
+- **Do** create new themes via `theme:scaffold` so the manifest is well-formed.
+- **Do** gate non-root themes with a real `active_when` axis (domain/path/etc.) — only `theme-base` may be `always: true`.
+- **Do** keep theme directories sparse — every override is a maintenance cost.
+- **Don't** read or set a `THEME` env var to pick a theme — it is not how selection works anymore.
+- **Don't** put runtime business logic in a theme; themes are presentation overrides only.
+
+### 13.1 Skins
+
+A **skin** is the visual token set referenced by a theme — colors, surfaces, borders, radii, shadows, motion, charts. Themes pick which skin is active; modules consume the resulting CSS variables.
+
+**Where skins live:**
+
+| Source | Path | Discovery |
+|---|---|---|
+| Framework default | `vendor/semitexa/theme/src/Application/Static/css/skins/<slug>/` | `SkinDiscovery::FRAMEWORK_SKINS_DIR` |
+| Project-local | `src/skins/<slug>/` | `SkinDiscovery::PROJECT_SKINS_DIR` (project wins on slug collision) |
+
+Each skin directory contains exactly two files:
+
+```text
+src/skins/<slug>/
+  skin.json             # source of truth (algorithm, seed, knobs, history, light+dark token map)
+  tokens.css            # generated artifact (canonical structure: 7 sections, light-dark() per token)
+```
+
+Both sources are served at the unified URL `/assets/skins/<slug>/tokens.css`.
+
+**`skin.json` (schema 3.0) — what it declares:**
+
+```json
+{
+    "name": "marketing-coral",
+    "schema_version": "3.0",
+    "source": "seed",
+    "algorithm": "balanced",          // "balanced" | "glass" | "brutalist"
+    "seed": "#c96d49",
+    "knobs": { "radius_scale": "default", "shadow_intensity": "default", "motion_speed": "default" },
+    "generated_at": "...",
+    "updated_at": "...",
+    "history": [ { "at": "...", "kind": "generate", "algorithm": "balanced", "seed": "...", "knobs": {…} } ],
+    "tokens": {
+        "light": { "--ui-surface-page": "#…", "--ui-accent-brand": "#…", "…": "…" },
+        "dark":  { "--ui-surface-page": "#…", "--ui-accent-brand": "#…", "…": "…" }
+    }
+}
+```
+
+**`tokens.css` is generated from `skin.json` — never hand-edited.** Layout is canonical: a 5-line header block, `:root { color-scheme: light dark; ... }` with seven labeled sections in fixed order — `COLOR · STATE · CHART · FORM · DEPTH · MOTION · EFFECT` — every variant token wrapped in `light-dark(L, D)`, mode-invariant tokens emitted as a single value, plus `:root[data-skin-mode="light|dark"]{ color-scheme: ...; }` mode-pinning blocks. `bin/semitexa lint:skin-tokens` is a regression guard that re-emits `tokens.css` from `skin.json` and fails on drift.
+
+**Public token surface** is the `--ui-*` set declared by `TokenContract` (currently 41 tokens across 7 sections). Module CSS consumes only those names. Algorithm internals and primitives are intentionally **not** part of the surface — they would freeze algorithm choices if exposed.
+
+**Workflow (canonical, project-local):**
+
+1. **Edit the source.** Modify `src/skins/<slug>/skin.json` (seed, knobs, or explicit token overrides).
+2. **Re-emit the artifact.** Run `bin/semitexa skins:rebuild <slug>` to regenerate `tokens.css` deterministically from `skin.json`.
+3. **Lint.** `bin/semitexa lint:skin-tokens` verifies no drift between source and artifact across every skin.
+4. **Reference from a theme.** Add `"skin": { "default": "<slug>" }` in the theme's `theme.json`.
+
+> **Caveat:** the `skins:generate` / `skins:refine` / `skins:rebuild` commands are produced by a skin-generation toolkit that ships in a separate package. The framework-side classes (`TokenEmitter`, `SkinBuilder`, `SkinManifest`, `SkinAlgorithmRegistry`) are present in `packages/semitexa-theme/src/Skin/` and reference these commands in operator-facing messages. If a fresh checkout does not include the toolkit, the corresponding commands may be unavailable — verify with `bin/semitexa list` or `bin/semitexa help` before depending on them. The lint guard (`bin/semitexa lint:skin-tokens`) is always available.
+
+**What gets committed vs. what is generated:**
+
+| File | Status | Edit by hand? |
+|---|---|---|
+| `skin.json` | Source of truth — committed | Yes — this is the authored input |
+| `tokens.css` | Generated artifact — committed | **No — regenerate via `skins:rebuild`** |
+
+Committing both lets the lint guard catch drift on PRs. Treat `tokens.css` like a code-generated file: delete it locally if needed, but never edit it by hand.
+
+**Rules:**
+
+- **Do** edit `skin.json`, re-emit `tokens.css` via `skins:rebuild`, and let `lint:skin-tokens` guard the result.
+- **Do** consume only `--ui-*` tokens from module CSS. The algorithm-internal variables are not part of the public contract.
+- **Do** put a project-local skin under `src/skins/<slug>/` — it overrides any framework-default of the same slug.
+- **Don't** hand-edit `tokens.css`. The lint guard will fail; fix the source instead.
+- **Don't** introduce new tokens to `--ui-*` casually — that surface is a contract; expand it deliberately, not per skin.
+- **Don't** confuse skin with theme: theme = template/asset override + selection; skin = visual token set referenced by the theme.
 
 ### Static assets
 
@@ -1441,7 +1795,7 @@ The more the rendering layer follows convention, the less every team has to rein
 }
 ```
 
-**Theme asset overrides:** Place files at `src/theme/{THEME}/{ModuleName}/Static/` with the same relative path. The theme version wins; the logical name and URL remain unchanged.
+**Theme asset overrides:** Place files at `src/theme/{theme-id}/{parent-or-module}/Static/` with the same relative path. The theme version wins; the logical name and URL remain unchanged. Theme selection is per-request and manifest-driven (see §13.1 Theme resolution) — there is no `THEME` env var.
 
 **Packages:** Follow the same `Application/Static/` + v2 manifest rules as app modules (One Way).
 
@@ -1458,7 +1812,7 @@ The more the rendering layer follows convention, the less every team has to rein
 - **Do** set SEO metadata via `$resource->pageTitle()` / `$resource->seoTag()` in handlers — never call `SeoMeta::setTitle()` or `SeoMeta::tag()` directly.
 - **Do** use the canonical template subdirectories (`pages/`, `layouts/`, `partials/`, `components/`, `deferred/`).
 - **Do** place new CSS/JS files in `Application/Static/` and ensure the default include rules (`css/**/*.css`, `js/**/*.js`) cover them.
-- **Do** use theme overrides (`src/theme/{THEME}/{Module}/`) for theme-specific templates and assets.
+- **Do** use theme overrides (`src/theme/{theme-id}/`) for theme-specific templates and assets, scaffolded via `bin/semitexa theme:scaffold`.
 - **Do** let page resources auto-render by default; reach for `disableAutoRender()` only in genuinely custom response flows.
 - **Don't** put business logic in Twig templates.
 - **Don't** pass a context array to `renderTemplate()` — pre-populate via `with*()` methods on the Resource.
@@ -1629,14 +1983,41 @@ final class SendOrderConfirmationHandler implements TypedHandlerInterface
 
 ## 17. Testing
 
+### Running tests — always through `bin/semitexa test:run`
+
+The only blessed entry point is the containerized command:
+
+```bash
+bin/semitexa test:run                                     # full suite
+bin/semitexa test:run tests/Unit/SomeTest.php             # narrowed path
+bin/semitexa test:run -- --filter someTestName            # extra phpunit args after one '--'
+bin/semitexa test:run -- --testsuite Unit                 # phpunit testsuite filter
+```
+
+Why this matters:
+
+- the container guarantees the right PHP / Swoole / extension surface;
+- it mirrors how CI runs;
+- direct host-side `vendor/bin/phpunit` invocations silently produce different results and are not supported.
+
+**Argument passing gotcha:** `bin/semitexa test:run` accepts a single trailing `--` to forward the rest as PHPUnit arguments. Never use a leading `--` separator before phpunit arguments.
+
+```bash
+# CORRECT — first non-option is the path, then '--' once before phpunit flags
+bin/semitexa test:run tests/Unit/X.php -- --filter foo
+
+# WRONG — leading '--' before phpunit args breaks parsing
+bin/semitexa test:run -- tests/Unit/X.php --filter foo
+```
+
 ### `#[TestablePayload]` attribute
 
 ```php
-#[AsPayload(path: '/api/login', methods: ['POST'], responseWith: GenericResponse::class)]
+#[AsPublicPayload(path: '/api/login', methods: ['POST'], responseWith: GenericResponse::class)]
 #[TestablePayload(
     strategies: [ParanoidProfileStrategy::class, LoginEmailFormatStrategy::class],
 )]
-class LoginPayload implements ValidatablePayload { ... }
+class LoginPayload { ... }
 ```
 
 ### Strategy profiles
@@ -1697,10 +2078,12 @@ final class LoginEmailFormatStrategy implements TestingStrategyInterface
 
 ### Rules
 
+- **Do** run all tests via `bin/semitexa test:run` — never `vendor/bin/phpunit` from the host.
 - **Do** add `#[TestablePayload]` to every payload.
 - **Do** start with `StandardProfileStrategy` and escalate to `ParanoidProfileStrategy` for sensitive endpoints.
 - **Do** write custom strategies for domain-specific validation rules.
 - **Don't** skip security strategy on public endpoints — it tests for injection, XSS, header attacks.
+- **Don't** invoke `vendor/bin/phpunit` directly — it bypasses the container and may produce false positives or false negatives.
 
 ---
 
@@ -1708,38 +2091,55 @@ final class LoginEmailFormatStrategy implements TestingStrategyInterface
 
 ### Auth guards on payloads
 
-The authorization model is default-deny: every payload requires authentication unless explicitly marked `#[PublicEndpoint]`.
+Access is explicit at the type level. Every payload picks exactly one of three access attributes:
 
 ```php
-// Protected by default — no attribute needed.
-#[AsPayload(path: '/api/profile', methods: ['GET'], responseWith: GenericResponse::class)]
-class ProfilePayload {}
-
-// Explicitly public — anonymous access allowed.
-#[PublicEndpoint]
-#[AsPayload(path: '/api/login', methods: ['POST'], responseWith: GenericResponse::class)]
+// Anonymous endpoint — opt in explicitly.
+#[AsPublicPayload(path: '/api/login', methods: ['POST'], responseWith: LoginResource::class)]
 class LoginPayload {}
 
+// Authenticated user endpoint — the safe default.
+#[AsProtectedPayload(path: '/api/profile', methods: ['GET'], responseWith: ProfileResource::class)]
+class ProfilePayload {}
+
+// Service-domain endpoint — webhook receivers, machine APIs, partner integrations.
+#[AsServicePayload(path: '/webhooks/incoming', methods: ['POST'], responseWith: WebhookAcceptedResource::class)]
+#[AsWebhookReceiver(name: 'partner.signed', secretRef: 'env:PARTNER_WEBHOOK_SECRET')]
+class IncomingWebhookPayload {}
+
 // Protected with fine-grained permission check.
+#[AsProtectedPayload(path: '/api/admin/users', methods: ['GET'], responseWith: AdminUsersResource::class)]
 #[RequiresPermission('users.manage')]
-#[AsPayload(path: '/api/admin/users', methods: ['GET'], responseWith: GenericResponse::class)]
 class AdminUsersPayload {}
 ```
 
-All three attributes (`#[PublicEndpoint]`, `#[RequiresCapability]`, `#[RequiresPermission]`) are from `Semitexa\Authorization\Attributes`.
+The access attributes (`#[AsPublicPayload]`, `#[AsProtectedPayload]`, `#[AsServicePayload]`) and the RBAC attributes (`#[RequiresCapability]`, `#[RequiresPermission]`) live in `Semitexa\Authorization\Attribute`. There is no implicit default-protected fallback — a payload that declares none of the three access attributes never reaches the route registry.
+
+User-domain auth and service-domain auth are distinct:
+
+- A protected payload requires a User-domain principal (session, token, OAuth). A service credential never satisfies a protected route.
+- A service payload requires a Service-domain principal (verified webhook signature, machine token). A user credential never satisfies a service route.
 
 Capability vs permission:
 
-- `#[RequiresCapability]` is a coarse-grained gate for broad access such as `admin`, `staff`, or `backoffice`.
-- `#[RequiresPermission]` is a fine-grained RBAC check for concrete actions such as `users.manage` or `orders.refund`.
+- `#[RequiresCapability]` is a coarse-grained gate for broad access such as `admin`, `staff`, or `backoffice`. Works on both user-domain and service-domain payloads.
+- `#[RequiresPermission]` is a fine-grained RBAC check for concrete actions such as `users.manage` or `orders.refund`. User-domain only.
 
 Example:
 
 ```php
+#[AsProtectedPayload(path: '/api/admin/dashboard', methods: ['GET'], responseWith: AdminDashboardResource::class)]
 #[RequiresCapability('admin')]
-#[AsPayload(path: '/api/admin/dashboard', methods: ['GET'], responseWith: GenericResponse::class)]
 class AdminDashboardPayload {}
 ```
+
+For service-domain capabilities, the wired `ServiceCapabilityProviderInterface` is consulted with the resolved tenant id:
+
+```php
+public function getCapabilitiesForService(string $serviceId, ?string $tenantId = null): array;
+```
+
+Multi-tenant production deployments MUST scope grants by tenant — see the [post-hardening migration guide](en/migration/post-hardening.md) for the full contract.
 
 ### Pipeline execution order
 
@@ -1765,9 +2165,9 @@ All exceptions are caught by ExceptionMapper → content-negotiated error respon
 
 ### Rules
 
-- **Do** mark every explicitly public endpoint with `#[PublicEndpoint]` — all others are protected by default.
-- **Do** use `#[RequiresPermission]` for fine-grained RBAC.
-- **Do** use `#[RequiresCapability]` for coarse-grained endpoint access gating.
+- **Do** declare exactly one access attribute (`#[AsPublicPayload]` / `#[AsProtectedPayload]` / `#[AsServicePayload]`) on every payload — there is no implicit fallback.
+- **Do** use `#[RequiresPermission]` for fine-grained RBAC on user-domain protected payloads.
+- **Do** use `#[RequiresCapability]` for coarse-grained gates (works on both user-domain and service-domain payloads).
 - **Do** call `$session->regenerate()` after authentication state changes.
 - **Do** validate and sanitize all input in the payload's `validate()` method.
 - **Don't** trust client-provided IDs without authorization checks.
@@ -1994,7 +2394,7 @@ public function __construct(
 ) {}
 
 // Named arguments in attributes (always):
-#[AsPayload(path: '/api/users', methods: ['POST'], responseWith: GenericResponse::class)]
+#[AsProtectedPayload(path: '/api/users', methods: ['POST'], responseWith: GenericResponse::class)]
 
 // match over switch:
 $result = match ($strategy) {
@@ -2093,8 +2493,8 @@ final class AdminAuthHandler implements TypedHandlerInterface {
 }
 
 // GOOD — use pipeline listener or authorization attributes
+#[AsProtectedPayload(path: '/api/admin/...', methods: ['GET'], responseWith: GenericResponse::class)]
 #[RequiresPermission('admin.access')]
-#[AsPayload(path: '/api/admin/...', ...)]
 class AdminPayload {}
 ```
 
@@ -2183,7 +2583,7 @@ final class MyHandler implements HandlerInterface { ... }
 final class MyHandler implements TypedHandlerInterface { ... }
 ```
 
-> Run `bin/semitexa semitexa:lint:handlers` to find all remaining legacy handlers. PHPStan also flags `HandlerInterface` usage with the `semitexa.deprecatedHandlerInterface` identifier.
+> Run `bin/semitexa lint:handlers` to find all remaining legacy handlers. PHPStan also flags `HandlerInterface` usage with the `semitexa.deprecatedHandlerInterface` identifier.
 
 ### Don't: Implement PayloadInterface
 
@@ -2191,9 +2591,78 @@ final class MyHandler implements TypedHandlerInterface { ... }
 // BAD — deprecated marker interface, no longer required
 class MyPayload implements PayloadInterface {}
 
-// GOOD — plain class, no marker interface needed
+// GOOD — plain class, no marker interface needed; validation lives in setters
+//        (throw Semitexa\Core\Exception\ValidationException from setX() to reject input).
 class MyPayload {}
+```
 
-// GOOD — with validation (ValidatablePayload is still required)
-class MyPayload implements ValidatablePayload { ... }
+### Don't: Run `vendor/bin/phpunit` directly
+
+```bash
+# BAD — bypasses the container, picks up the host PHP/Swoole, may diverge from CI
+vendor/bin/phpunit tests/Unit/MyTest.php
+
+# GOOD — runs inside the framework container, matches CI
+bin/semitexa test:run tests/Unit/MyTest.php
+```
+
+### Don't: Hand-edit `tokens.css`
+
+```css
+/* BAD — tokens.css is generated; lint:skin-tokens will fail and your edit will be lost on rebuild */
+:root { --ui-accent-brand: #ff0000; }
+```
+
+```jsonc
+// GOOD — edit src/skins/<slug>/skin.json, then bin/semitexa skins:rebuild <slug>
+{ "tokens": { "light": { "--ui-accent-brand": "#ff0000" } } }
+```
+
+### Don't: Place console commands or update patches outside the canonical location
+
+```text
+# BAD — discovery does not walk these paths
+bin/my-script.php
+scripts/cleanup.php
+src/Console/Reset.php           # only valid inside packages, not under src/
+
+# GOOD — discovered via #[AsCommand]
+src/modules/{Module}/Application/Console/Command/{Name}Command.php
+packages/semitexa-{pkg}/src/Application/Console/Command/{Name}Command.php
+
+# GOOD — discovered via #[AsDataPatch]
+src/modules/{Module}/Application/Update/{PatchName}.php
+packages/semitexa-{pkg}/src/Update/{PatchName}.php
+```
+
+### Don't: Treat `THEME` as the way to switch themes
+
+```bash
+# BAD — has no effect; theme selection is manifest-driven via active_when
+THEME=dark bin/semitexa server:start
+
+# GOOD — gate the theme manifest with active_when (domain, path, etc.)
+# src/theme/dark/theme.json:
+# { "id": "dark", "extends": "theme-base", "active_when": { "domain": "dark.example.test" }, "skin": { "default": "dark" } }
+```
+
+### Don't: Treat `var/docs/` as authoritative documentation
+
+```text
+# BAD — relying on a long-lived contract document inside scratch
+"see var/docs/HANDLER_REFACTORING_TECHNICAL_DESIGN.md for the canonical handler contract"
+
+# GOOD — canonical docs live in packages/semitexa-docs/docs/; var/docs/ is in-flight scratch
+"see packages/semitexa-docs/docs/AI_BEST_PRACTICES.md §4 (Handlers)"
+```
+
+### Don't: Document planned features as if they exist
+
+```text
+# BAD — the doc claims a command/path that no fresh checkout has
+"Run `make:patch` to scaffold a data patch."          # no such generator exists today
+
+# GOOD — describe what is in the repo; capture the rest as an ai:epic
+"Author the patch class manually under Application/Update/ following §1.2; a make:patch
+generator is not part of the framework today (would be a follow-up epic)."
 ```

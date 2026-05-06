@@ -6,8 +6,8 @@ namespace Semitexa\Docs\Tests\Integration;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Semitexa\Docs\Application\Console\DocsListCommand;
-use Semitexa\Docs\Application\Console\DocsShowSectionCommand;
+use Semitexa\Docs\Application\Console\Command\DocsListCommand;
+use Semitexa\Docs\Application\Console\Command\DocsShowSectionCommand;
 use Semitexa\Docs\Application\Service\DocumentFrontMatterParser;
 use Semitexa\Docs\Application\Service\DocumentManifestBuilder;
 use Semitexa\Docs\Application\Service\FileDocumentRepository;

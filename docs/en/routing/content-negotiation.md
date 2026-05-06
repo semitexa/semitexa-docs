@@ -8,7 +8,7 @@ order: 60
 locale: en
 status: canonical
 keywords:
-  - "#[AsPayload(produces)]"
+  - produces
   - Accept header
   - "?_format= override"
   - ContentNegotiator
@@ -19,7 +19,7 @@ A single endpoint serves JSON, HTML, or other formats depending on the Accept he
 
 ## How it works
 
-The `produces` array in `#[AsPayload]` declares which Content-Types the endpoint supports. The framework negotiates the best match against the client Accept header and selects the appropriate response serializer.
+The `produces` array on the payload's access attribute (`#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]`) declares which Content-Types the endpoint supports. The framework negotiates the best match against the client Accept header and selects the appropriate response serializer.
 
 ## Why this matters
 

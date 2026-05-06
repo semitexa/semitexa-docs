@@ -87,17 +87,11 @@ declare(strict_types=1);
 
 namespace Semitexa\Modules\Website\Application\Payload\Request;
 
-use Semitexa\Core\Attributes\AsPayload;
-use Semitexa\Core\Contract\ValidatablePayload;
-use Semitexa\Core\Http\PayloadValidationResult;
-use Semitexa\Core\Validation\Trait\LengthValidationTrait;
-use Semitexa\Modules\Website\Application\Resource\Response\MinimalPageResource;
+use Semitexa\Core\Attribute\AsPublicPayload;use Semitexa\Core\Exception\ValidationException;use Semitexa\Modules\Website\Application\Resource\Response\MinimalPageResource;
 
-#[AsPayload(path: '/minimal', methods: ['GET'], responseWith: MinimalPageResource::class)]
-final class MinimalPagePayload implements ValidatablePayload
+#[AsPublicPayload(path: '/minimal', methods: ['GET'], responseWith: MinimalPageResource::class)]
+final class MinimalPagePayload
 {
-    use LengthValidationTrait;
-
     protected string $name = '';
 
     public function getName(): string
@@ -107,14 +101,12 @@ final class MinimalPagePayload implements ValidatablePayload
 
     public function setName(string $name): void
     {
-        $this->name = trim($name);
-    }
-
-    public function validate(): PayloadValidationResult
-    {
-        $errors = [];
-        $this->validateLength('name', $this->name, 1, 100, $errors);
-        return new PayloadValidationResult(empty($errors), $errors);
+        $trimmed = trim($name);
+        $length  = strlen($trimmed);
+        if ($length < 1 || $length > 100) {
+            throw new ValidationException(['name' => ['Must be between 1 and 100 characters.']]);
+        }
+        $this->name = $trimmed;
     }
 }
 ```
@@ -123,8 +115,8 @@ What matters:
 
 - Payload defines path, methods, and response type.
 - Framework hydrates via setters.
-- Invalid input returns `422` before the handler runs.
-- There is no `PayloadInterface` here. Plain class plus `ValidatablePayload` is the modern path.
+- Setters throw `Semitexa\Core\Exception\ValidationException` to reject invalid input. The framework converts the exception into a `422 Unprocessable Entity` response with a `{ errors: { field: [...] } }` envelope before the handler runs.
+- There is no `PayloadInterface` here. Plain class plus setter-time validation is the modern path.
 
 This is one of the strongest Semitexa ideas: the handler should receive data that is already shaped and safe to trust.
 
@@ -147,7 +139,7 @@ namespace Semitexa\Modules\Website\Application\Resource\Response;
 
 use Semitexa\Core\Attributes\AsResource;
 use Semitexa\Core\Contract\ResourceInterface;
-use Semitexa\Ssr\Http\Response\HtmlResponse;
+use Semitexa\Ssr\Application\Service\Http\Response\HtmlResponse;
 
 #[AsResource(
     handle: 'minimal_page',
