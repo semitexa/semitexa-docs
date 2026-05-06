@@ -210,9 +210,11 @@ The validator distinguishes three structural domains, each with its own strict a
 
 | Domain | Path pattern | Allowlist source |
 |---|---|---|
-| Application module | `src/modules/{Name}/` | global `top_level` minus `packageOnlyDirectories` |
-| Standard package | `packages/semitexa-{name}/src/` | global `top_level` ∪ `packageOnlyDirectories` |
+| Application module | `src/modules/{Name}/src/` (runtime) + `src/modules/{Name}/tests/` (tests) | global `top_level` minus `packageOnlyDirectories` |
+| Standard package | `packages/semitexa-{name}/src/` (runtime) + `packages/semitexa-{name}/tests/` (tests) | global `top_level` ∪ `packageOnlyDirectories` |
 | Framework package | `packages/semitexa-core/src/` (only) | global `top_level` ∪ `packageOnlyDirectories` ∪ `packageSpecificCodeRoot.core` |
+
+Application modules and packages share the same envelope: runtime PHP under `src/`, tests under `tests/`. Local module roots accept only `src/`, `tests/`, and a small set of metadata files (`composer.json`, `.gitkeep`, `README.md`); anything else fires `module_structure.unknown_directory` (or `invalid_layer` for package-only layer names like `Auth/`, `Attribute/`, `Discovery/`, `OpenApi/`, `Pipeline/`).
 
 The complete table follows. **"Allowed in packages"** means standard production packages (`semitexa-api`, `semitexa-orm`, etc.). **"Allowed in src/modules"** means application modules under `src/modules/<ModuleName>/`. Core-only entries are valid in `semitexa-core` only — they fail everywhere else with `module_structure.unknown_directory`.
 
@@ -708,8 +710,8 @@ packages/semitexa-core/src/Application/Service/Sandbox/PocService.php
 ### Valid demo locations
 
 ```text
-src/modules/ApiDemo/Application/Handler/PayloadHandler/CreateArticleHandler.php   ✓ (local sandbox)
-tests/Playground/RestApi/Fixtures/Application/Handler/CreateArticleHandler.php    ✓ (host-app test fixture)
+src/modules/ApiDemo/Application/Handler/PayloadHandler/CreateArticleHandler.php                              ✓ (local sandbox)
+src/modules/Playground/tests/RestApi/Fixtures/Application/Handler/CreateArticleHandler.php       ✓ (host-app test fixture)
 ```
 
 ---

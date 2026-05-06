@@ -113,7 +113,7 @@ The whole chain runs even when:
 
 Same `try { … } finally { PerRequestStateRegistry::resetAll(); CoroutineLocal::endRequest(); }` wrap, but the queue worker does NOT instantiate `Application` and does NOT use the request-scoped container — it processes messages through its own handler-resolution path. So `requestScopedContainer->reset()` is *not* part of the queue lifecycle by design. The per-message contract is "static stores reset, coroutine-local cleared" — sufficient because no Request/Session/CookieJar object exists in the queue path.
 
-If you add a third entry-point (background task runner, scheduled job processor), match whichever of the two shapes applies — HTTP-style if it instantiates `Application`, queue-style if it doesn't. Add a regression test in `tests/Runtime/RequestScopedContainerLifecycleTest.php` (HTTP-style) or `tests/Runtime/StateLifecycleTest.php` (queue-style) that asserts the new entry-point clears the right registries.
+If you add a third entry-point (background task runner, scheduled job processor), match whichever of the two shapes applies — HTTP-style if it instantiates `Application`, queue-style if it doesn't. Add a regression test in `packages/semitexa-core/tests/Integration/RequestScopedContainerLifecycleTest.php` (HTTP-style) or `packages/semitexa-core/tests/Integration/StateLifecycleTest.php` (queue-style) that asserts the new entry-point clears the right registries.
 
 ## What runs the test-only reset, and when
 
@@ -169,7 +169,7 @@ Setting these triggers `SemitexaContainer::setExecutionContext(...)`, which writ
 
 Two approaches, both pin the same contract:
 
-1. Dispatch through `Application::handleRequest` and observe the request-scoped container before and after. `$app->requestScopedContainer->has(Request::class)` returns `false` once `handleRequest` returns. See `tests/Runtime/RequestScopedContainerLifecycleTest.php` for the canonical patterns.
+1. Dispatch through `Application::handleRequest` and observe the request-scoped container before and after. `$app->requestScopedContainer->has(Request::class)` returns `false` once `handleRequest` returns. See `packages/semitexa-core/tests/Integration/RequestScopedContainerLifecycleTest.php` for the canonical patterns.
 2. Add a tiny `#[ExecutionScoped]` probe service that records its instance id (`spl_object_id($this)`) on construction and exposes a getter. Resolve it from the request-scoped container in two sequential dispatches and assert the id differs — proves the framework returns a fresh clone per execution rather than reusing the previous request's instance.
 
 ## Swoole vs CLI: why this matters more than it looks
@@ -189,7 +189,7 @@ Use this checklist:
 3. **Class 2**: do nothing extra — module-level static state survives by default.
 4. **Class 3**: persistence layer is responsible; framework has no hook.
 5. **Class 4**: register with `TestStateResetRegistry` lazily on first write. Production code never calls the test registry.
-6. **Add a lifecycle test** in `tests/Runtime/StateLifecycleTest.php` for the new store. Pin both directions: "must reset" or "must survive".
+6. **Add a lifecycle test** in `packages/semitexa-core/tests/Integration/StateLifecycleTest.php` for the new store. Pin both directions: "must reset" or "must survive".
 
 ## Tenant context lifecycle
 
@@ -312,7 +312,7 @@ The finally chain (`PerRequestStateRegistry::resetAll()` → `requestScopedConta
 
 ### RBAC cache coroutine isolation
 
-`RbacDecisionCache` stores grants in `Swoole\Coroutine::getContext()[KEY][userId]`. Two coroutines authenticating the same `userId` with different tenant grants get independent cache entries — pinned by `rbac_decision_cache_is_coroutine_isolated` in `tests/Runtime/ConcurrentCoroutineIsolationTest.php`. The intra-request multi-tenant collision risk noted above is unchanged: if a single coroutine evaluates the same `userId` under two tenants in sequence within one request, the cache would still collide. Across coroutines there is no risk.
+`RbacDecisionCache` stores grants in `Swoole\Coroutine::getContext()[KEY][userId]`. Two coroutines authenticating the same `userId` with different tenant grants get independent cache entries — pinned by `rbac_decision_cache_is_coroutine_isolated` in `packages/semitexa-authorization/tests/Integration/ConcurrentCoroutineIsolationTest.php`. The intra-request multi-tenant collision risk noted above is unchanged: if a single coroutine evaluates the same `userId` under two tenants in sequence within one request, the cache would still collide. Across coroutines there is no risk.
 
 ### Webhook replay/idempotency atomicity
 
@@ -599,7 +599,7 @@ The MySQL backing is the only one where cleanup cadence is operator-visible. The
 - **`seen()` then `markSeen()` for replay protection.** Use `markIfFirstSeen()` instead.
 - **Storing `Request` / `AuthContext` / tenant / locale in static singleton fields without coroutine indirection.** Two coroutines would overwrite each other. Always go through `CoroutineLocal` or `Swoole\Coroutine::getContext()`.
 - **Calling `Application::handleRequest` cleanup from outside the framework.** The finally chain assumes it runs on the same coroutine that established the per-request state. Calling it from a sibling coroutine wipes the wrong state.
-- **PHPUnit tests that exercise Swoole runtime without `#[RunTestsInSeparateProcesses]`.** After `Swoole\Coroutine\run()` returns, shared resources (like `OrmManager`'s connection pool channels) can be left in a state that crashes subsequent non-coroutine tests with an uncatchable Swoole-level fatal. Forking a process per Swoole test isolates the runtime teardown — see `tests/Runtime/ConcurrentCoroutineIsolationTest.php` for the canonical pattern.
+- **PHPUnit tests that exercise Swoole runtime without `#[RunTestsInSeparateProcesses]`.** After `Swoole\Coroutine\run()` returns, shared resources (like `OrmManager`'s connection pool channels) can be left in a state that crashes subsequent non-coroutine tests with an uncatchable Swoole-level fatal. Forking a process per Swoole test isolates the runtime teardown — see `packages/semitexa-authorization/tests/Integration/ConcurrentCoroutineIsolationTest.php` for the canonical pattern.
 - **Calling Swoole `Channel` methods inside `__destruct`.** PHP shutdown tears down the Swoole runtime before destructors run; subsequent Channel method calls raise `Swoole\Error: must call constructor first` as a true PHP fatal that bypasses try/catch. Use a `register_shutdown_function` flag to skip Channel ops in the shutdown phase — see `Semitexa\Orm\Adapter\ConnectionPool` for the pattern.
 
 ## Common anti-patterns (and why they're bugs)
@@ -644,4 +644,4 @@ TestStateResetRegistry::registeredNames();
 //    'in_memory_webhook_replay_store']
 ```
 
-Use these in lifecycle assertions to prove the right kind of state is wired into the right registry. `tests/Runtime/StateLifecycleTest.php` does exactly this — including negative assertions that no replay or demo store accidentally appears in `PerRequestStateRegistry`.
+Use these in lifecycle assertions to prove the right kind of state is wired into the right registry. `packages/semitexa-core/tests/Integration/StateLifecycleTest.php` does exactly this — including negative assertions that no replay or demo store accidentally appears in `PerRequestStateRegistry`.

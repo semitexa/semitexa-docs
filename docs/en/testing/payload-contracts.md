@@ -9,7 +9,6 @@ locale: en
 status: canonical
 keywords:
   - "#[TestablePayload]"
-  - test:init
   - test:run
   - StrictProfileStrategy
   - MonkeyTestingStrategy
@@ -20,7 +19,7 @@ Automated contract testing for payloads -- `#[TestablePayload]` marks a payload 
 
 ## How it works
 
-The testing framework discovers testable payloads, applies strategy profiles (Standard, Strict, Paranoid), and runs security, type enforcement, and monkey testing strategies against each endpoint. Scaffold one universal `ProjectPayloadsContractTest` with `test:init`, and the suite auto-discovers every marked payload in the project.
+The testing framework discovers testable payloads, applies strategy profiles (Standard, Strict, Paranoid), and runs security, type enforcement, and monkey testing strategies against each endpoint. The semitexa-testing package ships its own `ProjectPayloadsContractTest` integration test (`packages/semitexa-testing/tests/Integration/`) that auto-discovers every `#[TestablePayload]`-marked payload in the host project, so no per-project scaffolding is required.
 
 ## Why this matters
 
