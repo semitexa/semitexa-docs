@@ -102,7 +102,7 @@ Package root must contain:
 
 Package root may contain package metadata/config files such as `LICENSE`, `README.md`, `CHANGELOG.md`, `phpunit.xml`, `phpunit.xml.dist`, `phpstan.neon`, `.gitignore`, Docker/install files, and package tooling directories such as `tests/`, `docs/`, `bin/`, `resources/`, `tools/`, `public/`, `.github/`, and `var/`.
 
-Package `src/` follows the **same strict allowlist** as an application module's root. The only top-level directories permitted at `packages/semitexa-{name}/src/` are the canonical layers from § 2 (`Application`, `Domain`, `Context`, `Configuration`, `Update`, `Static`, `View`) plus `Attributes/` (package-only). There is no special "package source is package-specific" exemption — historical drift such as `Auth/`, `Discovery/`, `OpenApi/`, `Pipeline/`, `Transport/` at the package source root is rejected with `module_structure.unknown_directory`. Move such code into the appropriate canonical sub-tree (typically `Application/Service/`, `Domain/Service/`, or `Domain/Contract/`).
+Package `src/` follows the **same strict allowlist** as an application module's root. The only top-level directories permitted at `packages/semitexa-{name}/src/` are the canonical layers from § 2 (`Application`, `Domain`, `Context`, `Configuration`) plus `Attributes/` (package-only). There is no special "package source is package-specific" exemption — historical drift such as `Auth/`, `Discovery/`, `OpenApi/`, `Pipeline/`, `Transport/` at the package source root is rejected with `module_structure.unknown_directory`. Move such code into the appropriate canonical sub-tree (typically `Application/Service/`, `Domain/Service/`, or `Domain/Contract/`).
 
 There is one strict package-source rule: package-owned console commands must live under `src/Application/Console/Command/`. Do not place console command classes directly at `src/Console/Command/`, `src/Console/`, `src/CLI/`, or under a feature-specific `*/Console/` directory. `src/Domain/Command/` is reserved for domain command objects only; it must not contain Symfony/Semitexa console commands. Console commands are part of the package's *application* layer and follow the same `Application/Console/Command/` shape that application modules use under `src/modules/{Name}/Application/Console/Command/`.
 
@@ -138,7 +138,7 @@ Use `Domain/Service/` for business behavior owned by the module:
 * coordinates domain models, repositories, events, and domain contracts;
 * must not depend on `Application/*`, payloads, handlers, resources, templates, current request objects, or presentation/rendering concerns.
 
-Decision rule: if removing HTTP/routes/templates would make the class meaningless, it belongs in `Application/Service/`. If the class still expresses a module business concept with only `Domain/*` collaborators, it belongs in `Domain/Service/`. Persistence row/resource classes and mapper metadata belong under `Domain/Model/` or `Domain/Repository/`, not `Application/Service/` or `Domain/Service/`.
+Decision rule: if removing HTTP/routes/templates would make the class meaningless, it belongs in `Application/Service/`. If the class still expresses a module business concept with only `Domain/*` collaborators, it belongs in `Domain/Service/`. Persistence row/resource classes and mapper metadata belong under `Application/Db/`, not `Application/Service/` or `Domain/Service/`.
 
 ---
 
@@ -192,7 +192,7 @@ Each violation emitted by the validator carries one of these stable, AI-facing c
 
 | Code | Trigger | What to do |
 |---|---|---|
-| `module_structure.unknown_directory` | A directory exists at a path where it is **not explicitly allowed** by the executable spec. Triggered for `Application/Db/`, `Application/Payload/Response/`, `src/Endpoint/`, `src/Services/`, `src/Helpers/`, `src/Console/Command/` (in packages), and any other undeclared layer. | Move the contents into a declared sub-tree, or — if the new layer is genuinely needed — extend the spec at `packages/semitexa-dev/config/module-structure.php` (and update this doc in lockstep). Do **not** add an exception. |
+| `module_structure.unknown_directory` | A directory exists at a path where it is **not explicitly allowed** by the executable spec. Triggered for `Application/Payload/Response/`, `src/Endpoint/`, `src/Services/`, `src/Helpers/`, `src/Console/Command/` (in packages), and any other undeclared layer. | Move the contents into a declared sub-tree, or — if the new layer is genuinely needed — extend the spec at `packages/semitexa-dev/config/module-structure.php` (and update this doc in lockstep). Do **not** add an exception. |
 | `module_structure.invalid_layer` | A package-only directory appears inside `src/modules/*`. Currently only `Attributes/` is package-only. | Application modules consume framework attributes; they do not declare them. Move into a package under `packages/semitexa-*/`. |
 | `module_structure.invalid_location` | A file exists in a sub-tree whose rule does not allow files of that name (the rule's `allowAnyFile` is false and the basename is not in `allowedFiles`/`allowedFilePatterns`). | Move the file under a declared leaf path. |
 | `module_structure.invalid_root_file` | A file at module root or package root is not in the spec's allowlist of metadata/config files. | Module root holds no source files; package root holds only declared metadata. Move source under `Application/<sub-tree>/` or `Domain/<sub-tree>/`. |
@@ -224,9 +224,6 @@ The complete table follows. **"Allowed in packages"** means standard production 
 | `Domain` | global | Entities, domain contracts (incl. repository interfaces), domain services / events / exceptions | yes | yes | Stays clean of persistence implementation (see Application/Db). `Domain/Repository` is intentionally NOT in the allowlist — see "Repository interfaces canonical location" below. |
 | `Context` | global | Request- / coroutine-scoped stores | yes | yes | Feature-grouping leaf |
 | `Configuration` | global | Readonly configuration classes | yes | yes | Feature-grouping leaf |
-| `Update` | global | `#[AsDataPatch]` post-schema patches at module root | yes | yes | Feature-grouping leaf |
-| `Static` | global | Static assets at module root (the canonical home is `Application/Static/`) | yes | yes | Feature-grouping leaf — present for back-compat with module-root assets |
-| `View` | global | Templates at module root (the canonical home is `Application/View/templates/`) | yes | yes | Feature-grouping leaf — present for back-compat with module-root templates |
 | `Exception` | global | Package-wide exception classes | yes | yes | **Leaf — files only.** Basenames must match `*Exception.php`. No subdirectories. `ExceptionFactory.php`, `*Helper.php`, `*Service.php` are rejected. See "Exception vs Domain/Exception" below. |
 | `Attribute` | package-only | Package's `#[…]` PHP attribute classes (singular form, never `Attributes`) | yes | **no** (`module_structure.invalid_layer`) | Universal package convention; canonical name is **singular** |
 | `Auth` | package-only | Package's auth integration / principal types / handlers | yes | **no** | Recurring framework concept |
