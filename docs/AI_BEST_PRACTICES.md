@@ -1386,7 +1386,7 @@ flow (return the normalised value on success, throw on failure):
 
 | Trait | Method | Returns | Throws on |
 |---|---|---|---|
-| `NotBlankValidationTrait` | `$this->requireNotBlank(string $field, string $value, string $message = 'Must not be blank.'): string` | trimmed value | blank-after-trim |
+| `NotBlankValidationTrait` | `requireNotBlank(string $field, string $value, string $message = 'Must not be blank.'): string` | trimmed value | blank-after-trim |
 
 Drop the trait into the payload, call the assertion from the relevant
 `setX()`, and store the return value. Don't reinvent the helper inline —

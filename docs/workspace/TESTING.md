@@ -10,7 +10,7 @@ bin/semitexa test:run
 
 That is the single entry point. It runs **two phases** end-to-end:
 
-1. **PHPUnit** — starts the test container from `docker-compose.yml` (+ active overlays) and `docker-compose.test.yml`, enforces `APP_ENV=dev`, auto-discovers `packages/*/tests/` and `src/modules/*/tests/`, and forwards any extra arguments straight to PHPUnit.
+1. **PHPUnit** — starts the test container from `docker-compose.yml` (+ active overlays) and `docker-compose.test.yml`, enforces `APP_ENV=dev`, auto-discovers the root `tests/` tree plus `packages/*/tests/` and `src/modules/*/tests/`, and forwards any extra arguments straight to PHPUnit.
 2. **E2E (Playwright)** — discovers `packages/*/tests/E2E/**/*.spec.ts` and `src/modules/*/tests/E2E/**/*.spec.ts`, brings up the application service, and executes every spec inside a containerized Playwright runner. Skipped if no E2E specs exist or if positional PHPUnit targets were passed.
 
 If PHPUnit fails, the E2E phase is skipped and the runner exits with PHPUnit's exit code. If E2E fails, the runner exits with the E2E exit code. Either failure surfaces as a non-zero exit from `bin/semitexa test:run`.
@@ -42,7 +42,7 @@ bin/semitexa test:run --filter MyFeatureTest
 Target a specific file:
 
 ```bash
-bin/semitexa test:run tests/Feature/MyFeatureTest.php
+bin/semitexa test:run tests/Integration/MyFeatureTest.php
 ```
 
 Target a single package's tests:
