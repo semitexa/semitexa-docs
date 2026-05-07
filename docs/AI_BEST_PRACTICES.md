@@ -1386,7 +1386,7 @@ flow (return the normalised value on success, throw on failure):
 
 | Trait | Method | Returns | Throws on |
 |---|---|---|---|
-| `NotBlankValidationTrait` | `self::requireNotBlank(string $field, string $value, string $message = 'Must not be blank.'): string` | trimmed value | blank-after-trim |
+| `NotBlankValidationTrait` | `requireNotBlank(string $field, string $value, string $message = 'Must not be blank.'): string` | trimmed value | blank-after-trim |
 
 Drop the trait into the payload, call the assertion from the relevant
 `setX()`, and store the return value. Don't reinvent the helper inline —
@@ -1408,13 +1408,13 @@ class CreateUserPayload
     public function getEmail(): string { return $this->email; }
     public function setEmail(string $email): void
     {
-        $this->email = self::requireNotBlank('email', $email);
+        $this->email = $this->requireNotBlank('email', $email);
     }
 
     public function getName(): string { return $this->name; }
     public function setName(string $name): void
     {
-        $this->name = self::requireNotBlank('name', $name);
+        $this->name = $this->requireNotBlank('name', $name);
     }
 }
 ```

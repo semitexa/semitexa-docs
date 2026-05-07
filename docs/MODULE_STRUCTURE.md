@@ -102,11 +102,13 @@ Package root must contain:
 * `composer.json`
 * `src/`
 
-Package root may contain package metadata/config files such as `LICENSE`, `README.md`, `CHANGELOG.md`, `phpunit.xml`, `phpunit.xml.dist`, `phpstan.neon`, `.gitignore`, Docker/install files, and package tooling directories such as `tests/`, `docs/`, `bin/`, `resources/`, `tools/`, `public/`, `.github/`, and `var/`.
+Package root may contain package metadata/config files such as `LICENSE`, `README.md`, `CHANGELOG.md`, `phpunit.xml`, `phpunit.xml.dist`, `phpstan.neon`, `.gitignore`, Docker/install files, and package tooling directories such as `tests/`, `docs/`, `bin/`, `resources/`, `tools/`, `public/`, `bootstrap/`, `.github/`, and `var/`.
 
 Package `src/` follows the **same strict allowlist** as an application module's root. The only top-level directories permitted at `packages/semitexa-{name}/src/` are the canonical layers from § 2 (`Application`, `Domain`, `Context`, `Configuration`) plus `Attributes/` (package-only). There is no special "package source is package-specific" exemption — historical drift such as `Auth/`, `Discovery/`, `OpenApi/`, `Pipeline/`, `Transport/` at the package source root is rejected with `module_structure.unknown_directory`. Move such code into the appropriate canonical sub-tree (typically `Application/Service/`, `Domain/Service/`, or `Domain/Contract/`).
 
 There is one strict package-source rule: package-owned console commands must live under `src/Application/Console/Command/`. Do not place console command classes directly at `src/Console/Command/`, `src/Console/`, `src/CLI/`, or under a feature-specific `*/Console/` directory. `src/Domain/Command/` is reserved for domain command objects only; it must not contain Symfony/Semitexa console commands. Console commands are part of the package's *application* layer and follow the same `Application/Console/Command/` shape that application modules use under `src/modules/{Name}/src/Application/Console/Command/`.
+
+Package-local executable extensions may widen a specific package's `src/` allowlist via `packages/<package>/config/module-structure.php` when that package exposes an intentional public surface outside the generic `Application` / `Domain` split. These extensions are additive only: they may authorise named top-level directories and rules for that one package, but they do not weaken the global package envelope or any production-pollution / naming guard.
 
 ### No nested modules
 
