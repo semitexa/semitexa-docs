@@ -3,13 +3,12 @@ id: testing/payload-contracts
 section: testing
 slug: payload-contracts
 title: Payload Contract Testing
-summary: Scaffold one project-level contract test and let strategy profiles verify payload boundaries without hand-writing repetitive negative cases.
+summary: Run one project-level contract suite through the canonical test runner and let strategy profiles verify payload boundaries without hand-writing repetitive negative cases.
 order: 10
 locale: en
 status: canonical
 keywords:
   - "#[TestablePayload]"
-  - test:init
   - test:run
   - StrictProfileStrategy
   - MonkeyTestingStrategy
@@ -20,7 +19,7 @@ Automated contract testing for payloads -- `#[TestablePayload]` marks a payload 
 
 ## How it works
 
-The testing framework discovers testable payloads, applies strategy profiles (Standard, Strict, Paranoid), and runs security, type enforcement, and monkey testing strategies against each endpoint. Scaffold one universal `ProjectPayloadsContractTest` with `test:init`, and the suite auto-discovers every marked payload in the project.
+The testing framework discovers testable payloads, applies strategy profiles (Standard, Strict, Paranoid), and runs security, type enforcement, and monkey testing strategies against each endpoint. The semitexa-testing package ships its own `ProjectPayloadsContractTest` integration test, and the canonical runner `bin/semitexa test:run` appends that suite automatically from `vendor/semitexa/testing/tests/Integration/ProjectPayloadsContractTest.php` in consuming projects. That keeps payload-contract coverage enabled without scaffolding a root-level `tests/` bucket, but it also means direct `vendor/bin/phpunit` runs are not the supported entry point.
 
 ## Why this matters
 

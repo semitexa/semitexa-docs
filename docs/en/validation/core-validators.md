@@ -400,13 +400,13 @@ $host->length($errors, 'name', 'ab', 3, 10);
 self::assertSame(['name' => ['This value should be at least 3 characters.']], $errors);
 ```
 
-**Runtime-level** — drive the actual `Application::handleRequest` pipeline with a synthetic POST request and assert the 422 envelope. `tests/Modules/ValidationDemo/RuntimeValidationPipelineTest.php` is the canonical example: each route gets one happy-path test, one test per validation failure shape, and lifecycle tests proving validation state does not leak across requests.
+**Runtime-level** — drive the actual `Application::handleRequest` pipeline with a synthetic POST request and assert the 422 envelope. `src/modules/ValidationDemo/tests/RuntimeValidationPipelineTest.php` is the canonical example: each route gets one happy-path test, one test per validation failure shape, and lifecycle tests proving validation state does not leak across requests.
 
 Run the validation tests with the framework's test runner:
 
 ```bash
 bin/semitexa test:run packages/semitexa-core/tests/Unit/Validation
-bin/semitexa test:run tests/Modules/ValidationDemo
+bin/semitexa test:run src/modules/ValidationDemo/tests
 ```
 
 The host-side PHPUnit binary is not the supported entry point.
