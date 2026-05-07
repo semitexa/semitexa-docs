@@ -31,10 +31,10 @@ A Semitexa module — for the purposes of this document and the structure valida
 
 | Kind | Path pattern | Validator scope |
 |---|---|---|
-| Application module | `src/modules/{ModuleName}/` | **In scope** — every rule in § 5 enforced |
+| Application module | `src/modules/{ModuleName}/` | **In scope** — runtime PHP under `src/`, tests under `tests/`, every rule in § 5 enforced |
 | Vendor / package module | `packages/semitexa-{name}/` with `composer.json` | **In scope** — package strategy enforced |
 
-The validator applies the same strict allowlist to both module kinds. Application modules are checked against the canonical tree (§ 2) starting at the module root. Package modules add a package-envelope check at the filesystem root (composer.json, LICENSE, README, etc. — see the executable spec's `packageRootRule`) and then apply the same strict tree under `packages/semitexa-{name}/src/`. Package source is **not** "intentionally permissive" — exactly the same allowlist applies.
+The validator applies the same strict allowlist to both module kinds. Application modules add a local envelope at `src/modules/{Name}/` and then apply the canonical tree (§ 2) under `src/modules/{Name}/src/`. Package modules add a package-envelope check at the filesystem root (composer.json, LICENSE, README, etc. — see the executable spec's `packageRootRule`) and then apply the same strict tree under `packages/semitexa-{name}/src/`. Package source is **not** "intentionally permissive" — exactly the same allowlist applies.
 
 The validator detects a module from a changed file path by walking up the directory tree until it finds either `src/modules/{Name}/` or `packages/semitexa-{name}/` with `composer.json`. If neither applies, the file is ignored by the structure check (other `ai:verify` checks still apply).
 
@@ -44,6 +44,7 @@ The validator detects a module from a changed file path by walking up the direct
 
 ```text
 {module-root}/
+  src/
   Application/
     Payload/
       Request/          # payload DTOs (one of #[AsPublicPayload] / #[AsProtectedPayload] / #[AsServicePayload])
@@ -87,6 +88,7 @@ The validator detects a module from a changed file path by walking up the direct
   Configuration/        # readonly config classes
   composer.json
   README.md             # optional
+  tests/                # optional for local modules; canonical home for module-local tests
 ```
 
 A module **may** omit any of these directories. A module **may not** add unlisted directories (see § 4).
@@ -104,7 +106,7 @@ Package root may contain package metadata/config files such as `LICENSE`, `READM
 
 Package `src/` follows the **same strict allowlist** as an application module's root. The only top-level directories permitted at `packages/semitexa-{name}/src/` are the canonical layers from § 2 (`Application`, `Domain`, `Context`, `Configuration`) plus `Attributes/` (package-only). There is no special "package source is package-specific" exemption — historical drift such as `Auth/`, `Discovery/`, `OpenApi/`, `Pipeline/`, `Transport/` at the package source root is rejected with `module_structure.unknown_directory`. Move such code into the appropriate canonical sub-tree (typically `Application/Service/`, `Domain/Service/`, or `Domain/Contract/`).
 
-There is one strict package-source rule: package-owned console commands must live under `src/Application/Console/Command/`. Do not place console command classes directly at `src/Console/Command/`, `src/Console/`, `src/CLI/`, or under a feature-specific `*/Console/` directory. `src/Domain/Command/` is reserved for domain command objects only; it must not contain Symfony/Semitexa console commands. Console commands are part of the package's *application* layer and follow the same `Application/Console/Command/` shape that application modules use under `src/modules/{Name}/Application/Console/Command/`.
+There is one strict package-source rule: package-owned console commands must live under `src/Application/Console/Command/`. Do not place console command classes directly at `src/Console/Command/`, `src/Console/`, `src/CLI/`, or under a feature-specific `*/Console/` directory. `src/Domain/Command/` is reserved for domain command objects only; it must not contain Symfony/Semitexa console commands. Console commands are part of the package's *application* layer and follow the same `Application/Console/Command/` shape that application modules use under `src/modules/{Name}/src/Application/Console/Command/`.
 
 ### No nested modules
 
@@ -198,7 +200,7 @@ Each violation emitted by the validator carries one of these stable, AI-facing c
 | `module_structure.invalid_root_file` | A file at module root or package root is not in the spec's allowlist of metadata/config files. | Module root holds no source files; package root holds only declared metadata. Move source under `Application/<sub-tree>/` or `Domain/<sub-tree>/`. |
 | `module_structure.invalid_namespace` | (Reserved) The PSR-4 namespace declared in a class file does not match its directory location. Currently emitted by companion lint commands; the structure validator surfaces directory-level violations. | Update the namespace declaration (or move the file) to match. |
 | `module_structure.undeclared_path` | A path is allowed as a child of its parent rule but the spec lacks a `ModuleStructureRule` of its own — the validator cannot validate its contents. | Add a `ModuleStructureRule(path: '<the path>', …)` entry to the executable spec. |
-| `module_structure.command_wrong_location` | A `*Command.php` file lives outside `Application/Console/Command/` (or any feature-grouping sub-folder of it). | Move the command class into `Application/Console/Command/` and update its namespace. The canonical location is the same for application modules (`src/modules/{Name}/Application/Console/Command/`) and packages (`packages/semitexa-{name}/src/Application/Console/Command/`). |
+| `module_structure.command_wrong_location` | A `*Command.php` file lives outside `Application/Console/Command/` (or any feature-grouping sub-folder of it). | Move the command class into `Application/Console/Command/` and update its namespace. The canonical location is the same for application modules (`src/modules/{Name}/src/Application/Console/Command/`) and packages (`packages/semitexa-{name}/src/Application/Console/Command/`). |
 | `module_structure.missing_required_path` | A package is missing a required envelope entry (`composer.json` or `src/`). | Create the missing entry; without `composer.json` the directory is not a Semitexa package. |
 | `module_structure.production_package_pollution` | A demo / sandbox / playground / example / test-app / fake / experimental folder appears anywhere inside a production package (`packages/semitexa-*/`, scanned recursively, except `tests/`). Forbidden names: `Demo`, `Demos`, `Example`, `Examples`, `Playground`, `Playgrounds`, `Sandbox`, `Sandboxes`, `Sample`, `Samples`, `TestApp`, `TestApps`, `Fake`, `Fakes`, `Experimental`, `Experiment`, `Experiments`. | Production packages must not ship demo or experimental code. Move the contents to **`src/modules/<your-demo-name>/`** (the project's local sandbox area). If the contents are test fixtures consumed by the package's `tests/`, relocate them to **`<package>/tests/Fixtures/<name>/`**. If the code is dead, delete it. **Do not** add the name to the spec — the rule is intentional. |
 
@@ -313,7 +315,7 @@ Two layers carry the name "Contract"; they serve different purposes.
 | Layer | Path | Contains | Owner |
 |---|---|---|---|
 | Framework `Contract` | `packages/semitexa-core/src/Contract/` | Framework-level interfaces implemented by the runtime: `TypedHandlerInterface`, `ExceptionResponseMapperInterface`, `RouteMetadataResolverInterface`, etc. Every file in this leaf ends in `Interface.php`. | semitexa-core only — gated by `packageSpecificCodeRoot.core` |
-| Module `Domain/Contract` | `<package>/src/Domain/Contract/` and `src/modules/{Name}/Domain/Contract/` | Module-level / domain interfaces, including all repository interfaces (`*RepositoryInterface.php`). | every package + every application module |
+| Module `Domain/Contract` | `<package>/src/Domain/Contract/` and `src/modules/{Name}/src/Domain/Contract/` | Module-level / domain interfaces, including all repository interfaces (`*RepositoryInterface.php`). | every package + every application module |
 
 The two never overlap: a framework `Contract/` can only appear inside `semitexa-core`; a `Domain/Contract/` can appear in any package or module. They are also at different paths so a misplaced file fails before any name conflict can arise.
 
