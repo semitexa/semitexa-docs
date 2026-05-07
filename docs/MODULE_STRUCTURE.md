@@ -45,47 +45,47 @@ The validator detects a module from a changed file path by walking up the direct
 ```text
 {module-root}/
   src/
-  Application/
-    Payload/
-      Request/          # payload DTOs (one of #[AsPublicPayload] / #[AsProtectedPayload] / #[AsServicePayload])
-      Event/            # event classes
-      Part/             # #[AsPayloadPart] traits
-    Resource/
-      Response/         # page / HTTP Resource DTOs
-      Slot/             # #[AsSlotResource] DTOs
-    Handler/
-      PayloadHandler/   # #[AsPayloadHandler]
-      SlotHandler/      # #[AsSlotHandler]
-      DomainListener/   # #[AsEventListener]
-    Service/            # application orchestration / adapters
-    Console/            # the only allowed child of Application/Console/ is Command/
-       Command/         # #[AsCommand] console commands (canonical for both packages and app modules)
-    Update/             # #[AsDataPatch] post-schema patches
-    Static/             # static assets (manifest-driven, assets.json required)
-      css/
-      js/
-    View/
-      locales/
-      templates/
-        pages/
-        layouts/
-        partials/
-        components/
-        deferred/
-    Component/          # #[AsComponent]
-    Db/                 # persistence implementation (resource models, mappers, concrete repositories)
-      MySQL/            # one storage adapter; declare additional adapters explicitly in the spec
-        Model/          # *Resource, *ResourceModel, *Mapper — feature-grouping allowed
-        Repository/     # concrete database-backed repositories implementing Domain/Contract/ interfaces
-  Domain/
-    Model/              # domain entities (NO persistence implementation here — see Application/Db)
-    Repository/         # repository INTERFACES (concrete implementations live under Application/Db/<adapter>/Repository/)
-    Contract/           # other domain interfaces
-    Exception/          # domain exceptions
-    Service/            # business rules that do not belong on one model
-    Event/              # domain events (alternative to Application/Payload/Event)
-  Context/              # request- / coroutine-scoped stores
-  Configuration/        # readonly config classes
+    Application/
+      Payload/
+        Request/          # payload DTOs (one of #[AsPublicPayload] / #[AsProtectedPayload] / #[AsServicePayload])
+        Event/            # event classes
+        Part/             # #[AsPayloadPart] traits
+      Resource/
+        Response/         # page / HTTP Resource DTOs
+        Slot/             # #[AsSlotResource] DTOs
+      Handler/
+        PayloadHandler/   # #[AsPayloadHandler]
+        SlotHandler/      # #[AsSlotHandler]
+        DomainListener/   # #[AsEventListener]
+      Service/            # application orchestration / adapters
+      Console/            # the only allowed child of Application/Console/ is Command/
+         Command/         # #[AsCommand] console commands (canonical for both packages and app modules)
+      Update/             # #[AsDataPatch] post-schema patches
+      Static/             # static assets (manifest-driven, assets.json required)
+        css/
+        js/
+      View/
+        locales/
+        templates/
+          pages/
+          layouts/
+          partials/
+          components/
+          deferred/
+      Component/          # #[AsComponent]
+      Db/                 # persistence implementation (resource models, mappers, concrete repositories)
+        MySQL/            # one storage adapter; declare additional adapters explicitly in the spec
+          Model/          # *Resource, *ResourceModel, *Mapper — feature-grouping allowed
+          Repository/     # concrete database-backed repositories implementing Domain/Contract/ interfaces
+    Domain/
+      Model/              # domain entities (NO persistence implementation here — see Application/Db)
+      Repository/         # repository INTERFACES (concrete implementations live under Application/Db/<adapter>/Repository/)
+      Contract/           # other domain interfaces
+      Exception/          # domain exceptions
+      Service/            # business rules that do not belong on one model
+      Event/              # domain events (alternative to Application/Payload/Event)
+    Context/              # request- / coroutine-scoped stores
+    Configuration/        # readonly config classes
   composer.json
   README.md             # optional
   tests/                # optional for local modules; canonical home for module-local tests
