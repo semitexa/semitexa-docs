@@ -712,7 +712,7 @@ packages/semitexa-core/src/Application/Service/Sandbox/PocService.php
 ### Valid demo locations
 
 ```text
-src/modules/ApiDemo/Application/Handler/PayloadHandler/CreateArticleHandler.php                              ✓ (local sandbox)
+src/modules/ApiDemo/src/Application/Handler/PayloadHandler/CreateArticleHandler.php                          ✓ (local sandbox)
 src/modules/Playground/tests/RestApi/Fixtures/Application/Handler/CreateArticleHandler.php       ✓ (host-app test fixture)
 ```
 
