@@ -35,5 +35,6 @@
         "documentation",
         "guides",
         "architecture"
-    ]
+    ],
+    "version": "v1.0.23"
 }
