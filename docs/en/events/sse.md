@@ -24,6 +24,15 @@ Real-time server push without WebSockets — a persistent HTTP connection that s
 
 The SSE endpoint holds an open `text/event-stream` response. The server pushes named event frames over this connection whenever backend activity produces output. The client JavaScript receives each frame and updates the page without polling or a WebSocket handshake.
 
+### Collection feed frames
+
+A collection feed (`AbstractSseCollectionFeedHandler`) streams a fixed, canonical frame vocabulary — the event names are an allow-list, never a client-controlled string:
+
+- **`ui.collection.data`** — carries the canonical `{ data, meta }` collection envelope, the same projection the JSON pull mode returns, so the client renders both transports from one code path. Emitted on initial connect, on rehydration, and on Track-R-driven re-runs.
+- **`ui.collection.error`** — collection-level errors on the same stream.
+
+(The legacy `ui.grid.data` / `ui.grid.error` frames that carried the v1 `UiGridDataResponse` shape were removed in the Phase 6 sweep.)
+
 ## Why this matters
 
 SSE is simpler than WebSockets for unidirectional server-to-client push: plain HTTP and native browser support via `EventSource`. Semitexa's `AsyncResourceSseServer` integrates with the event dispatcher so that async and queued listener completions can be streamed to the correct session without the client needing to poll.
