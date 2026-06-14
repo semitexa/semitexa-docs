@@ -2666,3 +2666,71 @@ THEME=dark bin/semitexa server:start
 "Author the patch class manually under Application/Update/ following §1.2; a make:patch
 generator is not part of the framework today (would be a follow-up epic)."
 ```
+
+## 23. ai:verify Guards
+
+`bin/semitexa ai:verify` is the AI-facing entry point that runs the precise
+lint + test + structure + DI subset for a diff/file list and emits an NDJSON
+report. Three guards are active beyond syntax + scoped lints.
+
+### 23.1 Module-structure guard
+
+Every verify (including `--scope=minimal`) runs the deterministic
+module-structure validator backed by [`MODULE_STRUCTURE.md`](MODULE_STRUCTURE.md).
+Violations surface with the module-structure `code` and `path`.
+
+### 23.2 DI guard (semitexa.* PHPStan rules)
+
+`standard` scope (and `minimal` with `--all`) runs PHPStan against changed PHP
+files using `packages/semitexa-dev/config/phpstan-ai-verify.neon`. Identifiers
+flow through to NDJSON verbatim:
+
+| Identifier | What it catches |
+|---|---|
+| `semitexa.injectionViaConstructor` | Container-managed class declares constructor parameters instead of `#[InjectAs*]` properties |
+| `semitexa.staticContainerAccess` | Application code calls `ContainerFactory::*` (allowed only inside framework plumbing) |
+| `semitexa.injectedPropertyVisibility` | `#[InjectAs*]` / `#[Config]` property is not `protected` |
+| `semitexa.injectOnScalarType` | `#[InjectAs*]` on a scalar property (must use `#[Config]`) |
+| `semitexa.configOnArrayType` / `configOnClassType` | `#[Config]` on an unsupported type |
+| `semitexa.unannotatedServiceProperty` | Class property with no `#[InjectAs*]` / `#[Config]` attribute |
+| `semitexa.traitInjection` | `#[InjectAs*]` property declared inside a trait |
+
+Rules live in `packages/semitexa-core/src/PHPStan/Rules/`. The same set runs
+under the project's level=max `phpstan.neon` for `composer phpstan` over a
+narrower path set.
+
+### 23.3 Broken-FQCN guard (Layer 1 of `ep-ai-verify-broken-fqcn-guard`)
+
+PHPStan's native level-0 checks (`class.notFound`, `interface.notFound`,
+`staticMethod.notFound`, `classConstant.notFound`, …) are active under the
+focused `phpstan-ai-verify.neon`. When the `phpstan_di` target emits any of
+those, the diagnostic is remapped to the Semitexa-namespaced
+`semitexa.brokenFqcn` identifier and carries a "vendor migration likely"
+suggestion — DDD renames are the dominant cause.
+
+The straightforward case (developer edits a file that contains a broken
+`use`/typehint) is caught by PHPStan in the standard pipeline. **Layer 1**
+adds the harder case: a contract is removed/renamed elsewhere, and the
+consumers that still reference it are *not in the changed-file list*. The
+`ContractMoveResolver` queries the project graph for usages of any
+`DELETED` or `RENAMED` PHP file and appends those dependent files to the
+`phpstan_di` scan input. An NDJSON `expansions[]` entry explains *why* each
+otherwise-unchanged file was pulled in:
+
+```text
+contract Semitexa\Theme\Domain\Contract\SkinAlgorithmInterface removed
+(packages/semitexa-theme/src/Domain/Contract/SkinAlgorithmInterface.php)
+— adding 5 dependent file(s) to phpstan_di scan
+```
+
+False-positive control: the resolver only acts on `DELETED`/`RENAMED` PHP
+files; `MODIFIED`/`ADDED` files never trigger blast-radius expansion. If
+the project graph has been built before (`bin/semitexa
+ai:review-graph:generate`), the lookup is one process spawn per removed
+contract. The resolver is no-op-safe — when the graph CLI is unavailable,
+the deleted file's FQCN can't be derived, or the graph reports no usages,
+no expansion is emitted (rather than a guessed expansion).
+
+If the impact graph hasn't been refreshed recently, the `suggested_fix`
+field on every `semitexa.brokenFqcn` violation reminds you to run
+`bin/semitexa ai:review-graph:generate` before relying on Layer 1.
