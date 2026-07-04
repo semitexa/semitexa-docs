@@ -392,7 +392,7 @@ Beyond Application/Db (already covered above), the following layers have explici
 | `Session` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Attribute/` only + PascalCase root files. Phase 3 batch 2. |
 | `Session/Attribute` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF. Phase 3 batch 2. |
 | `Server` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Lifecycle/` only + PascalCase root files. Phase 3 batch 2. |
-| `Server/Lifecycle` (semitexa-core) | `/^Server[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — basenames start with Server. Phase 3 batch 2. |
+| `Server/Lifecycle` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | drift deny-list (`*Helper`, `*Util`, `*Manager`, `*Misc`, `*Common`) | LEAF — Server*-prefixed phases/context/invoker/registry plus core-owned lifecycle listeners and collaborators (ClearWorkerTimersListener, WorkerTimerRegistry). Loosened from the Server*-only pattern when the WorkerExit drain landed. |
 | `Resource` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Attribute/`, `Cursor/`, `Exception/`, `Filter/`, `Lifecycle/`, `Memo/`, `Metadata/`, `Pagination/`, `Sort/` only + PascalCase root files. Phase 3 batch 2. |
 | `Resource/Attribute` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF. PHP attribute classes for resources. Phase 3 batch 2. |
 | `Resource/Cursor` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Cursor[A-Za-z0-9_]*\.php$/` | — | LEAF — basenames contain Cursor. Phase 3 batch 2. |
