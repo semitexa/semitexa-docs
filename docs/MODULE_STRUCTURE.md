@@ -73,6 +73,7 @@ The validator detects a module from a changed file path by walking up the direct
           components/
           deferred/
       Component/          # #[AsComponent]
+      Prompt/             # #[AsPrompt] prompt-catalog definitions (thin: metadata + optional few-shot; Twig body in resources/prompts/)
       Db/                 # persistence implementation (resource models, mappers, concrete repositories)
         MySQL/            # one storage adapter; declare additional adapters explicitly in the spec
           Model/          # *Resource, *ResourceModel, *Mapper — feature-grouping allowed
