@@ -12,6 +12,8 @@ keywords:
   - custom skills
   - SkillManifest
   - policy-aware execution
+relatedDocuments:
+  - prompt/overview
 ---
 # LLM Module Overview
 
