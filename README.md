@@ -21,3 +21,4 @@ Dependency of Core. Referenced by all packages for framework-wide documentation.
 ## Notes
 
 Documentation follows five guiding questions: Why does this exist? How do I start? What is the Semitexa way? What should I never do? Where do I go next?
+
