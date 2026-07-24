@@ -237,7 +237,6 @@ The complete table follows. **"Allowed in packages"** means standard production 
 | `Discovery` | package-only | Discovery adapters that implement Core discovery contracts | yes | **no** | Recurring framework concept |
 | `OpenApi` | package-only | OpenAPI document-generation facility (sub-trees: `Schema/`, `Route/`, `Attribute/`) | yes | **no** | Substantial framework sub-system |
 | `Pipeline` | package-only | Pipeline middleware / mappers / decorators | yes | **no** | Recurring framework concept |
-| `Acl` | core-only | Access-control primitives | only `semitexa-core` | no | Framework primitive |
 | `Authorization` | core-only | Authorization primitives | only `semitexa-core` | no | Framework primitive |
 | `CodeGen` | core-only | Code-generation infrastructure | only `semitexa-core` | no | Framework primitive |
 | `Composer` | core-only | Semitexa Composer plugin | only `semitexa-core` | no | Framework infrastructure |
@@ -306,6 +305,10 @@ Inside `semitexa-core` only. Each entry is tracked, not silently skipped.
 **Phase 3 batch 2 (2026-04-30) — promoted from `opaque_internal`:** `Acl`, `Authorization`, `Cookie`, `Csrf` (+ `Csrf/Attribute`), `Request` (+ `Request/Attribute`), `Session` (+ `Session/Attribute`), `Server` (+ `Server/Lifecycle`), `Resource` (+ all 9 sub-trees).
 
 **Phase 3 batch 3 (2026-04-30) — promoted from `opaque_internal`:** `CodeGen`, `Composer`, `PHPStan` (+ `PHPStan/Rules`), `Lifecycle`, `Registry`, `Log`, `Error`. Plus tightening of `Acl` and `Authorization` with the same drift-rejecting `excludedFilePatterns` already used by `Support`.
+
+**Removed (2026-07-24):** `Acl` — the directory held three access-control primitives with zero references anywhere in
+the workspace, superseded by `semitexa-authorization` / `semitexa-rbac`. The rule, its core-only entry and its
+validator tests were dropped with the code; the batch-2 and batch-3 notes above are kept as history.
 
 **Phase 4 (2026-04-30) — final batch promoted from `opaque_internal`:** `Contract` (framework-level interfaces, NOT to be confused with `Domain/Contract`), `Locale`, `Tenant` (+ `Tenant/Layer`, `Tenant/Scope`), `Theme`. Plus tightening of `Event` and `Config` with the drift deny-list.
 
@@ -383,7 +386,6 @@ Beyond Application/Db (already covered above), the following layers have explici
 | `Queue/Message` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Message\.php$/` | — | LEAF — basename ends in Message.php. Phase 3 batch 1. |
 | `Queue/Transport` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Transport(?:Factory)?\.php$/` | — | LEAF — Transport / TransportFactory naming. Phase 3 batch 1. |
 | `Support` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | LEAF. Phase 3 batch 1 + tightening: drift-rejecting deny-list keeps Support from becoming a Helpers/Utils dumping ground. |
-| `Acl` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF. Phase 3 batch 2. |
 | `Authorization` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF. Phase 3 batch 2. |
 | `Cookie` (semitexa-core) | `/^Cookie[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — basenames start with Cookie. Phase 3 batch 2. |
 | `Csrf` (semitexa-core) | `/^Csrf[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Attribute/` only. Root files start with Csrf. Phase 3 batch 2. |
@@ -412,7 +414,6 @@ Beyond Application/Db (already covered above), the following layers have explici
 | `Registry` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | LEAF + drift deny-list. Phase 3 batch 3. |
 | `Log` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | LEAF + drift deny-list. Phase 3 batch 3. |
 | `Error` (semitexa-core) | `/^Error[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — basenames must start with Error. Phase 3 batch 3. |
-| `Acl` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | Phase 3 batch 3 tightening: drift deny-list added. |
 | `Authorization` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | Phase 3 batch 3 tightening: drift deny-list added. |
 | `Contract` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Interface\.php$/` | — | LEAF. Framework-level interfaces. **NOT** the same as Domain/Contract — see "Contract vs Domain/Contract" above. Phase 4. |
 | `Locale` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | LEAF + drift deny-list. Phase 4. |
