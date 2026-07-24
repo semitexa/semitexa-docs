@@ -228,7 +228,7 @@ The complete table follows. **"Allowed in packages"** means standard production 
 | Directory | Scope | Responsibility | Allowed in packages | Allowed in src/modules | Notes |
 |---|---|---|---|---|---|
 | `Application` | global | Application orchestration / payloads / handlers / resources / services / commands / templates | yes | yes | Canonical entry layer; sub-tree is also strict-allowlisted |
-| `Domain` | global | Entities, domain contracts (incl. repository interfaces), domain services / events / exceptions | yes | yes | Stays clean of persistence implementation (see Application/Db). `Domain/Repository` is intentionally NOT in the allowlist — see "Repository interfaces canonical location" below. |
+| `Domain` | global | Entities, domain contracts, repository ports, domain services / events / exceptions | yes | yes | Stays clean of persistence implementation (see Application/Db). `Domain/Repository` holds repository port interfaces — see "Repository interfaces canonical location" below. |
 | `Context` | global | Request- / coroutine-scoped stores | yes | yes | Feature-grouping leaf |
 | `Configuration` | global | Readonly configuration classes | yes | yes | Feature-grouping leaf |
 | `Exception` | global | Package-wide exception classes | yes | yes | **Leaf — files only.** Basenames must match `*Exception.php`. No subdirectories. `ExceptionFactory.php`, `*Helper.php`, `*Service.php` are rejected. See "Exception vs Domain/Exception" below. |
@@ -351,12 +351,13 @@ Concretely:
 | Concept | Canonical location | Notes |
 |---|---|---|
 | Domain entities | `Domain/Model/` | persistence-named files (`*Resource.php`, `*ResourceModel.php`, `*Mapper.php`) excluded |
-| Repository **interfaces** + other domain contracts | `Domain/Contract/` | basename ends in `Interface.php` |
+| Repository **port interfaces** | `Domain/Repository/` | basename ends in `RepositoryInterface.php` |
+| Other domain contracts | `Domain/Contract/` | basename ends in `Interface.php` |
 | Concrete database-specific repository implementations | `Application/Db/<Adapter>/Repository/` | basename ends in `Repository.php` |
 
-**`Domain/Repository/` is NOT allowed.** An audit on 2026-04-30 found zero `Domain/Repository/` files anywhere in the monorepo — it was a phantom alternative that created ambiguity for AI agents (two canonical locations for the same concept). The allowlist now removes it; using `Domain/Repository/` fires `module_structure.unknown_directory`.
+**`Domain/Repository/` holds repository port interfaces** (`*RepositoryInterface.php` only). It was removed on 2026-04-30, when an audit found no files using it and folded the ports into `Domain/Contract/`; it was reinstated on 2026-07-25 with a narrower contract, because a dedicated directory keeps the persistence ports readable once a package has more than a handful of them and separates them from other domain contracts.
 
-If a future Semitexa convention genuinely needs `Domain/Repository/` for a different responsibility, the rule must be reintroduced **with a documented distinct purpose** (not "repository interfaces").
+The boundary is enforced: a concrete class in `Domain/Repository/` fires `module_structure.invalid_location`. Implementations stay in `Application/Db/<Adapter>/Repository/`.
 
 #### High-priority directories with deep rules
 
@@ -491,9 +492,16 @@ Until all three are done, the validator rejects the new adapter directory.
 
 `Application/Console/` accepts exactly one child: `Command`. Nothing else lives there.
 
+### Allowed Application/Payload children
+
+`Application/Payload/` accepts: `Request`, `Event`, `Part`, `Session`. `Session/` holds `#[SessionSegment]`
+classes and the value objects they carry — session state is payload-shaped data, not a service. Note
+`Application/Payload/Response/` is **not** accepted: responses are resources and live under
+`Application/Resource/Response/`.
+
 ### Allowed Domain children
 
-`Domain/` accepts: `Model`, `Contract`, `Exception`, `Service`, `Event`, `Command`, `Enum`. Each is a feature-grouping leaf (sub-features like `Customer/`, `Order/` are allowed) **except** `Domain/Enum/`, which is leaf-only. `Domain/Repository/` is **not** in this list — repository interfaces live in `Domain/Contract/` and concrete implementations in `Application/Db/<Adapter>/Repository/`. `Domain/Command/` is for **CQRS-style domain command DTOs** (immutable message objects) — see "Console infrastructure vs executable console commands" below. `Domain/Enum/` is for domain-semantic enums — see "Enum placement" below.
+`Domain/` accepts: `Model`, `Contract`, `Repository`, `Exception`, `Service`, `Event`, `Command`, `Enum`. Each is a feature-grouping leaf (sub-features like `Customer/`, `Order/` are allowed) **except** `Domain/Enum/`, which is leaf-only. `Domain/Repository/` is in this list and holds repository **port interfaces** (`*RepositoryInterface.php`); other domain contracts live in `Domain/Contract/` and concrete implementations in `Application/Db/<Adapter>/Repository/`. `Domain/Command/` is for **CQRS-style domain command DTOs** (immutable message objects) — see "Console infrastructure vs executable console commands" below. `Domain/Enum/` is for domain-semantic enums — see "Enum placement" below.
 
 ### Enum placement
 
@@ -829,8 +837,8 @@ other package — they continue to fail there with
 `module_structure.unknown_directory`. Consumer packages still use
 `Application/Db/<Adapter>/Model/` for `*Resource`, `*ResourceModel`,
 `*Mapper` files and `Application/Db/<Adapter>/Repository/` for concrete
-`*Repository` implementations. `Domain/Repository/` remains forbidden
-everywhere.
+`*Repository` implementations. `Domain/Repository/` is allowed everywhere
+for `*RepositoryInterface.php` ports only.
 
 ### Querying which rules apply
 
