@@ -77,7 +77,7 @@ The validator detects a module from a changed file path by walking up the direct
       Db/                 # persistence implementation (resource models, mappers, concrete repositories)
         MySQL/            # one storage adapter; declare additional adapters explicitly in the spec
           Model/          # *Resource, *ResourceModel, *Mapper — feature-grouping allowed
-          Repository/     # concrete database-backed repositories implementing Domain/Contract/ interfaces
+          Repository/     # concrete database-backed repositories implementing Domain/Repository/ ports
     Domain/
       Model/              # domain entities (NO persistence implementation here — see Application/Db)
       Repository/         # repository INTERFACES (concrete implementations live under Application/Db/<adapter>/Repository/)
@@ -228,7 +228,7 @@ The complete table follows. **"Allowed in packages"** means standard production 
 | Directory | Scope | Responsibility | Allowed in packages | Allowed in src/modules | Notes |
 |---|---|---|---|---|---|
 | `Application` | global | Application orchestration / payloads / handlers / resources / services / commands / templates | yes | yes | Canonical entry layer; sub-tree is also strict-allowlisted |
-| `Domain` | global | Entities, domain contracts, repository ports, domain services / events / exceptions | yes | yes | Stays clean of persistence implementation (see Application/Db). `Domain/Repository` holds repository port interfaces — see "Repository interfaces canonical location" below. |
+| `Domain` | global | Entities, domain contracts, repository ports, domain services / events / exceptions | yes | yes | Stays clean of persistence implementation (see Application/Db). `Domain/Repository` holds repository port interfaces — see "Repository port interfaces canonical location" below. |
 | `Context` | global | Request- / coroutine-scoped stores | yes | yes | Feature-grouping leaf |
 | `Configuration` | global | Readonly configuration classes | yes | yes | Feature-grouping leaf |
 | `Exception` | global | Package-wide exception classes | yes | yes | **Leaf — files only.** Basenames must match `*Exception.php`. No subdirectories. `ExceptionFactory.php`, `*Helper.php`, `*Service.php` are rejected. See "Exception vs Domain/Exception" below. |
@@ -321,7 +321,7 @@ Two layers carry the name "Contract"; they serve different purposes.
 | Layer | Path | Contains | Owner |
 |---|---|---|---|
 | Framework `Contract` | `packages/semitexa-core/src/Contract/` | Framework-level interfaces implemented by the runtime: `TypedHandlerInterface`, `ExceptionResponseMapperInterface`, `RouteMetadataResolverInterface`, etc. Every file in this leaf ends in `Interface.php`. | semitexa-core only — gated by `packageSpecificCodeRoot.core` |
-| Module `Domain/Contract` | `<package>/src/Domain/Contract/` and `src/modules/{Name}/src/Domain/Contract/` | Module-level / domain interfaces, including all repository interfaces (`*RepositoryInterface.php`). | every package + every application module |
+| Module `Domain/Contract` | `<package>/src/Domain/Contract/` and `src/modules/{Name}/src/Domain/Contract/` | Module-level / domain interfaces **other than** repository ports — those live in `Domain/Repository/` (`*RepositoryInterface.php`). | every package + every application module |
 
 The two never overlap: a framework `Contract/` can only appear inside `semitexa-core`; a `Domain/Contract/` can appear in any package or module. They are also at different paths so a misplaced file fails before any name conflict can arise.
 
@@ -342,9 +342,9 @@ Concretely:
 
 If a future Semitexa package genuinely needs a second attribute namespace with a different responsibility, the rule must be reintroduced **with a documented distinct purpose** — not "OpenAPI attributes". Adding `OpenApi/Attribute/` to silence a violation is wrong; the right fix is to move the attribute class to the canonical `src/Attribute/`.
 
-#### Repository interfaces canonical location
+#### Repository port interfaces canonical location
 
-There is **one** canonical home for repository interfaces: **`Domain/Contract/`**.
+Repository **ports** live in **`Domain/Repository/`**; every other domain interface lives in **`Domain/Contract/`**. Concrete implementations live in `Application/Db/<Adapter>/Repository/` and are never part of the domain layer.
 
 Concretely:
 
@@ -367,7 +367,7 @@ Beyond Application/Db (already covered above), the following layers have explici
 |---|---|---|---|
 | `Application/Console/Command` | `/^[A-Z][A-Za-z0-9_]*Command\.php$/` | — | Only `*Command.php` basenames; `allowAnyFile` removed |
 | `Domain/Model` | (any PascalCase via `allowAnyFile: true`) | `/(Resource\|ResourceModel\|Mapper)\.php$/` | Persistence resource models / mappers go to `Application/Db/<Adapter>/Model/`, not here |
-| `Domain/Contract` | `/^[A-Z][A-Za-z0-9_]*Interface\.php$/` | — | The single canonical home for domain interfaces, **including repository interfaces**. No concrete implementations. |
+| `Domain/Contract` | `/^[A-Z][A-Za-z0-9_]*Interface\.php$/` | — | Domain interfaces **other than** repository ports (those live in `Domain/Repository/`). No concrete implementations. |
 | `Domain/Exception` | `/^[A-Z][A-Za-z0-9_]*Exception\.php$/` | — | Exception classes only |
 | `Attribute` | `/^[A-Z][A-Za-z0-9_]*\.php$/` (PascalCase class file) | `/^(?!(As\|Inject))[A-Z][A-Za-z0-9_]*Command\.php$/` (reject misplaced commands) | Attribute classes; `*Command.php` basenames other than `As*Command` / `Inject*Command` are rejected here so the file-placement rule's intent isn't bypassed |
 | `Container` | `/^[A-Z][A-Za-z0-9_]*\.php$/` + exact files `[README.md]` | — | Children: `BuildPhase/`, `Exception/`, `Store/` only |
@@ -469,7 +469,7 @@ The directory list is **closed**: only these adapter directory names are accepte
 |---|---|---|
 | `Application/Db/<Adapter>/Model/`      | `*Resource` and `*ResourceModel` classes — the ORM-facing schema. Feature grouping (`Application/Db/<Adapter>/Model/Customer/…`) is allowed. | `*Resource.php`, `*ResourceModel.php` only — `*Mapper.php` belongs in the peer `Mapper/` sub-tree; `SomeService.php` / `SomeHelper.php` / `SomeManager.php` etc. fail with `module_structure.invalid_location`. |
 | `Application/Db/<Adapter>/Mapper/`     | `*Mapper` classes — translate between resource models and domain entities. Peer of `Model/`, not a child of it. Feature grouping (`Application/Db/<Adapter>/Mapper/Customer/…`) is allowed. | `*Mapper.php` only — `*Resource.php` / `*ResourceModel.php` / `SomeService.php` etc. fail with `module_structure.invalid_location`. |
-| `Application/Db/<Adapter>/Repository/` | Concrete repository implementations that implement the interfaces under `Domain/Repository/` (or `Domain/Contract/`). Feature grouping allowed. | `*Repository.php` only — `SomeFactory.php` / `SomeHelper.php` / `SomeService.php` fail with `module_structure.invalid_location`. |
+| `Application/Db/<Adapter>/Repository/` | Concrete repository implementations of the ports under `Domain/Repository/`. Feature grouping allowed. | `*Repository.php` only — `SomeFactory.php` / `SomeHelper.php` / `SomeService.php` fail with `module_structure.invalid_location`. |
 
 **Adding a new storage adapter** requires three coordinated edits:
 
