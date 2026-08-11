@@ -36,7 +36,7 @@ It persists structural facts about modules, handlers, services, events, flows, a
 bin/semitexa ai:task "trace checkout architecture"
 bin/semitexa ai:review-graph:generate --json
 bin/semitexa ai:review-graph:stats --json
-bin/semitexa ai:review-graph:show Demo
+bin/semitexa ai:review-graph:show Demo --format=markdown
 bin/semitexa ai:review-graph:query --cross-module --from=Demo --json
 ```
 

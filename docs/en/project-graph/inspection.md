@@ -30,7 +30,7 @@ Once the graph exists, Project Graph becomes an explicit inspection surface rath
 ## Commands
 
 ```bash
-bin/semitexa ai:review-graph:show Demo
+bin/semitexa ai:review-graph:show Demo --format=markdown
 bin/semitexa ai:review-graph:query --search=DemoCatalogService
 bin/semitexa ai:review-graph:query --dependencies=Semitexa\\Demo\\Application\\Service\\DemoCatalogService
 bin/semitexa ai:review-graph:query --cross-module --from=Demo --json
