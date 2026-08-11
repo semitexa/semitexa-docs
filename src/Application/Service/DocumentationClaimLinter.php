@@ -345,11 +345,27 @@ final class DocumentationClaimLinter
      */
     public function fingerprint(array $finding, string $relativeTo = ''): string
     {
-        $file = $finding['file'];
-        if ($relativeTo !== '' && str_starts_with($file, $relativeTo)) {
-            $file = ltrim(substr($file, strlen($relativeTo)), '/');
+        return $finding['kind'] . ':' . $finding['claim'] . '@' . $this->documentPath((string) $finding['file']);
+    }
+
+    /**
+     * The path from the corpus root, not from the project root.
+     *
+     * The same page is `packages/semitexa-docs/docs/en/x.md` in the monorepo and
+     * `vendor/semitexa/docs/docs/en/x.md` in a consumer project. Keying a
+     * baseline on the project-relative path means it silently stops matching
+     * when the corpus is read from the other one — which is how a recorded
+     * baseline came back reporting every finding it was meant to hold.
+     */
+    private function documentPath(string $file): string
+    {
+        foreach (['/docs/docs/', '/docs/'] as $marker) {
+            $at = strrpos($file, $marker);
+            if ($at !== false) {
+                return ltrim(substr($file, $at + strlen($marker)), '/');
+            }
         }
 
-        return $finding['kind'] . ':' . $finding['claim'] . '@' . $file;
+        return ltrim($file, '/');
     }
 }

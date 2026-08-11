@@ -224,11 +224,27 @@ final class TruthIndexBuilder
         if ($console === null) {
             $notes[] = 'commands: no console Application supplied; PHP command surface omitted.';
         } else {
+            // Merging brings the application's own argument and options into
+            // every command. They are the runner's, not the command's, so they
+            // are subtracted again — otherwise every usage line would read
+            // `bin/semitexa docs:get <command> <document-id>`.
+            $globalDefinition = $console->getDefinition();
+            $globalArguments = array_keys($globalDefinition->getArguments());
+            $globalOptions = array_keys($globalDefinition->getOptions());
+
             foreach ($console->all() as $name => $command) {
                 if ($command->isHidden()) {
                     continue;
                 }
 
+                // Symfony merges the application's global options into a
+                // command's definition the first time that command runs. Read
+                // it raw and the surface depends on execution history: a
+                // command that already ran reports seven more options than an
+                // identical one that has not, and a generated page built from
+                // it changes for no reason anyone can see. Merge every command
+                // up front so they are all in the same state.
+                $command->mergeApplicationDefinition();
                 $definition = $command->getDefinition();
                 $out[] = [
                     'name' => $name,
@@ -239,14 +255,22 @@ final class TruthIndexBuilder
                             'name' => $argument->getName(),
                             'required' => $argument->isRequired(),
                         ],
-                        $definition->getArguments(),
+                        array_filter(
+                            $definition->getArguments(),
+                            static fn (string $key): bool => !in_array($key, $globalArguments, true),
+                            ARRAY_FILTER_USE_KEY,
+                        ),
                     )),
                     'options' => array_values(array_map(
                         static fn ($option): array => [
                             'name' => '--' . $option->getName(),
                             'accepts_value' => $option->acceptValue(),
                         ],
-                        $definition->getOptions(),
+                        array_filter(
+                            $definition->getOptions(),
+                            static fn (string $key): bool => !in_array($key, $globalOptions, true),
+                            ARRAY_FILTER_USE_KEY,
+                        ),
                     )),
                 ];
             }

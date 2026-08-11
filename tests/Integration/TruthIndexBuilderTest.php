@@ -37,6 +37,11 @@ final class TruthIndexBuilderTest extends TestCase
             $command['options'],
             'An option documented as a flag must be readable as one from the index.',
         );
+        self::assertNotContains(
+            '--help',
+            array_column($command['options'], 'name'),
+            "The runner's own options belong to bin/semitexa, not to the command.",
+        );
     }
 
     #[Test]
@@ -61,6 +66,25 @@ final class TruthIndexBuilderTest extends TestCase
         self::assertNotEmpty(
             $index['incomplete'],
             'Without a console Application the command surface is unknown, not empty — silence there would read as "no commands exist".',
+        );
+    }
+
+    #[Test]
+    public function the_command_surface_does_not_depend_on_what_already_ran(): void
+    {
+        // Symfony merges the application definition into a command the first
+        // time it runs. Read raw, an identical command reports seven more
+        // options once it has been used, and every page built from it changes
+        // for no reason a reader could see.
+        $application = $this->applicationWithSampleCommand();
+        $cold = $this->build($application);
+
+        $application->find('demo:thing')->mergeApplicationDefinition();
+        $warm = $this->build($application);
+
+        self::assertSame(
+            $this->commandNamed($cold, 'demo:thing'),
+            $this->commandNamed($warm, 'demo:thing'),
         );
     }
 

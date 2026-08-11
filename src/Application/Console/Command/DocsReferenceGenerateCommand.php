@@ -50,6 +50,17 @@ final class DocsReferenceGenerateCommand extends BaseCommand
         $files = $this->generator->generate($this->truthIndexBuilder->build($this->getApplication()));
 
         if ((bool) $input->getOption('check')) {
+            // A consumer project installs its own mix of semitexa/* packages, so
+            // regenerating there legitimately produces different pages than the
+            // ones the docs package shipped. Checking a read-only vendor copy
+            // against a local installation would fail for everyone, every time,
+            // which is how a gate teaches people to ignore it.
+            if ($out === null && str_contains(realpath($root) ?: $root, '/vendor/')) {
+                $io->success('Reference pages ship with semitexa/docs; nothing to check against a vendor copy.');
+
+                return self::SUCCESS;
+            }
+
             return $this->check($io, $root, $files);
         }
 
