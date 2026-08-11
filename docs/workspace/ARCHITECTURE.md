@@ -34,7 +34,7 @@ Everything in Semitexa is a **Module**.
 
 ### 4. Service Contracts & DI
 - **Interface-First**: Use interfaces for contracts.
-- **Attributes**: `#[AsServiceContract(of: SomeInterface::class)]` is placed on **implementation** classes (in modules).
+- **Attributes**: `#[SatisfiesServiceContract(of: SomeInterface::class)]` is placed on **implementation** classes (in modules).
 - **Injection**: Dependencies flow into container-managed classes via **protected** properties with `#[InjectAsReadonly]`, `#[InjectAsMutable]`, or `#[InjectAsFactory]` (**property injection is the One Way**; the constructor is never the DI channel). Request/Session/Cookie are injected by type into mutable clones.
   - *Constructors are still allowed*, just not as a DI mechanism. A parameterless `__construct` on a container-managed class is inert but tolerated; constructors are fully available on value objects, DTOs, payloads, resources, and other non-container-managed types. See **[DI_ONE_WAY.md](DI_ONE_WAY.md)** for the full rule and examples.
 - **Resolution**:
