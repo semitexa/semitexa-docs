@@ -65,11 +65,14 @@ class LoginPayload {}
 ### Migration steps
 
 1. Find every payload class:
+
+   <!-- docs-lint-ignore -->
    ```bash
    grep -rln "#\[AsPayload\|#\[PublicEndpoint" src packages
    ```
 2. For each class, choose the access attribute by reading the route's intent — anonymous, authenticated, or service-domain.
 3. Replace the attribute(s) and update the `use` statement to `Semitexa\Authorization\Attribute\As<Type>Payload`.
+<!-- docs-lint-ignore -->
 4. Run `bin/semitexa ai:verify --all`. The framework's regression suite blocks `#[AsPayload(` and `#[PublicEndpoint]` in new code.
 
 ## 2. Auth domain model

@@ -119,6 +119,7 @@ If you add a third entry-point (background task runner, scheduled job processor)
 
 `TestStateResetRegistry::resetAllForTesting()` is called only from:
 - Test `setUp` / `tearDown` for any test that touches demo stores or the in-memory replay store.
+<!-- docs-lint-ignore -->
 - Future dev/admin commands that explicitly want to reset worker state (e.g. `bin/semitexa dev:reset-state`).
 
 There is no production code path that calls it. The method name (`resetAllForTesting`, not `resetAll`) is part of the contract — a confused caller cannot mistake it for the per-request hook.
