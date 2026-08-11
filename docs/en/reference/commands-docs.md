@@ -62,7 +62,7 @@ bin/semitexa docs:list
 Generate the reference section (attributes, commands, events) from the truth index
 
 ```bash
-bin/semitexa docs:reference:generate <command>
+bin/semitexa docs:reference:generate
 ```
 
 | option | takes a value |

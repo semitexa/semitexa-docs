@@ -155,6 +155,22 @@ final class DocumentationClaimLinterTest extends TestCase
         self::assertSame(['AlsoInvented'], array_column($this->lint("`#[AlsoInvented]`\n"), 'claim'));
     }
 
+    #[Test]
+    public function a_baseline_survives_the_corpus_moving_between_layouts(): void
+    {
+        // The same page is under packages/ in the monorepo and vendor/ in a
+        // consumer project. A baseline keyed on the project path stops matching
+        // when the corpus is read from the other one, and comes back reporting
+        // everything it was recorded to hold.
+        $linter = new DocumentationClaimLinter();
+        $finding = ['kind' => 'attribute', 'claim' => 'AsInvented'];
+
+        self::assertSame(
+            $linter->fingerprint($finding + ['file' => '/app/packages/semitexa-docs/docs/en/routing/basic.md']),
+            $linter->fingerprint($finding + ['file' => '/app/vendor/semitexa/docs/docs/en/routing/basic.md']),
+        );
+    }
+
     /**
      * @return list<array<string, mixed>>
      */

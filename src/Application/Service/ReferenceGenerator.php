@@ -351,13 +351,9 @@ final class ReferenceGenerator
 
             $out .= sprintf("```bash\n%s\n```\n\n", $usage);
 
-            $documented = array_values(array_filter(
-                $options,
-                static fn (array $option): bool => !in_array($option['name'], [
-                    '--help', '--silent', '--quiet', '--version', '--ansi', '--no-ansi',
-                    '--no-interaction', '--verbose',
-                ], true),
-            ));
+            // The index already reports only the command's own options; the
+            // runner's globals were subtracted there.
+            $documented = array_values($options);
 
             if ($documented !== []) {
                 $out .= "| option | takes a value |\n|---|---|\n";
