@@ -1256,6 +1256,7 @@ When two modules provide the same service contract, the **child** wins.
 - **Do** declare `"type": "semitexa-module"` in `composer.json`.
 - **Do** use `extends` to participate in contract resolution hierarchy.
 - **Do** run `composer dump-autoload` after adding/removing classes (the framework reads the classmap).
+<!-- docs-lint-ignore -->
 - **Don't** create an `#[AsModule]` attribute class — module identity comes from `composer.json`.
 - **Don't** treat project `src/` (`App\`) as the default place for route-bearing application code. New routes belong in modules.
 

@@ -85,6 +85,58 @@ final class DocumentationClaimLinterTest extends TestCase
         self::assertSame('SatisfiesServiceContract', $findings[0]['suggestion']);
     }
 
+    #[Test]
+    public function a_before_section_may_name_the_api_being_migrated_from(): void
+    {
+        // A migration guide's whole job is to show what you are moving away
+        // from. Reporting it would mean one can never be written.
+        self::assertSame([], $this->lint(
+            "## Access\n\n### Before\n\n```php\n#[AsInvented]\n```\n",
+        ));
+    }
+
+    #[Test]
+    public function the_after_section_of_the_same_page_is_still_checked(): void
+    {
+        $findings = $this->lint(
+            "### Before\n\n`#[AsInvented]`\n\n### After\n\n`#[AlsoInvented]`\n",
+        );
+
+        self::assertSame(['AlsoInvented'], array_column($findings, 'claim'));
+    }
+
+    #[Test]
+    public function a_wildcard_stands_for_the_attributes_it_covers(): void
+    {
+        // `#[InjectAs*]` is one claim about three attributes, not a claim about
+        // an attribute called "InjectAs".
+        self::assertSame([], $this->lint("Annotate with `#[AsPublic*]` properties.\n"));
+    }
+
+    #[Test]
+    public function a_wildcard_matching_nothing_is_still_reported(): void
+    {
+        self::assertSame(['AsNothing*'], array_column($this->lint("Use `#[AsNothing*]`.\n"), 'claim'));
+    }
+
+    #[Test]
+    public function the_ignore_marker_covers_the_line_below_it(): void
+    {
+        self::assertSame([], $this->lint(
+            "<!-- docs-lint-ignore -->\nDon't create `#[AsInvented]` — identity comes from composer.json.\n",
+        ));
+    }
+
+    #[Test]
+    public function the_ignore_marker_above_a_block_covers_the_whole_block(): void
+    {
+        // A migration step that greps for retired names is one instruction, not
+        // one finding per line.
+        self::assertSame([], $this->lint(
+            "<!-- docs-lint-ignore -->\n```bash\ngrep -r '#[AsInvented]' src\ngrep -r '#[AlsoInvented]' src\n```\n",
+        ));
+    }
+
     /**
      * @return list<array<string, mixed>>
      */

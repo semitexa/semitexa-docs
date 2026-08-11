@@ -25,6 +25,9 @@ final class DocumentationClaimLinter
 {
     public const ARTIFACT = 'semitexa.docs.lint/v1';
 
+    /** Placed on, or directly above, a line whose claim is deliberate. */
+    public const IGNORE_MARKER = '<!-- docs-lint-ignore -->';
+
     /**
      * Suggest a rename only when the names are close enough to be the same idea.
      * Edit distance is the wrong ruler here: `AsPayload` became
@@ -55,6 +58,17 @@ final class DocumentationClaimLinter
                 $names = $known[$claim['kind']] ?? [];
                 if (in_array($claim['value'], $names, true)) {
                     continue;
+                }
+
+                // `#[InjectAs*]` is one claim about three attributes, not a
+                // claim about an attribute called "InjectAs".
+                if (str_ends_with($claim['value'], '*')) {
+                    $prefix = rtrim($claim['value'], '*');
+                    foreach ($names as $name) {
+                        if ($prefix !== '' && str_starts_with($name, $prefix)) {
+                            continue 2;
+                        }
+                    }
                 }
 
                 if ($claim['kind'] === 'env' && $this->matchesPattern($claim['value'], $known['env_pattern'] ?? [])) {
@@ -134,22 +148,60 @@ final class DocumentationClaimLinter
     {
         $claims = [];
         $inFence = false;
+        $inHistory = false;
+        $fenceIgnored = false;
+        $pendingIgnore = false;
 
         foreach ($lines as $offset => $line) {
+            $marked = str_contains($line, self::IGNORE_MARKER);
+
             if (preg_match('/^\s*```/', $line) === 1) {
+                if (!$inFence) {
+                    // A marker on the line above covers the whole block, not
+                    // just its first line: a migration step that greps for the
+                    // old attribute names is one instruction, not five claims.
+                    $fenceIgnored = $pendingIgnore || $marked;
+                }
+
                 $inFence = !$inFence;
+                $pendingIgnore = false;
+
+                continue;
+            }
+
+            if (!$inFence && preg_match('/^#{1,6}\s+(.*)$/', $line, $heading) === 1) {
+                // A "Before" section exists to name the API you are migrating
+                // from. Reporting it would mean a migration guide can never be
+                // written without failing the build.
+                $inHistory = preg_match(
+                    '/^(before|old|legacy|deprecated|removed|previously)\b/i',
+                    trim($heading[1]),
+                ) === 1;
+                $pendingIgnore = false;
+
+                continue;
+            }
+
+            $ignored = $inHistory
+                || ($inFence && $fenceIgnored)
+                || $marked
+                || $pendingIgnore;
+
+            // The marker carries to the next line so it can sit above the thing
+            // it excuses rather than trailing it.
+            $pendingIgnore = $marked;
+
+            if ($ignored) {
                 continue;
             }
 
             $number = $offset + 1;
 
             // Fenced blocks are checked for attributes and commands — they hold
-            // 38% of all such mentions here, and a fenced example is precisely
-            // what a reader copies. They are *not* checked for env keys: a
-            // shell or PHP block is full of assignments that are not
-            // environment at all.
-
-            foreach ($this->matches('/#\[([A-Z][A-Za-z0-9]*)/', $line) as $value) {
+            // most such mentions, and a fenced example is precisely what a
+            // reader copies. They are *not* checked for env keys: a shell or PHP
+            // block is full of assignments that are not environment at all.
+            foreach ($this->matches('/#\[([A-Z][A-Za-z0-9]*\*?)/', $line) as $value) {
                 $claims[] = ['kind' => 'attribute', 'value' => $value, 'line' => $number];
             }
 
@@ -171,6 +223,9 @@ final class DocumentationClaimLinter
     }
 
     /**
+     * Some keys are never written down: the code composes
+     * `TENANT_{$id}_DOMAIN`, so only the shape can be known.
+     *
      * @param list<string> $patterns
      */
     private function matchesPattern(string $value, array $patterns): bool
