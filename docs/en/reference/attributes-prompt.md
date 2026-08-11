@@ -31,12 +31,12 @@ Applies to: class
 ```php
 #[AsPrompt(
     id: self::ID,
-    channel: 'partial',
-    description: "Reusable assistant-identity fragment; compose with {{ include('core.identity') }}.",
-    template: 'resources/prompts/core.identity.twig',
+    channel: 'llm',
+    template: 'resources/prompts/llm.conversation-summary.twig',
+    description: 'Rolling conversation-summary system prompt (JSON summary + active_intent).',
 )]
-final class SemitexaIdentityPrompt implements BoundPromptInterface
+final class ConversationSummaryPrompt implements BoundPromptInterface
 ```
 
-— `vendor/semitexa/prompt/src/Application/Prompt/SemitexaIdentityPrompt.php`
+— `vendor/semitexa/llm/src/Application/Prompt/ConversationSummaryPrompt.php`
 

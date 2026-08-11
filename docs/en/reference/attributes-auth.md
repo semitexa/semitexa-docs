@@ -30,7 +30,7 @@ Applies to: class
 final class GoogleSessionAuthHandler implements AuthHandlerInterface
 ```
 
-— `packages/semitexa-demo/src/Application/Handler/PayloadHandler/Auth/GoogleSessionAuthHandler.php`
+— `vendor/semitexa/demo/src/Application/Handler/PayloadHandler/Auth/GoogleSessionAuthHandler.php`
 
 ## `#[AuthLevel]`
 

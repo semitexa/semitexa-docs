@@ -34,7 +34,7 @@ Applies to: class
 final class PaymentPayload {}
 ```
 
-— `packages/semitexa-demo/src/Application/Handler/PayloadHandler/Testing/PayloadContractsHandler.php`
+— `vendor/semitexa/demo/src/Application/Handler/PayloadHandler/Testing/PayloadContractsHandler.php`
 
 ## `#[TestablePayloadPart]`
 

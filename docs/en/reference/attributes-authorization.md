@@ -43,14 +43,14 @@ Applies to: class
 
 ```php
 #[AsProtectedPayload(
-    responseWith: DashboardPageResource::class,
-    path: '/dashboard',
+    path: '/admin/users',
     methods: ['GET'],
+    responseWith: UserListResource::class,
 )]
-final class ProtectedDashboardPayload
+final class UserListPayload
 ```
 
-— `packages/semitexa-demo/resources/examples/Routing/PublicEndpoint/ProtectedDashboardPayload.example.php`
+— `vendor/semitexa/demo/resources/examples/Auth/ProtectedRoute/UserListPayload.example.php`
 
 ## `#[AsServicePayload]`
 
@@ -88,7 +88,7 @@ Applies to: class
 final class ProductListPayload
 ```
 
-— `packages/semitexa-demo/resources/examples/Auth/MachineAuth/ProductListPayload.example.php`
+— `vendor/semitexa/demo/resources/examples/Auth/MachineAuth/ProductListPayload.example.php`
 
 ## `#[RequiresCapability]`
 
@@ -107,7 +107,7 @@ Applies to: class. Repeatable.
 final class RbacHandler implements TypedHandlerInterface
 ```
 
-— `packages/semitexa-demo/resources/examples/Auth/Rbac/RbacHandler.example.php`
+— `vendor/semitexa/demo/resources/examples/Auth/Rbac/RbacHandler.example.php`
 
 ## `#[RequiresPermission]`
 
@@ -120,10 +120,10 @@ Applies to: class. Repeatable.
 | `permission` | `string` | yes |
 
 ```php
-#[RequiresPermission('products.write')]
-#[AsPayloadHandler(payload: UpdateProductPayload::class, resource: ProductWriteResource::class)]
-final class RbacHandler implements TypedHandlerInterface
+#[RequiresPermission('users.manage')]
+#[AsPayloadHandler(payload: UserListPayload::class, resource: UserListResource::class)]
+final class ProtectedRouteHandler implements TypedHandlerInterface
 ```
 
-— `packages/semitexa-demo/resources/examples/Auth/Rbac/RbacHandler.example.php`
+— `vendor/semitexa/demo/resources/examples/Auth/ProtectedRoute/ProtectedRouteHandler.example.php`
 
