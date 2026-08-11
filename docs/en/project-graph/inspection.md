@@ -33,8 +33,8 @@ Once the graph exists, Project Graph becomes an explicit inspection surface rath
 bin/semitexa ai:review-graph:show Demo --format=markdown
 bin/semitexa ai:review-graph:query --search=DemoCatalogService
 bin/semitexa ai:review-graph:query --dependencies=Semitexa\\Demo\\Application\\Service\\DemoCatalogService
-bin/semitexa ai:review-graph:query --cross-module --from=Demo --json
-bin/semitexa ai:review-graph:stats --json
+bin/semitexa ai:review-graph:module Demo --include-events --include-flows --format=json
+bin/semitexa ai:review-graph:intelligence --hotspots
 ```
 
 ## Why this matters

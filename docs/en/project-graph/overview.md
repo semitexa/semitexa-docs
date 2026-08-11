@@ -34,10 +34,11 @@ It persists structural facts about modules, handlers, services, events, flows, a
 
 ```bash
 bin/semitexa ai:task "trace checkout architecture"
+bin/semitexa ai:review-graph:context "trace checkout architecture" --format=json
 bin/semitexa ai:review-graph:generate --json
 bin/semitexa ai:review-graph:stats --json
 bin/semitexa ai:review-graph:show Demo --format=markdown
-bin/semitexa ai:review-graph:query --cross-module --from=Demo --json
+bin/semitexa ai:review-graph:intelligence --hotspots
 ```
 
 ## Why this matters
