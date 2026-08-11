@@ -32,18 +32,18 @@ Applies to: class
 
 ```php
 #[AsUiBehavior(
-    name: 'platform.modal',
-    ui: 'modal',
+    name: 'platform.accordion',
+    ui: 'accordion',
     script: 'platform-ui:js:behaviors',
     options: [
-        new UiBehaviorOption('bgClose', UiOptionType::Bool, default: true, description: 'Close when the backdrop is clicked.'),
+        new UiBehaviorOption('multiple', UiOptionType::Bool, default: false, description: 'Allow more than one section open at once.'),
     ],
-    a11y: ['focus-trap', 'esc-dismiss', 'aria-modal', 'scroll-lock'],
+    a11y: ['aria-expanded', 'arrow-nav'],
 )]
-final class ModalBehavior {}
+final class AccordionBehavior {}
 ```
 
-— `vendor/semitexa/platform-ui/src/Application/Service/Behavior/Builtin/ModalBehavior.php`
+— `vendor/semitexa/platform-ui/src/Application/Service/Behavior/Builtin/AccordionBehavior.php`
 
 ## `#[AsUiPrimitive]`
 
@@ -62,15 +62,15 @@ Applies to: class
 
 ```php
 #[AsUiPrimitive(
-    name: 'platform.spinner',
-    ui: 'spinner',
-    template: '@platform-ui/primitives/runtime/spinner.html.twig',
+    name: 'platform.alert',
+    ui: 'alert',
+    template: '@platform-ui/primitives/runtime/alert.html.twig',
     style: 'platform-ui:css:full',
 )]
-final class SpinnerPrimitive
+final class AlertPrimitive
 ```
 
-— `vendor/semitexa/platform-ui/src/Application/Service/Primitive/Builtin/SpinnerPrimitive.php`
+— `vendor/semitexa/platform-ui/src/Application/Service/Primitive/Builtin/AlertPrimitive.php`
 
 ## `#[CollaborativeForm]`
 
@@ -187,10 +187,9 @@ Applies to: class. Repeatable.
 | `description` | `string` | no |
 
 ```php
-#[UiSlot(name: 'toolbar', description: 'Optional controls rendered above the table (search, filters, actions).')]
-#[UiSlot(name: 'empty', description: 'Empty-state content shown when there are no rows.')]
-final class TableComponent
+#[UiSlot(name: 'trailing', description: 'Optional inline actions rendered after the trail (e.g. a copy-path button or status badge).')]
+final class BreadcrumbComponent
 ```
 
-— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/TableComponent.php`
+— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/BreadcrumbComponent.php`
 

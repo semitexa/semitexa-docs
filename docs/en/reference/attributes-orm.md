@@ -42,13 +42,13 @@ Applies to: class
 
 ```php
 #[AsMapper(
-    resourceModel: DemoReviewResource::class,
-    domainModel: DemoReview::class
+    resourceModel: DemoAiTaskResource::class,
+    domainModel: DemoAiTask::class
 )]
-final class DemoReviewMapper implements ResourceModelMapperInterface
+final class DemoAiTaskMapper implements ResourceModelMapperInterface
 ```
 
-— `packages/semitexa-demo/src/Application/Db/MySQL/Mapper/DemoReviewMapper.php`
+— `vendor/semitexa/demo/src/Application/Db/MySQL/Mapper/DemoAiTaskMapper.php`
 
 ## `#[AsRepository]`
 
@@ -63,7 +63,7 @@ Takes no arguments.
 final class ProductAdminRepository
 ```
 
-— `packages/semitexa-demo/resources/examples/Orm/QueryBuilder/ProductAdminRepository.example.php`
+— `vendor/semitexa/demo/resources/examples/Orm/QueryBuilder/ProductAdminRepository.example.php`
 
 ## `#[BelongsTo]`
 
@@ -84,7 +84,7 @@ Applies to: property
     public ?CategoryResource $category = null;
 ```
 
-— `packages/semitexa-demo/resources/examples/Data/Relations/ProductResource.example.php`
+— `vendor/semitexa/demo/resources/examples/Data/Relations/ProductResource.example.php`
 
 ## `#[Broadcast]`
 
@@ -113,11 +113,11 @@ Applies to: property
 | `name` | `string` | no |
 
 ```php
-    #[Column(type: MySqlType::Varchar, length: 64)]
+    #[Column(type: 'uuid')]
     public string $id;
 ```
 
-— `packages/semitexa-demo/resources/examples/Data/Identity/MachineCredentialResourceModel.example.php`
+— `vendor/semitexa/demo/resources/examples/Data/Catalog/CategoryResource.example.php`
 
 ## `#[Connection]`
 
@@ -130,11 +130,13 @@ Applies to: class
 | `name` | `string` | no |
 
 ```php
-#[Connection('analytics')]
-final readonly class AnalyticsEventResourceModel
+#[Connection('default')]
+#[Index(columns: ['aggregate_type', 'aggregate_id'], unique: true, name: 'uniq_aggregate_ownership')]
+#[Index(columns: ['owner_node_id'], unique: false, name: 'idx_aggregate_ownership_owner')]
+final readonly class AggregateOwnershipResourceModel
 ```
 
-— `vendor/semitexa/orm/tests/Fixture/Metadata/AnalyticsEventResourceModel.php`
+— `vendor/semitexa/ledger/src/Application/Db/MySQL/Model/AggregateOwnershipResourceModel.php`
 
 ## `#[Deprecated]`
 
@@ -162,7 +164,7 @@ Applies to: property
         public string $status,
 ```
 
-— `packages/semitexa-demo/src/Application/Db/MySQL/Model/DemoOrderResource.php`
+— `vendor/semitexa/demo/src/Application/Db/MySQL/Model/DemoAiTaskResource.php`
 
 ## `#[FromTable]`
 
@@ -175,11 +177,11 @@ Applies to: class
 | `name` | `string` | yes |
 
 ```php
-#[FromTable(name: 'machine_credentials')]
-final class MachineCredentialResourceModel
+#[FromTable(name: 'categories')]
+final class CategoryResource
 ```
 
-— `packages/semitexa-demo/resources/examples/Data/Identity/MachineCredentialResourceModel.example.php`
+— `vendor/semitexa/demo/resources/examples/Data/Catalog/CategoryResource.example.php`
 
 ## `#[HasMany]`
 
@@ -196,11 +198,11 @@ Applies to: property
 | `writePolicy` | `Semitexa\Orm\Domain\Enum\RelationWritePolicy` | no |
 
 ```php
-    #[HasMany(target: ReviewResource::class, foreignKey: 'product_id')]
-    public array $reviews = [];
+    #[HasMany(target: ProductResource::class, foreignKey: 'category_id')]
+    public array $products = [];
 ```
 
-— `packages/semitexa-demo/resources/examples/Data/Relations/ProductResource.example.php`
+— `vendor/semitexa/demo/resources/examples/Data/Relations/CategoryResource.example.php`
 
 ## `#[Index]`
 
@@ -215,12 +217,11 @@ Applies to: class. Repeatable.
 | `name` | `string` | no |
 
 ```php
-#[Index(columns: ['tenant_id', 'status'], name: 'idx_demo_orders_tenant_status')]
-#[Index(columns: ['user_id'], name: 'idx_demo_orders_user')]
-final readonly class DemoOrderResource
+#[Index(columns: ['tenant_id', 'status'], name: 'idx_demo_ai_tasks_tenant_status')]
+final readonly class DemoAiTaskResource
 ```
 
-— `packages/semitexa-demo/src/Application/Db/MySQL/Model/DemoOrderResource.php`
+— `vendor/semitexa/demo/src/Application/Db/MySQL/Model/DemoAiTaskResource.php`
 
 ## `#[ManyToMany]`
 
@@ -283,7 +284,7 @@ Applies to: property
     public string $id;
 ```
 
-— `packages/semitexa-demo/resources/examples/Orm/NPlusOne/ProductCardWithReviewsResource.example.php`
+— `vendor/semitexa/demo/resources/examples/Orm/NPlusOne/ProductCardResource.example.php`
 
 ## `#[ResourceKey]`
 
@@ -331,10 +332,10 @@ Applies to: class
 
 ```php
 #[SoftDelete(column: 'deletedAt')]
-final readonly class InvalidSoftDeleteResourceModel
+final readonly class HydratableProductResourceModel
 ```
 
-— `vendor/semitexa/orm/tests/Fixture/Metadata/InvalidSoftDeleteResourceModel.php`
+— `vendor/semitexa/orm/tests/Fixture/Hydration/HydratableProductResourceModel.php`
 
 ## `#[TenantExempt]`
 
@@ -369,7 +370,7 @@ Applies to: class
 final class CatalogProductResource
 ```
 
-— `packages/semitexa-demo/resources/examples/Orm/SharedTable/CatalogProductResource.example.php`
+— `vendor/semitexa/demo/resources/examples/Orm/SharedTable/CatalogProductResource.example.php`
 
 ## `#[Version]`
 

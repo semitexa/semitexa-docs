@@ -39,5 +39,5 @@ Applies to: class. Repeatable.
 final class ProductDetailPayload
 ```
 
-— `packages/semitexa-demo/resources/examples/Api/Graphql/ProductDetailPayload.example.php`
+— `vendor/semitexa/demo/resources/examples/Api/Graphql/ProductDetailPayload.example.php`
 

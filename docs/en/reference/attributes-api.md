@@ -32,7 +32,7 @@ Applies to: class
 final class ProductDetailPayload
 ```
 
-— `packages/semitexa-demo/resources/examples/Api/Rest/ProductDetailPayload.example.php`
+— `vendor/semitexa/demo/resources/examples/Api/Rest/ProductDetailPayload.example.php`
 
 ## `#[CollectionFilterOptions]`
 
@@ -45,11 +45,11 @@ Applies to: class
 | `fields` | `array` | yes |
 
 ```php
-#[CollectionFilterOptions(['kind'])]
-final class ShowcaseLiveEventCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[CollectionFilterOptions(['category', 'status', 'transport'])]
+final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/ShowcaseLiveEventCollectionResponse.php`
+— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
 
 ## `#[CollectionFilterable]`
 
@@ -62,12 +62,17 @@ Applies to: class
 | `fields` | `array` | yes |
 
 ```php
-#[CollectionFilterable(['kind' => ['eq']])]
-#[CollectionFilterOptions(['kind'])]
-final class ShowcaseLiveEventCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[CollectionFilterable([
+    'category' => ['eq'],
+    'status' => ['eq'],
+    'transport' => ['eq'],
+])]
+#[CollectionSearchable(fields: ['name', 'category'])]
+#[CollectionFilterOptions(['category', 'status', 'transport'])]
+final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/ShowcaseLiveEventCollectionResponse.php`
+— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
 
 ## `#[CollectionPaginated]`
 
@@ -84,14 +89,19 @@ Applies to: class
 | `countThreshold` | `int` | no |
 
 ```php
-#[CollectionPaginated(mode: 'page', defaultPerPage: 8, perPageOptions: [8, 16, 32], maxPerPage: 50)]
-#[CollectionSortable(['at', 'kind'])]
-#[CollectionFilterable(['kind' => ['eq']])]
-#[CollectionFilterOptions(['kind'])]
-final class ShowcaseLiveEventCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[CollectionPaginated(mode: 'page', defaultPerPage: 10, perPageOptions: [10, 25, 50], maxPerPage: 50)]
+#[CollectionSortable(['name', 'category', 'status', 'updatedAt'])]
+#[CollectionFilterable([
+    'category' => ['eq'],
+    'status' => ['eq'],
+    'transport' => ['eq'],
+])]
+#[CollectionSearchable(fields: ['name', 'category'])]
+#[CollectionFilterOptions(['category', 'status', 'transport'])]
+final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/ShowcaseLiveEventCollectionResponse.php`
+— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
 
 ## `#[CollectionSearchable]`
 
@@ -110,7 +120,7 @@ Applies to: class
 final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
+— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
 
 ## `#[CollectionSortable]`
 
@@ -123,13 +133,18 @@ Applies to: class
 | `fields` | `array` | yes |
 
 ```php
-#[CollectionSortable(['at', 'kind'])]
-#[CollectionFilterable(['kind' => ['eq']])]
-#[CollectionFilterOptions(['kind'])]
-final class ShowcaseLiveEventCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[CollectionSortable(['name', 'category', 'status', 'updatedAt'])]
+#[CollectionFilterable([
+    'category' => ['eq'],
+    'status' => ['eq'],
+    'transport' => ['eq'],
+])]
+#[CollectionSearchable(fields: ['name', 'category'])]
+#[CollectionFilterOptions(['category', 'status', 'transport'])]
+final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/ShowcaseLiveEventCollectionResponse.php`
+— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
 
 ## `#[ExternalApi]`
 
@@ -143,17 +158,17 @@ Applies to: class
 | `description` | `string` | no |
 
 ```php
-#[ExternalApi(version: 'v1')]
-#[AsServicePayload(
-    path: '/api/products',
+#[ExternalApi]
+#[AsPublicPayload(
+    path: '/api/demo/errors/{scenario}',
     methods: ['GET'],
-    responseWith: ProductListResource::class,
+    responseWith: ErrorEnvelopeResource::class,
     produces: ['application/json'],
 )]
-final class ProductListPayload
+final class ApiErrorTriggerPayload
 ```
 
-— `packages/semitexa-demo/resources/examples/Auth/MachineAuth/ProductListPayload.example.php`
+— `vendor/semitexa/demo/resources/examples/Api/Errors/ApiErrorTriggerPayload.example.php`
 
 ## `#[ProducesResourceCollection]`
 
@@ -167,15 +182,20 @@ Applies to: class
 | `description` | `string` | no |
 
 ```php
-#[ProducesResourceCollection(ShowcaseLiveEventResource::class, description: 'The live event stream — paginated, sortable, filterable, and pushed over SSE.')]
-#[CollectionPaginated(mode: 'page', defaultPerPage: 8, perPageOptions: [8, 16, 32], maxPerPage: 50)]
-#[CollectionSortable(['at', 'kind'])]
-#[CollectionFilterable(['kind' => ['eq']])]
-#[CollectionFilterOptions(['kind'])]
-final class ShowcaseLiveEventCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[ProducesResourceCollection(ShowcaseInventoryResource::class, description: 'The Semitexa UI capability registry — a paginated, filterable, sortable collection.')]
+#[CollectionPaginated(mode: 'page', defaultPerPage: 10, perPageOptions: [10, 25, 50], maxPerPage: 50)]
+#[CollectionSortable(['name', 'category', 'status', 'updatedAt'])]
+#[CollectionFilterable([
+    'category' => ['eq'],
+    'status' => ['eq'],
+    'transport' => ['eq'],
+])]
+#[CollectionSearchable(fields: ['name', 'category'])]
+#[CollectionFilterOptions(['category', 'status', 'transport'])]
+final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/ShowcaseLiveEventCollectionResponse.php`
+— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
 
 ## `#[ProducesResourceObject]`
 
@@ -189,9 +209,9 @@ Applies to: class
 | `description` | `string` | no |
 
 ```php
-#[ProducesResourceObject(CustomerResource::class, description: 'JSON-LD view of a customer.')]
-final class CustomerJsonLdResponse
+#[ProducesResourceObject(CustomerResource::class, description: 'GraphQL view of a customer.')]
+final class CustomerGraphqlResponse
 ```
 
-— `vendor/semitexa/api/tests/Fixtures/Customer/CustomerJsonLdResponse.php`
+— `vendor/semitexa/api/tests/Fixtures/Customer/CustomerGraphqlResponse.php`
 

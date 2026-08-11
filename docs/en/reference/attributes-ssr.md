@@ -33,15 +33,14 @@ Applies to: class
 
 ```php
 #[AsComponent(
-    name: 'disclosure-prompt',
-    template: '@shop/components/disclosure-prompt.html.twig',
-    event: DemoDisclosureExpanded::class,
-    triggers: ['click'],
+    name: 'product-spotlight-card',
+    template: '@shop/components/product-spotlight-card.html.twig',
+    script: 'shop:js:product-spotlight-card',
 )]
-final class DisclosurePromptComponent
+final class ProductSpotlightCardComponent
 ```
 
-— `packages/semitexa-demo/resources/examples/Rendering/Philosophy/EventComponent.example.php`
+— `vendor/semitexa/demo/resources/examples/Rendering/ComponentScripts/ScriptedComponent.example.php`
 
 ## `#[AsComponentMetadataProvider]`
 
@@ -54,11 +53,11 @@ Applies to: class
 | `priority` | `int` | no |
 
 ```php
-#[AsComponentMetadataProvider]
-final class CrmpSupportingProvider implements ComponentMetadataProviderInterface
+#[AsComponentMetadataProvider(priority: 50)]
+final class CmprtMidProvider implements ComponentMetadataProviderInterface
 ```
 
-— `vendor/semitexa/ssr/tests/Unit/Component/ComponentRegistryMetadataProviderTest.php`
+— `vendor/semitexa/ssr/tests/Unit/Component/ComponentMetadataProviderRegistryTest.php`
 
 ## `#[AsDataProvider]`
 
@@ -140,11 +139,11 @@ Applies to: class. Repeatable.
 | `priority` | `int` | no |
 
 ```php
-#[AsSlotHandler(slot: LiveStatusSlot::class)]
-final class LiveStatusSlotHandler implements TypedSlotHandlerInterface
+#[AsSlotHandler(slot: ProductAnalyticsSlot::class)]
+final class ProductAnalyticsSlotHandler
 ```
 
-— `packages/semitexa-platform-site/src/Application/Handler/SlotHandler/LiveStatusSlotHandler.php`
+— `vendor/semitexa/demo/resources/examples/Rendering/Philosophy/DeferredSlot.example.php`
 
 ## `#[AsSlotResource]`
 
@@ -168,17 +167,15 @@ Applies to: class. Repeatable.
 
 ```php
 #[AsSlotResource(
-    handle: 'platform_site_ui_showcase_feature',
-    slot: 'platform_live_status',
-    template: '@project-layouts-semitexa-platform-site/slots/live-status.html.twig',
+    handle: 'dashboard',
+    slot: 'dashboard.sidebar',
+    template: '@project/dashboard/deferred-sidebar.html.twig',
     deferred: true,
-    refreshInterval: 2,
-    skeletonTemplate: '@project-layouts-semitexa-platform-site/slots/live-status.skeleton.html.twig',
 )]
-final class LiveStatusSlot extends HtmlSlotResponse
+final class DeferredSidebarSlot
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Slot/LiveStatusSlot.php`
+— `vendor/semitexa/demo/resources/examples/Rendering/Deferred/DeferredSlot.example.php`
 
 ## `#[AsTwigExtension]`
 
@@ -193,7 +190,7 @@ Takes no arguments.
 final class CodeHighlightTwigExtension
 ```
 
-— `packages/semitexa-demo/src/Application/Service/Twig/CodeHighlightTwigExtension.php`
+— `vendor/semitexa/demo/src/Application/Service/Twig/CodeHighlightTwigExtension.php`
 
 ## `#[WithDataProvider]`
 

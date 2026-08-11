@@ -31,11 +31,21 @@ Applies to: class
 | `base` | `string` | no |
 
 ```php
-#[AsCommand(name: 'docs:show-section', description: 'Show canonical documents for one Docs section')]
-final class DocsShowSectionCommand extends BaseCommand
+#[AsCommand(name: 'seed:demo-data', description: 'Seed demo data for local environments')]
+#[AsAiSkill(
+    allowed: 'env::AI_ENABLE_SEED_SKILL::false',
+    summary: 'Seed local demo data when the project explicitly allows this skill.',
+    useWhen: 'User wants to seed local demo fixtures in a safe non-production context.',
+    avoidWhen: 'Production data is involved or the env flag is not enabled.',
+    riskLevel: AiRiskLevel::High,
+    confirmation: AiConfirmationMode::Always,
+    argumentPolicy: 'allowlisted',
+    exposeArguments: ['tenant', 'force'],
+)]
+final class SeedDemoDataCommand extends Command
 ```
 
-— `packages/semitexa-docs/src/Application/Console/Command/DocsShowSectionCommand.php`
+— `vendor/semitexa/demo/resources/examples/Llm/EnvControlledSkill.example.php`
 
 ## `#[AsDiscoveryContributor]`
 
@@ -49,11 +59,11 @@ Applies to: class
 | `doc` | `string` | no |
 
 ```php
-#[AsDiscoveryContributor(priority: 50)]
-final class SlotHandlerContributor implements DiscoveryContributor
+#[AsDiscoveryContributor(priority: 200)]
+final class DataProviderContributor implements DiscoveryContributor
 ```
 
-— `vendor/semitexa/ssr/src/Application/Service/Discovery/SlotHandlerContributor.php`
+— `vendor/semitexa/ssr/src/Application/Service/Discovery/DataProviderContributor.php`
 
 ## `#[AsDoctorCheck]`
 
@@ -67,11 +77,11 @@ Applies to: class
 | `package` | `string` | no |
 
 ```php
-#[AsDoctorCheck(name: 'orm.database', package: 'semitexa/orm')]
-final class DatabaseDoctorCheck implements DoctorCheckInterface
+#[AsDoctorCheck(name: 'cache.driver', package: 'semitexa/cache')]
+final class CacheDriverDoctorCheck implements DoctorCheckInterface
 ```
 
-— `vendor/semitexa/orm/src/Application/Service/DatabaseDoctorCheck.php`
+— `vendor/semitexa/cache/src/Application/Service/CacheDriverDoctorCheck.php`
 
 ## `#[AsEvent]`
 
@@ -86,7 +96,7 @@ Takes no arguments.
 final class DemoItemCreated
 ```
 
-— `packages/semitexa-demo/resources/examples/Async/SyncEvents/DemoItemCreated.example.php`
+— `vendor/semitexa/demo/resources/examples/Async/SyncEvents/DemoItemCreated.example.php`
 
 ## `#[AsEventListener]`
 
@@ -103,11 +113,11 @@ Applies to: class
 | `priority` | `int` | no |
 
 ```php
-#[AsEventListener(event: DemoItemCreated::class, execution: EventExecution::Sync)]
-final class DemoItemCreatedListener
+#[AsEventListener(event: DemoItemCreated::class, execution: EventExecution::Async)]
+final class DemoNotificationListener
 ```
 
-— `packages/semitexa-demo/resources/examples/Async/SyncEvents/DemoItemCreatedListener.example.php`
+— `vendor/semitexa/demo/resources/examples/Async/Deferred/DemoNotificationListener.example.php`
 
 ## `#[AsPayloadHandler]`
 
@@ -128,11 +138,11 @@ Applies to: class
 | `doc` | `string` | no |
 
 ```php
-#[AsPayloadHandler(payload: PlatformShowcaseAuthPayload::class, resource: ResourceResponse::class)]
-final class PlatformShowcaseAuthHandler implements TypedHandlerInterface
+#[AsPayloadHandler(payload: ApiErrorTriggerPayload::class, resource: ErrorEnvelopeResource::class)]
+final class ApiErrorTriggerHandler implements TypedHandlerInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Handler/PayloadHandler/Auth/PlatformShowcaseAuthHandler.php`
+— `vendor/semitexa/demo/resources/examples/Api/Errors/ApiErrorTriggerHandler.example.php`
 
 ## `#[AsPayloadPart]`
 
@@ -150,7 +160,7 @@ Applies to: class
 trait SearchTrackingPart
 ```
 
-— `packages/semitexa-demo/resources/examples/Routing/PayloadParts/SearchTrackingPart.example.php`
+— `vendor/semitexa/demo/resources/examples/Routing/PayloadParts/SearchTrackingPart.example.php`
 
 ## `#[AsPipelineListener]`
 
@@ -164,11 +174,11 @@ Applies to: class
 | `priority` | `int` | no |
 
 ```php
-#[AsPipelineListener(phase: AuthCheck::class, priority: 10)]
-final class CsrfListener implements PipelineListenerInterface
+#[AsPipelineListener(phase: AuthCheck::class, priority: 0)]
+final class AuthorizationListener implements PipelineListenerInterface
 ```
 
-— `vendor/semitexa/core/src/Csrf/CsrfListener.php`
+— `vendor/semitexa/authorization/src/Pipeline/AuthorizationListener.php`
 
 ## `#[AsPublicPayload]`
 
@@ -198,14 +208,15 @@ Applies to: class
 
 ```php
 #[AsPublicPayload(
-    path: '/_auth',
-    methods: ['GET', 'POST'],
-    responseWith: ResourceResponse::class,
+    path: '/api/demo/errors/{scenario}',
+    methods: ['GET'],
+    responseWith: ErrorEnvelopeResource::class,
+    produces: ['application/json'],
 )]
-class PlatformShowcaseAuthPayload
+final class ApiErrorTriggerPayload
 ```
 
-— `packages/semitexa-platform-site/src/Application/Payload/Request/Auth/PlatformShowcaseAuthPayload.php`
+— `vendor/semitexa/demo/resources/examples/Api/Errors/ApiErrorTriggerPayload.example.php`
 
 ## `#[AsResource]`
 
@@ -226,13 +237,13 @@ Applies to: class
 
 ```php
 #[AsResource(
-    handle: 'platform_site_ui_showcase_feature',
-    template: '@project-layouts-semitexa-platform-site/pages/showcase-feature.html.twig',
+    handle: 'product_showcase',
+    template: '@project/catalog/pages/product-show.html.twig',
 )]
-final class UiShowcaseFeatureResource extends HtmlResponse implements ResourceInterface
+final class ProductShowcaseResource extends HtmlResponse
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/UiShowcaseFeatureResource.php`
+— `vendor/semitexa/demo/resources/examples/GetStarted/ProductShowcaseResource.example.php`
 
 ## `#[AsResourcePart]`
 
@@ -260,14 +271,14 @@ Applies to: class
 
 ```php
 #[AsServerLifecycleListener(
-    phase: ServerLifecyclePhase::WorkerStartAfterContainer->value,
+    phase: ServerLifecyclePhase::WorkerStartFinalize->value,
     priority: 0,
     requiresContainer: true,
 )]
-final class WireDefaultEventDispatcherListener implements ServerLifecycleListenerInterface
+final class WarmResourceMetadataListener implements ServerLifecycleListenerInterface
 ```
 
-— `vendor/semitexa/orm/src/Application/Service/WireDefaultEventDispatcherListener.php`
+— `vendor/semitexa/core/src/Resource/Lifecycle/WarmResourceMetadataListener.php`
 
 ## `#[AsService]`
 
@@ -279,10 +290,12 @@ Takes no arguments.
 
 ```php
 #[AsService]
-final class UiShowcaseCatalog
+#[ExecutionScoped]
+#[AsAuthHandler(priority: -20)]
+final class GoogleSessionAuthHandler implements AuthHandlerInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Service/Showcase/UiShowcaseCatalog.php`
+— `vendor/semitexa/demo/src/Application/Handler/PayloadHandler/Auth/GoogleSessionAuthHandler.php`
 
 ## `#[Capability]`
 
@@ -301,19 +314,19 @@ Applies to: class. Repeatable.
 
 ```php
 #[Capability(
-    id: 'docs.official',
-    summary: 'The framework documentation shipped as an installed module and served by the project itself.',
-    useWhen: 'The conventions have to be readable from inside a running project, at the version that project actually installed.',
-    avoidWhen: 'A production site with no reason to serve framework docs — weight its end users never asked for.',
+    id: 'demo.showcase',
+    summary: 'The official showcase application: framework features as running pages, next to the source that produces them.',
+    useWhen: 'A feature has to be seen working before it is adopted, or a convention needs a reference implementation to copy from.',
+    avoidWhen: 'A production deployment. It is a teaching surface, with routes and fixtures nobody should ship to end users.',
     replaces: [
-        'framework documentation pasted into the project, drifting from the version installed',
-        'reading package source to recover a convention nobody wrote down',
+        'a scratch module written to try a feature out and then left in the project',
+        'reading a package test suite to work out how the feature is meant to be assembled',
     ],
 )]
 final class Capabilities
 ```
 
-— `packages/semitexa-docs/src/Capabilities.php`
+— `vendor/semitexa/demo/src/Capabilities.php`
 
 ## `#[Config]`
 
@@ -327,11 +340,11 @@ Applies to: property
 | `default` | `BackedEnum|string|int|float|bool|null` | no |
 
 ```php
-    #[Config(env: 'WEBHOOK_TIMEOUT_SECONDS', default: 30)]
-    protected int $defaultTimeoutSeconds;
+    #[Config(env: 'CACHE_DRIVER', default: 'array')]
+    protected string $driver;
 ```
 
-— `vendor/semitexa/webhooks/src/Configuration/WebhookConfig.php`
+— `vendor/semitexa/cache/src/Application/Service/CacheManager.php`
 
 ## `#[CsrfExempt]`
 
@@ -357,7 +370,7 @@ Takes no arguments.
 final class GoogleSessionAuthHandler implements AuthHandlerInterface
 ```
 
-— `packages/semitexa-demo/src/Application/Handler/PayloadHandler/Auth/GoogleSessionAuthHandler.php`
+— `vendor/semitexa/demo/src/Application/Handler/PayloadHandler/Auth/GoogleSessionAuthHandler.php`
 
 ## `#[HandlerProvidesResourceIncludes]`
 
@@ -385,7 +398,7 @@ Takes no arguments.
     protected \Closure $mailerFactory;
 ```
 
-— `packages/semitexa-demo/resources/examples/Container/Factory/FactoryInjectionHandler.example.php`
+— `vendor/semitexa/demo/resources/examples/Container/Factory/FactoryInjectionHandler.example.php`
 
 ## `#[InjectAsMutable]`
 
@@ -399,10 +412,10 @@ Applies to: property
 
 ```php
     #[InjectAsMutable]
-    protected SessionInterface $session;
+    protected AuthContextInterface $auth;
 ```
 
-— `packages/semitexa-platform-site/src/Application/Handler/PayloadHandler/Auth/PlatformShowcaseAuthHandler.php`
+— `vendor/semitexa/demo/resources/examples/Auth/Session/AccountDashboardHandler.example.php`
 
 ## `#[InjectAsReadonly]`
 
@@ -416,10 +429,10 @@ Applies to: property
 
 ```php
     #[InjectAsReadonly]
-    protected JsonResourceRenderer $injectedRenderer;
+    protected SchemaRegistryInterface $schemaRegistry;
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/ShowcaseLiveEventCollectionResponse.php`
+— `vendor/semitexa/demo/resources/examples/Api/Schema/ApiSchemaDiscoveryHandler.example.php`
 
 ## `#[InternalAttribute]`
 
@@ -446,7 +459,7 @@ Takes no arguments.
     private ?string $q = null;
 ```
 
-— `packages/semitexa-platform-site/src/Application/Payload/Request/Showcase/ShowcaseInventoryFeedPayload.php`
+— `vendor/semitexa/platform-site/src/Application/Payload/Request/Showcase/ShowcaseInventoryFeedPayload.php`
 
 ## `#[PathParam]`
 
@@ -471,11 +484,11 @@ Applies to: property
 | `resolverClass` | `string` | yes |
 
 ```php
-        #[ResolveWith(RecordingProfileResolver::class)]
+        #[ResolveWith(CustomerProfileResolver::class)]
         public ?ResourceRef $profile,
 ```
 
-— `vendor/semitexa/core/tests/Unit/Resource/Fixtures/CustomerWithBothResolvedResource.php`
+— `vendor/semitexa/api/tests/Fixtures/Customer/CustomerResource.php`
 
 ## `#[ResourceField]`
 
@@ -493,7 +506,7 @@ Applies to: property
         public string $name,
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryResource.php`
+— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryResource.php`
 
 ## `#[ResourceId]`
 
@@ -508,7 +521,7 @@ Takes no arguments.
         public string $id,
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryResource.php`
+— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryResource.php`
 
 ## `#[ResourceListOf]`
 
@@ -523,10 +536,10 @@ Applies to: property
 
 ```php
         #[ResourceListOf(target: AddressResource::class)]
-        public ResourceRefList $addresses,
+        public array $tags = [],
 ```
 
-— `vendor/semitexa/core/tests/Unit/Resource/Fixtures/MalformedConflictingAttributesResource.php`
+— `vendor/semitexa/core/tests/Unit/Resource/Fixtures/CustomerResource.php`
 
 ## `#[ResourceObject]`
 
@@ -545,7 +558,7 @@ Applies to: class
 final readonly class ShowcaseInventoryResource implements ResourceObjectInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryResource.php`
+— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryResource.php`
 
 ## `#[ResourceRef]`
 
@@ -596,11 +609,15 @@ Applies to: property
 | `description` | `string` | no |
 
 ```php
-        #[ResourceUnion(targets: [UserResource::class, BotResource::class], list: true)]
-        public ResourceRef $authors,
+        #[ResourceUnion(
+            targets: [UserResource::class, BotResource::class],
+            list: false,
+            include: 'author',
+        )]
+        public ResourceRef $author = new ResourceRef(new ResourceIdentity('user', '0')),
 ```
 
-— `vendor/semitexa/core/tests/Unit/Resource/Fixtures/MalformedUnionTypeMismatchResource.php`
+— `vendor/semitexa/api/tests/Fixtures/Union/CommentResource.php`
 
 ## `#[SatisfiesRepositoryContract]`
 
@@ -613,11 +630,11 @@ Applies to: class
 | `of` | `string` | yes |
 
 ```php
-#[SatisfiesRepositoryContract(of: DemoAnalyticsSnapshotRepositoryInterface::class)]
-final class DemoAnalyticsSnapshotRepository implements DemoAnalyticsSnapshotRepositoryInterface
+#[SatisfiesRepositoryContract(of: DemoAiTaskRepositoryInterface::class)]
+final class DemoAiTaskRepository implements DemoAiTaskRepositoryInterface
 ```
 
-— `packages/semitexa-demo/src/Application/Db/MySQL/Repository/DemoAnalyticsSnapshotRepository.php`
+— `vendor/semitexa/demo/src/Application/Db/MySQL/Repository/DemoAiTaskRepository.php`
 
 ## `#[SatisfiesServiceContract]`
 
@@ -635,7 +652,7 @@ Applies to: class. Repeatable.
 final class ShowcaseFormCollabDraftStore implements FormCollabDraftStoreInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Service/Collaboration/ShowcaseFormCollabDraftStore.php`
+— `vendor/semitexa/platform-site/src/Application/Service/Collaboration/ShowcaseFormCollabDraftStore.php`
 
 ## `#[SessionSegment]`
 
@@ -652,7 +669,7 @@ Applies to: class
 final class BrowserSessionSegment
 ```
 
-— `packages/semitexa-demo/resources/examples/Auth/Session/BrowserSessionSegment.example.php`
+— `vendor/semitexa/demo/resources/examples/Auth/Session/BrowserSessionSegment.example.php`
 
 ## `#[WatchScopes]`
 
@@ -669,5 +686,5 @@ Applies to: class
 final class ShowcaseLiveFeedPayload implements SseCollectionFeedPayloadInterface
 ```
 
-— `packages/semitexa-platform-site/src/Application/Payload/Request/Showcase/ShowcaseLiveFeedPayload.php`
+— `vendor/semitexa/platform-site/src/Application/Payload/Request/Showcase/ShowcaseLiveFeedPayload.php`
 

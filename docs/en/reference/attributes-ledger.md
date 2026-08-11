@@ -68,8 +68,8 @@ Applies to: class
 
 ```php
 #[Propagated(domain: 'demo')]
-final class DemoNotificationEvent
+final class DemoItemCreated
 ```
 
-— `packages/semitexa-demo/src/Application/Payload/Event/DemoNotificationEvent.php`
+— `vendor/semitexa/demo/src/Application/Payload/Event/DemoItemCreated.php`
 

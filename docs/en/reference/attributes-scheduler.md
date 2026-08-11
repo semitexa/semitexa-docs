@@ -35,12 +35,12 @@ Applies to: class
 
 ```php
 #[AsScheduledJob(
-    key: 'demo.conversion_calculator',
-    cronExpression: '*/30 * * * * *',
+    key: 'demo.ai_task_processor',
+    cronExpression: '*/10 * * * *',
     overlapPolicy: 'skip',
 )]
-final class DemoConversionCalculatorJob implements ScheduledJobInterface
+final class DemoAiTaskProcessorJob implements ScheduledJobInterface
 ```
 
-— `packages/semitexa-demo/src/Application/Service/Scheduler/DemoConversionCalculatorJob.php`
+— `vendor/semitexa/demo/src/Application/Service/Scheduler/DemoAiTaskProcessorJob.php`
 

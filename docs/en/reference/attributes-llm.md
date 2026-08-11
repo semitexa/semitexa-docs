@@ -60,16 +60,17 @@ Applies to: class
 
 ```php
 #[AsAiSkill(
-    summary: 'Show active service contract bindings.',
-    useWhen: 'User wants to inspect DI wiring or understand which implementation is active.',
-    avoidWhen: 'User wants to modify service bindings.',
-    riskLevel: AiRiskLevel::Low,
-    confirmation: AiConfirmationMode::Never,
+    allowed: 'env::AI_ENABLE_SEED_SKILL::false',
+    summary: 'Seed local demo data when the project explicitly allows this skill.',
+    useWhen: 'User wants to seed local demo fixtures in a safe non-production context.',
+    avoidWhen: 'Production data is involved or the env flag is not enabled.',
+    riskLevel: AiRiskLevel::High,
+    confirmation: AiConfirmationMode::Always,
     argumentPolicy: 'allowlisted',
-    exposeArguments: ['json'],
+    exposeArguments: ['tenant', 'force'],
 )]
-final class ContractsListCommand extends Command
+final class SeedDemoDataCommand extends Command
 ```
 
-— `packages/semitexa-demo/resources/examples/Llm/ReadOnlySkill.example.php`
+— `vendor/semitexa/demo/resources/examples/Llm/EnvControlledSkill.example.php`
 
