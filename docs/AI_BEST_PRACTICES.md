@@ -47,7 +47,7 @@ Before you write code, read this. It is the cheapest way to avoid the most commo
 
 - `AGENTS.md` (repo root) is the **operator manual**. Read it cold-start every session. `AGENTS_DOCTRINE.md` holds full flows / lifecycle / hygiene detail and is consulted on cross-reference.
 - `packages/semitexa-docs/docs/` is the **canonical framework documentation**. This file lives there. Treat its siblings (`AI_GUIDE.md`, package guides, etc.) as authoritative for framework behavior.
-- `packages/<pkg>/docs/` (when present) is canonical *package-local* documentation — owned by the package, narrower scope.
+- `packages/<pkg>/docs/` is **not** a documentation location. A package keeps only its `README.md`, its `CHANGELOG.md`, and `docs/MODULE_STRUCTURE.md` — which is spec configuration, not prose. Everything else about a package's behaviour lives in the hub above.
 - `var/docs/` is **scratch only**. Audits, reports, planning notes, design drafts go there. Nothing in `var/docs/` is authoritative — treat it as in-flight working notes, not framework truth.
 - Project root (`README.md`, `AGENTS.md`, `CLAUDE.md`, `AI_*.md`) is reserved for the framework scaffold. Do **not** add new root-level `.md` files for ad-hoc reports — write them to `var/docs/<slug>.md` instead.
 
