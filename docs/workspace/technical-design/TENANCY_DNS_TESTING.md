@@ -1,5 +1,8 @@
 # Technical Design: Tenancy and Local Domain Testing Plan
 
+> **Status: implemented.** The `local-router:*` and `local-domain:*` commands are
+> this plan in code. Kept as the record of the reasoning behind them.
+
 **Status:** Implementation Roadmap  
 **Scope:** Local Domain Infrastructure, Multi-layer Tenancy System
 

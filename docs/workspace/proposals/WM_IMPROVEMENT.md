@@ -1,5 +1,10 @@
 # Technical Design: Window Manager (wm) Improvements
 
+<!-- docs-lint-ignore-file -->
+> **Status: proposed, not built.** Nothing named here exists in the codebase —
+> not `#[AsWmApp]`, not `WmAppRegistry`, not `WmStateService`, not `WmEventBus`.
+> Read this as a design under consideration, not as a description of the framework.
+
 **Status:** Proposed Architecture  
 **Scope:** `semitexa-platform-wm` module
 

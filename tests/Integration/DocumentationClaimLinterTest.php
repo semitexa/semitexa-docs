@@ -137,6 +137,24 @@ final class DocumentationClaimLinterTest extends TestCase
         ));
     }
 
+    #[Test]
+    public function a_whole_document_can_be_exempted(): void
+    {
+        // A proposal names unbuilt API in every other paragraph; marking each
+        // line would bury the document in scaffolding.
+        self::assertSame([], $this->lint(
+            "<!-- docs-lint-ignore-file -->\n# Proposal\n\n`#[AsInvented]` and `#[AlsoInvented]` and `bin/semitexa nope:missing`.\n",
+        ));
+    }
+
+    #[Test]
+    public function the_file_exemption_does_not_leak_to_other_documents(): void
+    {
+        file_put_contents($this->dir . '/exempt.md', "<!-- docs-lint-ignore-file -->\n`#[AsInvented]`\n");
+
+        self::assertSame(['AlsoInvented'], array_column($this->lint("`#[AlsoInvented]`\n"), 'claim'));
+    }
+
     /**
      * @return list<array<string, mixed>>
      */

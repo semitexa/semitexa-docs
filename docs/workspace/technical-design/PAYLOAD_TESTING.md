@@ -1,5 +1,8 @@
 # Technical Design: Automated Testing based on PayloadDTO (`semitexa-testing`)
 
+> **Status: implemented.** `PayloadContractTester` in `semitexa/testing` is this
+> design in code. Kept as the record of why it works the way it does.
+
 **Revision:** v2.0  
 **Status:** Architecture Locked  
 **Core Package:** `semitexa-testing`
@@ -13,7 +16,7 @@ This document defines the technical design for automated testing of `PayloadDTO`
 
 ## 2. Core Concept
 `PayloadDTO` defines the request shape. `semitexa-testing` reads these rules at test runtime to generate a matrix of test cases, covering:
-- Access control (`#[RequiresAuth]`).
+- Access control (`#[AsPublicPayload]` / `#[AsProtectedPayload]` / `#[AsServicePayload]`).
 - HTTP methods (405 validation).
 - Type enforcement (422 validation).
 - Boundary/Monkey testing (malformed data, large payloads).

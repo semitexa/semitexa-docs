@@ -1,5 +1,10 @@
 # Audit: semitexa-testing Package + CoroutineIsolationStrategy Proposal
 
+> **Status: audit, 2026.** A point-in-time review of `semitexa-testing` and
+> `CoroutineIsolationStrategy`, both of which still exist. Findings below may or
+> may not have been acted on; check the code before relying on any of them.
+> Attribute names were normalised to the ones the framework actually has.
+
 **Date:** 2026-03-10  
 **Package Version:** v1.0.2  
 **Scope:** Architecture, implementation, code quality, and a new strategy for detecting data leaks between Swoole coroutines/workers.
@@ -33,7 +38,7 @@
 |:---|:---|:---|:---|:---|
 | **P1** | MEDIUM | `PayloadMetadataFactory` | Static cache is not cleared between test classes. | Call `PayloadMetadataFactory::clearCache()` in `PhpUnitExtension::bootstrap()` or before each run. |
 | **P2** | LOW | `TestingStrategyInterface` | `TypeEnforcementStrategy` holds state in `$cachedValidToken`. | Document that strategies MUST be stateless or safe for single-use instantiation. |
-| **P3** | MEDIUM | `MemoryLeakStrategy` | Missing auth headers for `#[RequiresAuth]` endpoints; results in 401s during measurement. | Inject auth headers via `token_provider`. Skip if auth is required but no provider is present. |
+| **P3** | MEDIUM | `MemoryLeakStrategy` | Missing auth headers for `#[AsProtectedPayload]` endpoints; results in 401s during measurement. | Inject auth headers via `token_provider`. Skip if auth is required but no provider is present. |
 | **P4** | LOW | `MemoryLeakStrategy` | Aggressive 1KB leak threshold (for 20 requests) may cause false positives. | Increase default threshold to 4KB or make it configurable via `context`. Use linear regression for trend analysis. |
 | **P5** | LOW | `HttpTransport` | Duplicated `Content-Type` header in cURL calls. | Check if `Content-Type` is already set in `$case->headers` before adding the default. |
 | **P6** | **HIGH** | `RequestDtoHydrator` | `strictTypes` is a worker-global static flag. | Risk of contamination during coroutine switches. Move strict mode flag to `RequestContext` (per-request). |

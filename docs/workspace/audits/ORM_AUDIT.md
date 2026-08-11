@@ -1,5 +1,8 @@
 # Code Review: PlatformUserRepository and ORM Usage Patterns
 
+> **Status: audit, superseded.** Reviews `PlatformUserRepository`, which no
+> longer exists. Kept for the reasoning, not as a description of current code.
+
 **Scope:** Analysis of the current implementation of `PlatformUserRepository` and its alignment with Semitexa ORM capabilities.
 
 ---
