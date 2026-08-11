@@ -66,11 +66,13 @@ final class TruthIndexBuilder
         return [
             'artifact' => self::ARTIFACT,
             'attributes' => $this->attributes(),
+            'foreign_attributes' => $this->foreignAttributes(),
             'commands' => $this->commands($console, $notes),
             'contracts' => $this->contracts(),
             'routes' => $this->routes(),
             'events' => $this->events(),
             'env_keys' => $this->envKeys(),
+            'env_key_patterns' => $this->envKeyPatterns(),
             'twig' => $this->twig($notes),
             // Anything the index could not see says so here, rather than
             // leaving a caller to read an empty list as "none exist".
@@ -111,6 +113,55 @@ final class TruthIndexBuilder
         }
 
         usort($out, static fn (array $a, array $b): int => strcmp((string) $a['name'], (string) $b['name']));
+
+        return $out;
+    }
+
+    /**
+     * Attribute names from the rest of the vendor tree.
+     *
+     * A page that shows a PHPUnit attribute is not claiming Semitexa has one,
+     * and a checker that cannot tell the difference reports
+     * `#[RunTestsInSeparateProcesses]` as an invention. These are listed
+     * separately so a consumer can recognise them without confusing them for
+     * framework surface.
+     *
+     * @return list<string>
+     */
+    private function foreignAttributes(): array
+    {
+        $vendor = ProjectRoot::get() . '/vendor';
+        if (!is_dir($vendor)) {
+            return [];
+        }
+
+        $names = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($vendor, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::LEAVES_ONLY,
+        );
+
+        foreach ($iterator as $file) {
+            if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+                continue;
+            }
+
+            if (str_contains($file->getPathname(), '/vendor/semitexa/')) {
+                continue;
+            }
+
+            $body = (string) file_get_contents($file->getPathname());
+            if (!str_contains($body, '#[Attribute')) {
+                continue;
+            }
+
+            if (preg_match('/^\s*(?:final\s+|readonly\s+)*class\s+([A-Za-z0-9_]+)/m', $body, $match) === 1) {
+                $names[$match[1]] = true;
+            }
+        }
+
+        $out = array_keys($names);
+        sort($out);
 
         return $out;
     }
@@ -335,8 +386,11 @@ final class TruthIndexBuilder
                     continue;
                 }
 
+                // Two readers, not one: core reads through Environment and
+                // tenancy through its own EnvReader. Scanning only the first
+                // makes real keys look undocumented.
                 preg_match_all(
-                    '/getEnvValue\(\s*[\'"]([A-Z][A-Z0-9_]*)[\'"]/',
+                    '/(?:getEnvValue|EnvReader::get[A-Za-z]*)\(\s*[\'"]([A-Z][A-Z0-9_]*)[\'"]/',
                     (string) file_get_contents($file->getPathname()),
                     $matches,
                 );
@@ -351,6 +405,48 @@ final class TruthIndexBuilder
         sort($names);
 
         return $names;
+    }
+
+    /**
+     * Keys the code composes rather than spells out — `TENANT_{$id}_DOMAIN` and
+     * friends. There is no finite list to compare against, so the shape is
+     * recorded instead, with `*` where the code interpolates. Without this a
+     * page documenting `TENANT_ACME_DOMAIN` looks like it invented a key.
+     *
+     * @return list<string>
+     */
+    private function envKeyPatterns(): array
+    {
+        $patterns = [];
+
+        foreach ($this->sourceRoots() as $root) {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::LEAVES_ONLY,
+            );
+
+            foreach ($iterator as $file) {
+                if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+                    continue;
+                }
+
+                preg_match_all(
+                    '/"([A-Z][A-Z0-9_]*)\{\$[A-Za-z_][A-Za-z0-9_]*\}([A-Z0-9_]*)"/',
+                    (string) file_get_contents($file->getPathname()),
+                    $matches,
+                    PREG_SET_ORDER,
+                );
+
+                foreach ($matches as $match) {
+                    $patterns[$match[1] . '*' . ($match[2] ?? '')] = true;
+                }
+            }
+        }
+
+        $out = array_keys($patterns);
+        sort($out);
+
+        return $out;
     }
 
     /**
