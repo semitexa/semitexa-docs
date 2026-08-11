@@ -14,7 +14,7 @@ Framework-level, cross-cutting material that does not belong to any one package 
 
 ## What does not belong here
 
-- **Package internals** — those live in `packages/<package>/docs/`.
+- **Package internals** — those live alongside this directory in `packages/semitexa-docs/docs/`, filed by subject. A package no longer carries its own `docs/` prose; see [DOCUMENTATION_OWNERSHIP.md](DOCUMENTATION_OWNERSHIP.md).
 - **Onboarding and public-facing product docs** — those live alongside this directory in `packages/semitexa-docs/docs/` (the non-`workspace/` surface).
 - **Drafts, research, working notes, release prep** — those live in `var/docs/` (scratch, not canonical).
 

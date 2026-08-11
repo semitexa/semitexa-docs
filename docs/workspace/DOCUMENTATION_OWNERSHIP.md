@@ -50,16 +50,27 @@ If an individual developer creates a `./docs/` folder in their own project for p
 
 Canonical location:
 
-- `packages/<package>/docs/`
+- `packages/semitexa-docs/` — the same place as everything else.
 
-Package docs own technical behavior that is specific to one package:
+A package does **not** own prose about its own behaviour. Package concepts, runtime behaviour, attribute and API reference, examples and migration notes all live in the hub, filed by subject rather than by which package happens to implement them.
 
-- package concepts and runtime behavior
-- attribute and API reference for that package
-- folder structure rules for that package
-- package-specific examples and migration notes
+This reverses the earlier rule, which made `packages/<package>/docs/` canonical for package behaviour. That rule optimised for keeping words next to the code that owns them, and it cost more than it returned:
 
-If a code change belongs to one package, the documentation for that behavior is updated in the same package.
+- A reader had to know which package implements a thing before they could find out what it does — the exact knowledge a newcomer does not have.
+- The framework's own machinery already assumes one root: `FileDocumentRepository` hardcodes the docs package, which is why a site that kept its content locally had to ship a duplicate reader to serve it.
+- Ownership by proximity did not prevent drift. It distributed it: 28 of 33 packages shipped no docs at all, and the pages that did exist went stale unobserved.
+
+If a code change belongs to one package, the documentation for that behaviour is still updated in the same change — in the hub.
+
+#### What stays in a package
+
+Three files, and none of them are prose about behaviour:
+
+- `README.md` — the entrypoint (see section 4).
+- `CHANGELOG.md` — release notes. These are per-tag, and `update:changelog` reads them from each package at release time; centralising them would break that.
+- `docs/MODULE_STRUCTURE.md` — **not documentation.** It is the local extension of the module-structure spec, paired with the package's `config/module-structure.php` and loaded by `ModuleStructureSpecLoader::LOCAL_EXTENSION_DOC_REL_PATH`. Move it and `ai:verify` silently stops enforcing that package's structure rules. It is configuration that happens to be written in Markdown.
+
+Anything else under `packages/<package>/docs/` is a leftover and belongs in the hub.
 
 ### 4. Package entrypoints
 
@@ -71,9 +82,9 @@ Each package `README.md` is a short entrypoint only:
 
 - what the package does
 - when to use it
-- where its deeper docs live (link into `packages/<package>/docs/` or `packages/semitexa-docs/`)
+- where its documentation lives — a link into `packages/semitexa-docs/`, which is now the only possible destination
 
-Package READMEs are not a second reference manual.
+Package READMEs are not a second reference manual, and no longer a fork in the road.
 
 ### 5. Scaffold and generated-project documentation
 
@@ -138,8 +149,7 @@ Every documentation layer provides a clear entrypoint:
 
 - **framework**: `packages/semitexa-docs/docs/README.md`
 - **workspace/cross-cutting**: `packages/semitexa-docs/docs/workspace/README.md`
-- **package**: `packages/<package>/README.md`
-- **complex package reference**: `packages/<package>/docs/README.md`
+- **package**: `packages/<package>/README.md` — one hop, into the hub
 - **generated project**: root `AI_ENTRY.md` + root `AI_CONTEXT.md`
 
 AI-oriented files prefer canonical links over duplicated explanation.
