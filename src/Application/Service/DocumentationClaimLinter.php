@@ -29,6 +29,13 @@ final class DocumentationClaimLinter
     public const IGNORE_MARKER = '<!-- docs-lint-ignore -->';
 
     /**
+     * Anywhere in a file whose subject is something that does not exist.
+     * A proposal names unbuilt API in every other paragraph; marking each line
+     * would bury the document in scaffolding.
+     */
+    public const IGNORE_FILE_MARKER = '<!-- docs-lint-ignore-file -->';
+
+    /**
      * Suggest a rename only when the names are close enough to be the same idea.
      * Edit distance is the wrong ruler here: `AsPayload` became
      * `AsPublicPayload`, six edits apart but obviously the same thing, while six
@@ -52,6 +59,10 @@ final class DocumentationClaimLinter
         foreach ($this->markdownFiles($roots) as $path) {
             $filesScanned++;
             $body = (string) file_get_contents($path);
+            if (str_contains($body, self::IGNORE_FILE_MARKER)) {
+                continue;
+            }
+
             $lines = preg_split('/\R/', $body) ?: [];
 
             foreach ($this->claims($lines) as $claim) {

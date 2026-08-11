@@ -77,8 +77,15 @@ never built —
 that reads and lints exactly like reference. Three of the four remaining
 `docs:lint` findings come from there.
 
-Proposals move to **`workspace/proposals/`**, and each page opens with a status
-line naming what it is and whether it was built. Where a proposal names an
+Sorting the directory turned up three kinds, not two, so `workspace/` now has
+three homes and each means one thing:
+
+- **`proposals/`** — designs for work that was not built.
+- **`audits/`** — point-in-time reviews of code as it was on a date.
+- **`technical-design/`** — designs that shipped, kept as the record of why the
+  code works the way it does.
+
+Each page opens with a status line naming which it is. Where a proposal names an
 attribute or command that does not exist, the line carries
 `<!-- docs-lint-ignore -->`: the claim is deliberate, and a linter should be told
 so explicitly rather than left to infer it from a directory name.

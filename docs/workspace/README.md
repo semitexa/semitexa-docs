@@ -14,6 +14,8 @@ Framework-level, cross-cutting material that does not belong to any one package 
 
 - **[INFORMATION_ARCHITECTURE.md](INFORMATION_ARCHITECTURE.md)** — where a page goes, the page contract, and which contracts are reference at all.
 
+- **`proposals/`**, **`audits/`**, **`technical-design/`** — designs not built, reviews of code on a date, and designs that shipped. Each page says which it is on its first line.
+
 ## What does not belong here
 
 - **Package internals** — those live alongside this directory in `packages/semitexa-docs/docs/`, filed by subject. A package no longer carries its own `docs/` prose; see [DOCUMENTATION_OWNERSHIP.md](DOCUMENTATION_OWNERSHIP.md).
