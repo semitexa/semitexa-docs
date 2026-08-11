@@ -24,6 +24,13 @@ The docs are organized around a simple journey:
    Philosophy for agents plus practical implementation rules.  
    Entry: [AI.md](AI.md)
 
+## Where a page goes
+
+The five slots above are the architecture. Which slot a page belongs to, what
+shape it takes, and how generated reference fits alongside hand-written guides
+are settled in
+[workspace/INFORMATION_ARCHITECTURE.md](workspace/INFORMATION_ARCHITECTURE.md).
+
 ## Positioning Rule
 
 Every public page should help the reader feel one of these things:
