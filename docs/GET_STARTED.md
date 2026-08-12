@@ -107,7 +107,7 @@ The point of these constraints is simple: fewer unofficial paths means fewer con
 ## If Something Goes Wrong
 
 - **Project files were not created correctly**: re-run the official installer from a clean parent directory.
-- **Port or runtime confusion**: read `vendor/semitexa/core/docs/RUNNING.md`.
+- **Port or runtime confusion**: read the hub page `get-started/installation`.
 - **Need the first page after install**: continue with [MINIMAL_PAGE.md](MINIMAL_PAGE.md).
 
 If you reached a running app, move on quickly. The next page is where Semitexa usually stops sounding abstract and starts feeling mechanical in the best possible way.
@@ -120,9 +120,9 @@ If you reached a running app, move on quickly. The next page is where Semitexa u
 |------|----------------------|
 | Why Semitexa | [README.md](../README.md) · [AI_REFERENCE.md](../AI_REFERENCE.md) |
 | First HTML page with Twig | [MINIMAL_PAGE.md](MINIMAL_PAGE.md) |
-| Add routes | `vendor/semitexa/core/docs/ADDING_ROUTES.md` |
-| Run / Docker / ports / logs | `vendor/semitexa/core/docs/RUNNING.md` |
-| Service contracts / DI | `vendor/semitexa/core/docs/SERVICE_CONTRACTS.md` · `bin/semitexa contracts:list --json` |
+| Add routes | the hub page `routing/adding-routes` |
+| Run / Docker / ports / logs | the hub page `get-started/installation` |
+| Service contracts / DI | the hub page `di/contract-resolution` · `bin/semitexa contracts:list --json` |
 
 ---
 

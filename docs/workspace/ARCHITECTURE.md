@@ -57,7 +57,7 @@ Everything in Semitexa is a **Module**.
 
 ## 🧩 The Module Anatomy
 
-A typical module structure (see **packages/semitexa-core/docs/MODULE_STRUCTURE.md** for the canonical source):
+A typical module structure (see **the hub page `get-started/module-structure`** for the canonical source):
 
 ```
 src/modules/MyFeature/

@@ -24,3 +24,52 @@ The `path:` argument on the payload's access attribute supports `env::VAR::/fall
 ## Why this matters
 
 This gives deployment flexibility without losing the architectural advantage of payload-owned routes. The route remains reviewable in code, but environment-specific URL decisions stop forcing PHP edits.
+
+## What can be overridden
+
+Any string field on `#[AsPublicPayload]` can use env resolution, but the most valuable ones for routing are:
+
+- `path`
+- `name`
+- `responseWith`
+
+In practice, `path` is the main one you should expose for environment-level URL control.
+
+## Example: keep code stable, move the URL per environment
+
+```php
+#[AsPublicPayload(
+    path: 'env::DEMO_BASIC_ROUTE_PATH::/demo/routing/basic',
+    methods: ['GET'],
+    responseWith: DemoFeatureResource::class,
+    produces: ['application/json', 'text/html'],
+)]
+final class BasicRoutePayload
+{
+}
+```
+
+`.env`:
+
+```dotenv
+DEMO_BASIC_ROUTE_PATH=/demo/http/basic-route
+```
+
+Without changing PHP code, the payload now resolves to:
+
+```text
+/demo/http/basic-route
+```
+
+If the env key is absent, Semitexa falls back to:
+
+```text
+/demo/routing/basic
+```
+
+## Guidance
+
+- Prefer `env::VAR::default` over `env::VAR` so the route always has a safe fallback.
+- Use this for operational flexibility, not as a substitute for route design.
+- Keep the payload class name and handler stable even if the public URL changes.
+- When the route is an SSR page, its alternate links and route discovery continue to follow the resolved payload path.
