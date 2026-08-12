@@ -4,7 +4,7 @@ section: routing
 slug: payload-parts
 title: Payload Parts
 summary: One module owns the route, another module can extend the same payload contract without forking or reopening the base class.
-order: 50
+order: 60
 locale: en
 status: canonical
 keywords:

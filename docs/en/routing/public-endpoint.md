@@ -4,7 +4,7 @@ section: routing
 slug: public-endpoint
 title: Public Payload
 summary: Anonymous endpoints opt in explicitly with the public access attribute. Every other payload requires authentication.
-order: 70
+order: 80
 locale: en
 status: canonical
 keywords:

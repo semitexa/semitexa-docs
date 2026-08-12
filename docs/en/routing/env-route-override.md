@@ -4,7 +4,7 @@ section: routing
 slug: env-route-override
 title: Env Route Override
 summary: Keep the payload as the route source of truth while allowing operations to remap the public URL through .env.
-order: 30
+order: 40
 locale: en
 status: canonical
 keywords:

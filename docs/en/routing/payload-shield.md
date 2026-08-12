@@ -4,7 +4,7 @@ section: routing
 slug: payload-shield
 title: Payload As A Shield
 summary: Hydration happens before the handler, and each setter owns the normalization and guard logic for its own field.
-order: 40
+order: 50
 locale: en
 status: canonical
 keywords:
