@@ -4,7 +4,7 @@ section: routing
 slug: content-negotiation
 title: Content Negotiation
 summary: One endpoint, multiple response formats — automatically.
-order: 60
+order: 70
 locale: en
 status: canonical
 keywords:
