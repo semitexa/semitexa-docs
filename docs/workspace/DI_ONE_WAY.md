@@ -183,5 +183,5 @@ All three emit messages that explicitly call this out as constructor
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — §4 "Service Contracts & DI"
 - `packages/semitexa-core/src/Container/README.md` — container mechanics
-- `packages/semitexa-core/docs/SERVICE_CONTRACTS.md` — contract registration
+- the hub page `di/contract-resolution` — contract registration
 - `packages/semitexa-core/docs/attributes/AsRequestHandler.md` — handler DI

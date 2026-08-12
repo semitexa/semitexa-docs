@@ -32,7 +32,7 @@ Framework-level, cross-cutting material that does not belong to any one package 
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — framework architecture overview: Swoole server, modules, request lifecycle, DI.
 - [DI_ONE_WAY.md](DI_ONE_WAY.md) — canonical DI rule: property injection on container-managed classes; constructors allowed, constructor injection is not.
-- [MODULE_STRUCTURE.md](MODULE_STRUCTURE.md) — project-level module layout wrapper; defers to `packages/semitexa-core/docs/MODULE_STRUCTURE.md` for the canonical rules.
+- [MODULE_STRUCTURE.md](MODULE_STRUCTURE.md) — project-level module layout wrapper; defers to the hub page `get-started/module-structure` for the canonical rules.
 
 ### Workflow and tooling
 

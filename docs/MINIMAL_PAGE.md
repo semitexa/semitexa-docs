@@ -281,7 +281,7 @@ If this page feels straightforward, that is the intended effect. The framework s
 
 - **404**: verify the class is inside a discovered module and the namespace matches module PSR-4.
 - **Class not found**: run `composer dump-autoload`.
-- **Need broader route reference**: read `vendor/semitexa/core/docs/ADDING_ROUTES.md`.
+- **Need broader route reference**: read the hub page `routing/adding-routes`.
 
 If the route still feels harder than it should, the problem is usually one of three things: module discovery, namespace mismatch, or runtime reload.
 
@@ -292,8 +292,8 @@ If the route still feels harder than it should, the problem is usually one of th
 | Goal | Document or command |
 |------|----------------------|
 | Install and run app | [GET_STARTED.md](GET_STARTED.md) |
-| Add routes / module layout | `vendor/semitexa/core/docs/ADDING_ROUTES.md` |
-| Payload validation | `vendor/semitexa/core/docs/PAYLOAD_VALIDATION.md` |
+| Add routes / module layout | the hub page `routing/adding-routes` |
+| Payload validation | the hub page `validation/payload-validation` |
 | Practical implementation rules | [AI_BEST_PRACTICES.md](AI_BEST_PRACTICES.md) |
 
 ---

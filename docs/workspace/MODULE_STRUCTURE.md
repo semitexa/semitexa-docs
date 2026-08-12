@@ -4,7 +4,7 @@ This file is a project-level wrapper.
 
 The canonical Semitexa module layout lives in:
 
-- `packages/semitexa-core/docs/MODULE_STRUCTURE.md`
+- the hub page `get-started/module-structure`
 
 Use this root file only as a stable entrypoint for project and AI navigation.
 
@@ -16,6 +16,6 @@ If project-specific constraints are ever added here, they must extend the core r
 
 ## Read Next
 
-- `packages/semitexa-core/docs/MODULE_STRUCTURE.md`
-- `packages/semitexa-core/docs/ADDING_ROUTES.md`
+- the hub page `get-started/module-structure`
+- the hub page `routing/adding-routes`
 - `packages/semitexa-core/docs/attributes/`
