@@ -4,7 +4,7 @@ section: di
 slug: contract-resolution
 title: Resolving Service Contracts
 summary: Seeing which implementation is bound to a contract, using a resolver as a factory, and the Factory* naming convention for choosing by key.
-order: 60
+order: 80
 locale: en
 status: canonical
 keywords:
