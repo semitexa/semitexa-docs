@@ -507,9 +507,24 @@ final class TruthIndexBuilder
             return ['functions' => [], 'filters' => []];
         }
 
+        // Reading through the registry initializes its process-wide catalog
+        // with *this* builder's discovery — and discovered extensions register
+        // back through the same static facade. Left in place, that catalog
+        // outlives the build and every later reader in the process (a live
+        // worker, the rest of a PHPUnit run) sees whatever this discovery
+        // produced. Swap a fresh catalog in for the read and restore the
+        // previous slot — even when it was empty — so the build leaves no
+        // trace behind.
+        // getCatalog() and the nullable setCatalog() ship together; on an older
+        // semitexa/ssr without them, skip the swap rather than fatal on restore.
+        $canRestore = method_exists($registry, 'getCatalog');
+        $previous = $canRestore ? $registry::getCatalog() : null;
+        $catalogClass = 'Semitexa\\Ssr\\Application\\Service\\Extension\\TwigExtensionCatalog';
+
         try {
-            // The catalog is wired during an HTTP boot; on the CLI it has to be
-            // handed the same discovery instance before it will answer.
+            if ($canRestore) {
+                $registry::setCatalog(new $catalogClass());
+            }
             $registry::setClassDiscovery($this->classDiscovery);
 
             /** @var array<string, mixed> $functions */
@@ -520,6 +535,10 @@ final class TruthIndexBuilder
             $notes[] = 'twig: registry unavailable in this context (' . $e->getMessage() . ').';
 
             return ['functions' => [], 'filters' => []];
+        } finally {
+            if ($canRestore) {
+                $registry::setCatalog($previous);
+            }
         }
 
         $functionNames = array_keys($functions);
