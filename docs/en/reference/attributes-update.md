@@ -36,14 +36,14 @@ Applies to: class
 
 ```php
 #[AsDataPatch(
-    id: 'backfill-settings-tenant-id',
-    module: 'semitexa/platform-settings',
+    id: 'backfill-conversation-tenant-id',
+    module: 'semitexa/os',
     phase: UpdatePhase::Post,
-    requiresColumns: ['platform_settings' => ['tenant_id']],
-    description: 'Assign existing platform settings to the default tenant.',
+    requiresColumns: ['os_conversation_turn' => ['tenant_id']],
+    description: 'Assign existing OS conversation turns to the default tenant.',
 )]
-final class BackfillSettingsTenantId implements DataPatchInterface
+final class BackfillConversationTenantId implements DataPatchInterface
 ```
 
-— `vendor/semitexa/platform-settings/src/Application/Update/BackfillSettingsTenantId.php`
+— `vendor/semitexa/os/src/Application/Update/BackfillConversationTenantId.php`
 

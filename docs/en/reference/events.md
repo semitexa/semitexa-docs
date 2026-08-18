@@ -27,41 +27,13 @@ Listeners:
 
 - `Semitexa\Ssr\Application\Service\Async\HandlerCompletedListener`
 
-## `Semitexa\Demo\Application\Payload\Event\DemoDisclosureExpanded`
+## `Semitexa\Modules\EventsDemo\Domain\Event\UserSignedUp`
 
 Listeners:
 
-- `Semitexa\Demo\Application\Handler\DomainListener\DemoDisclosureExpandedListener`
-
-## `Semitexa\Demo\Application\Payload\Event\DemoExecutionShowcaseAsyncRequested`
-
-Listeners:
-
-- `Semitexa\Demo\Application\Handler\DomainListener\DemoExecutionShowcaseAsyncListener`
-
-## `Semitexa\Demo\Application\Payload\Event\DemoExecutionShowcaseQueuedRequested`
-
-Listeners:
-
-- `Semitexa\Demo\Application\Handler\DomainListener\DemoExecutionShowcaseQueuedListener`
-
-## `Semitexa\Demo\Application\Payload\Event\DemoExecutionShowcaseSyncRequested`
-
-Listeners:
-
-- `Semitexa\Demo\Application\Handler\DomainListener\DemoExecutionShowcaseSyncListener`
-
-## `Semitexa\Demo\Application\Payload\Event\DemoItemCreated`
-
-Listeners:
-
-- `Semitexa\Demo\Application\Handler\DomainListener\DemoItemCreatedListener`
-
-## `Semitexa\Demo\Application\Payload\Event\DemoNotificationEvent`
-
-Listeners:
-
-- `Semitexa\Demo\Application\Handler\DomainListener\DemoNotificationListener`
+- `Semitexa\Modules\EventsDemo\Application\Handler\DomainListener\AnnounceSignupListener`
+- `Semitexa\Modules\EventsDemo\Application\Handler\DomainListener\SendWelcomeMailListener`
+- `Semitexa\Modules\EventsDemo\Application\Handler\DomainListener\AwardWelcomeBadgeListener`
 
 ## `Semitexa\Orm\Domain\Event\ResourceChangedEvent`
 
