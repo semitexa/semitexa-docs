@@ -45,11 +45,12 @@ Applies to: class
 | `fields` | `array` | yes |
 
 ```php
-#[CollectionFilterOptions(['category', 'status', 'transport'])]
-final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[CollectionFilterOptions(['name'])]
+#[CollectionPaginated(mode: 'auto', defaultPerPage: 5, perPageOptions: [5, 10, 25], maxPerPage: 25, countThreshold: 10)]
+final class AutoModeCollectionResponse
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
+— `vendor/semitexa/api/tests/Fixtures/Collection/AutoModeCollectionResponse.php`
 
 ## `#[CollectionFilterable]`
 
@@ -62,17 +63,14 @@ Applies to: class
 | `fields` | `array` | yes |
 
 ```php
-#[CollectionFilterable([
-    'category' => ['eq'],
-    'status' => ['eq'],
-    'transport' => ['eq'],
-])]
-#[CollectionSearchable(fields: ['name', 'category'])]
-#[CollectionFilterOptions(['category', 'status', 'transport'])]
-final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[CollectionFilterable(['name' => ['eq', 'contains'], 'id' => ['eq', 'in']])]
+#[CollectionSearchable(fields: ['name'])]
+#[CollectionFilterOptions(['name'])]
+#[CollectionPaginated(mode: 'auto', defaultPerPage: 5, perPageOptions: [5, 10, 25], maxPerPage: 25, countThreshold: 10)]
+final class AutoModeCollectionResponse
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
+— `vendor/semitexa/api/tests/Fixtures/Collection/AutoModeCollectionResponse.php`
 
 ## `#[CollectionPaginated]`
 
@@ -89,19 +87,11 @@ Applies to: class
 | `countThreshold` | `int` | no |
 
 ```php
-#[CollectionPaginated(mode: 'page', defaultPerPage: 10, perPageOptions: [10, 25, 50], maxPerPage: 50)]
-#[CollectionSortable(['name', 'category', 'status', 'updatedAt'])]
-#[CollectionFilterable([
-    'category' => ['eq'],
-    'status' => ['eq'],
-    'transport' => ['eq'],
-])]
-#[CollectionSearchable(fields: ['name', 'category'])]
-#[CollectionFilterOptions(['category', 'status', 'transport'])]
-final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[CollectionPaginated(mode: 'auto', defaultPerPage: 5, perPageOptions: [5, 10, 25], maxPerPage: 25, countThreshold: 10)]
+final class AutoModeCollectionResponse
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
+— `vendor/semitexa/api/tests/Fixtures/Collection/AutoModeCollectionResponse.php`
 
 ## `#[CollectionSearchable]`
 
@@ -115,12 +105,13 @@ Applies to: class
 | `param` | `string` | no |
 
 ```php
-#[CollectionSearchable(fields: ['name', 'category'])]
-#[CollectionFilterOptions(['category', 'status', 'transport'])]
-final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[CollectionSearchable(fields: ['name'])]
+#[CollectionFilterOptions(['name'])]
+#[CollectionPaginated(mode: 'auto', defaultPerPage: 5, perPageOptions: [5, 10, 25], maxPerPage: 25, countThreshold: 10)]
+final class AutoModeCollectionResponse
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
+— `vendor/semitexa/api/tests/Fixtures/Collection/AutoModeCollectionResponse.php`
 
 ## `#[CollectionSortable]`
 
@@ -133,18 +124,15 @@ Applies to: class
 | `fields` | `array` | yes |
 
 ```php
-#[CollectionSortable(['name', 'category', 'status', 'updatedAt'])]
-#[CollectionFilterable([
-    'category' => ['eq'],
-    'status' => ['eq'],
-    'transport' => ['eq'],
-])]
-#[CollectionSearchable(fields: ['name', 'category'])]
-#[CollectionFilterOptions(['category', 'status', 'transport'])]
-final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[CollectionSortable(['name', 'id'])]
+#[CollectionFilterable(['name' => ['eq', 'contains'], 'id' => ['eq', 'in']])]
+#[CollectionSearchable(fields: ['name'])]
+#[CollectionFilterOptions(['name'])]
+#[CollectionPaginated(mode: 'auto', defaultPerPage: 5, perPageOptions: [5, 10, 25], maxPerPage: 25, countThreshold: 10)]
+final class AutoModeCollectionResponse
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
+— `vendor/semitexa/api/tests/Fixtures/Collection/AutoModeCollectionResponse.php`
 
 ## `#[ExternalApi]`
 
@@ -182,20 +170,16 @@ Applies to: class
 | `description` | `string` | no |
 
 ```php
-#[ProducesResourceCollection(ShowcaseInventoryResource::class, description: 'The Semitexa UI capability registry — a paginated, filterable, sortable collection.')]
-#[CollectionPaginated(mode: 'page', defaultPerPage: 10, perPageOptions: [10, 25, 50], maxPerPage: 50)]
-#[CollectionSortable(['name', 'category', 'status', 'updatedAt'])]
-#[CollectionFilterable([
-    'category' => ['eq'],
-    'status' => ['eq'],
-    'transport' => ['eq'],
-])]
-#[CollectionSearchable(fields: ['name', 'category'])]
-#[CollectionFilterOptions(['category', 'status', 'transport'])]
-final class ShowcaseInventoryCollectionResponse extends JsonResourceResponse implements ResourceInterface
+#[ProducesResourceCollection(CustomerResource::class)]
+#[CollectionSortable(['name', 'id'])]
+#[CollectionFilterable(['name' => ['eq', 'contains'], 'id' => ['eq', 'in']])]
+#[CollectionSearchable(fields: ['name'])]
+#[CollectionFilterOptions(['name'])]
+#[CollectionPaginated(mode: 'auto', defaultPerPage: 5, perPageOptions: [5, 10, 25], maxPerPage: 25, countThreshold: 10)]
+final class AutoModeCollectionResponse
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryCollectionResponse.php`
+— `vendor/semitexa/api/tests/Fixtures/Collection/AutoModeCollectionResponse.php`
 
 ## `#[ProducesResourceObject]`
 

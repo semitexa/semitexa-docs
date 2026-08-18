@@ -456,10 +456,10 @@ Takes no arguments.
 
 ```php
     #[LiveFilterParam]
-    private ?string $q = null;
+    protected ?string $q = null;
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Payload/Request/Showcase/ShowcaseInventoryFeedPayload.php`
+— `vendor/semitexa/core/tests/Unit/Http/PayloadMetadataReflectorTest.php`
 
 ## `#[PathParam]`
 
@@ -502,11 +502,11 @@ Applies to: property
 | `deprecated` | `bool` | no |
 
 ```php
-        #[ResourceField(description: 'Capability name as a developer references it.')]
-        public string $name,
+        #[ResourceField]
+        public string $city,
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryResource.php`
+— `vendor/semitexa/api/tests/Fixtures/Customer/AddressResource.php`
 
 ## `#[ResourceId]`
 
@@ -521,7 +521,7 @@ Takes no arguments.
         public string $id,
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryResource.php`
+— `vendor/semitexa/api/tests/Fixtures/Customer/AddressResource.php`
 
 ## `#[ResourceListOf]`
 
@@ -554,11 +554,11 @@ Applies to: class
 | `deprecated` | `bool` | no |
 
 ```php
-#[ResourceObject(type: 'platform-site.ui-inventory')]
-final readonly class ShowcaseInventoryResource implements ResourceObjectInterface
+#[ResourceObject(type: 'address')]
+final readonly class AddressResource implements ResourceObjectInterface
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Resource/Response/Showcase/ShowcaseInventoryResource.php`
+— `vendor/semitexa/api/tests/Fixtures/Customer/AddressResource.php`
 
 ## `#[ResourceRef]`
 
@@ -648,11 +648,11 @@ Applies to: class. Repeatable.
 | `factoryKey` | `BackedEnum` | no |
 
 ```php
-#[SatisfiesServiceContract(of: FormCollabDraftStoreInterface::class)]
-final class ShowcaseFormCollabDraftStore implements FormCollabDraftStoreInterface
+#[SatisfiesServiceContract(of: RouteMetadataResolverInterface::class)]
+final class ApiRouteMetadataResolver implements RouteMetadataResolverInterface
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Service/Collaboration/ShowcaseFormCollabDraftStore.php`
+— `vendor/semitexa/api/src/Discovery/ApiRouteMetadataResolver.php`
 
 ## `#[SessionSegment]`
 
@@ -682,9 +682,9 @@ Applies to: class
 | `scopes` | `string` | no |
 
 ```php
-#[WatchScopes('platform_live_events')]
-final class ShowcaseLiveFeedPayload implements SseCollectionFeedPayloadInterface
+#[WatchScopes('ui_playground_pings', 'playground_articles')]
+final class WatchScopedFeedPayloadFixture
 ```
 
-— `vendor/semitexa/platform-site/src/Application/Payload/Request/Showcase/ShowcaseLiveFeedPayload.php`
+— `vendor/semitexa/api/tests/Unit/Discovery/CollectionContractBlockContributorPhase4Test.php`
 

@@ -15,7 +15,7 @@ status: published
 
 What each part of the public surface is, generated from the code itself.
 
-This installation exposes 111 attributes, 153 commands and 10 events.
+This installation exposes 111 attributes, 160 commands and 5 events.
 
 Reference says what a thing is. For when you would want it, see the guides under `en/`.
 
@@ -61,7 +61,9 @@ Reference says what a thing is. For when you would want it, see the guides under
 - [media](commands-media.md)
 - [openapi](commands-openapi.md)
 - [orm](commands-orm.md)
+- [os](commands-os.md)
 - [platform-ui](commands-platform-ui.md)
+- [playground](commands-playground.md)
 - [prompt](commands-prompt.md)
 - [queue](commands-queue.md)
 - [registry](commands-registry.md)
@@ -72,10 +74,13 @@ Reference says what a thing is. For when you would want it, see the guides under
 - [sitemap](commands-sitemap.md)
 - [skins](commands-skins.md)
 - [system](commands-system.md)
+- [tasks](commands-tasks.md)
 - [tenant](commands-tenant.md)
 - [test](commands-test.md)
 - [theme](commands-theme.md)
+- [ui-playground](commands-ui-playground.md)
 - [update](commands-update.md)
+- [weave](commands-weave.md)
 - [webhook](commands-webhook.md)
 
 ## Events
