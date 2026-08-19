@@ -101,6 +101,25 @@ bin/semitexa ai:invoke
 | `--json` | no |
 | `--human` | no |
 
+## `ai:observe`
+
+Observatory for agents: ps (live snapshot) | tail (journal rows, --follow streams) | show --id (one process + its trace)
+
+```bash
+bin/semitexa ai:observe <action>
+```
+
+| option | takes a value |
+|---|---|
+| `--id` | yes |
+| `--mutate` | yes |
+| `--kind` | yes |
+| `--name` | yes |
+| `--lines` | yes |
+| `--follow` | no |
+| `--duration` | yes |
+| `--json` | no |
+
 ## `ai:orient`
 
 Session dashboard: git + active epic + in-progress tasks + recent traces + next step. Run this first on a cold start.
