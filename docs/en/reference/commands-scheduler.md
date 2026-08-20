@@ -42,6 +42,7 @@ bin/semitexa scheduler:run-now <schedule-key>
 | option | takes a value |
 |---|---|
 | `--tenant` | yes |
+| `--inline` | no |
 
 ## `scheduler:work`
 
