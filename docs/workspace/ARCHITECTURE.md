@@ -26,7 +26,7 @@ Everything in Semitexa is a **Module**.
     - Routes are defined by access attributes (`#[AsPublicPayload]` / `#[AsProtectedPayload]` / `#[AsServicePayload]`) on payload DTOs and `#[AsPayloadHandler]` on the matching handler classes inside each Module.
 4.  **Hydration**: The raw request data is hydrated into a **Request DTO**.
     - Type safety is enforced here.
-5.  **Validation**: The Request DTO is validated (attributes like `#[NotBlank]`).
+5.  **Validation**: The Request DTO validates itself. A payload implementing `ValidatablePayloadInterface` composes the rules it needs from the `Semitexa\Core\Validation\Trait\*` traits — `NotBlankValidationTrait`, `LengthValidationTrait`, `EmailValidationTrait`, `ConditionalValidationTrait` and the rest. The rules are traits the payload uses, not attributes on its properties.
 6.  **Handler**: The **Handler** (Controller) executes the business logic.
     - Receives: `PayloadInterface $payload, ResourceInterface $resource`.
     - Returns: `ResourceInterface` (with data or view).

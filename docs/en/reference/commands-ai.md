@@ -183,6 +183,59 @@ bin/semitexa ai:review-graph:capabilities
 | `--category` | yes |
 | `--module` | yes |
 
+## `ai:review-graph:context`
+
+Build relevant context for a task
+
+```bash
+bin/semitexa ai:review-graph:context <task>
+```
+
+| option | takes a value |
+|---|---|
+| `--format` | yes |
+| `--depth` | yes |
+| `--module` | yes |
+
+## `ai:review-graph:diff`
+
+Show how the graph changed since last scan
+
+```bash
+bin/semitexa ai:review-graph:diff
+```
+
+| option | takes a value |
+|---|---|
+| `--format` | yes |
+| `--module` | yes |
+
+## `ai:review-graph:event-trace`
+
+Trace the full lifecycle of an event
+
+```bash
+bin/semitexa ai:review-graph:event-trace <event>
+```
+
+| option | takes a value |
+|---|---|
+| `--format` | yes |
+| `--include-code` | no |
+
+## `ai:review-graph:flow-trace`
+
+Trace an execution flow end-to-end
+
+```bash
+bin/semitexa ai:review-graph:flow-trace <flow>
+```
+
+| option | takes a value |
+|---|---|
+| `--format` | yes |
+| `--include-code` | no |
+
 ## `ai:review-graph:generate`
 
 Build or update the review graph from the codebase
@@ -213,6 +266,37 @@ bin/semitexa ai:review-graph:impact <target>
 | `--context` | no |
 | `--prompt` | yes |
 | `--module` | yes |
+
+## `ai:review-graph:intelligence`
+
+Query the project graph intelligence layer
+
+```bash
+bin/semitexa ai:review-graph:intelligence [query]
+```
+
+| option | takes a value |
+|---|---|
+| `--hotspots` | no |
+| `--doc-gaps` | no |
+| `--flows` | yes |
+| `--event-lifecycle` | yes |
+| `--intent` | yes |
+| `--format` | yes |
+
+## `ai:review-graph:module`
+
+Overview of a module with full context
+
+```bash
+bin/semitexa ai:review-graph:module <module>
+```
+
+| option | takes a value |
+|---|---|
+| `--format` | yes |
+| `--include-events` | no |
+| `--include-flows` | no |
 
 ## `ai:review-graph:query`
 
