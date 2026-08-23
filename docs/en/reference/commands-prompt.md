@@ -49,7 +49,7 @@ bin/semitexa prompt:list
 Set, list or remove per-tenant prompt overrides.
 
 ```bash
-bin/semitexa prompt:override <action>
+bin/semitexa prompt:override "<action>"
 ```
 
 | option | takes a value |

@@ -45,7 +45,7 @@ bin/semitexa media:failed-variants
 Bulk-backfill a directory of existing files into media assets with queued variants
 
 ```bash
-bin/semitexa media:import <source>
+bin/semitexa media:import "<source>"
 ```
 
 | option | takes a value |
@@ -65,7 +65,7 @@ bin/semitexa media:import <source>
 Recalculate tenant media quota usage from authoritative asset table
 
 ```bash
-bin/semitexa media:quota:recalculate <tenant-id>
+bin/semitexa media:quota:recalculate "<tenant-id>"
 ```
 
 | option | takes a value |
@@ -77,7 +77,7 @@ bin/semitexa media:quota:recalculate <tenant-id>
 Queue variant regeneration for one asset or all assets in a collection
 
 ```bash
-bin/semitexa media:regenerate [asset-id]
+bin/semitexa media:regenerate ["asset-id"]
 ```
 
 | option | takes a value |
@@ -92,6 +92,6 @@ bin/semitexa media:regenerate [asset-id]
 Run the dedicated media variant generation worker
 
 ```bash
-bin/semitexa media:work [transport] [queue]
+bin/semitexa media:work ["transport"] ["queue"]
 ```
 

@@ -33,7 +33,7 @@ bin/semitexa ai
 Dump the shell completion script
 
 ```bash
-bin/semitexa completion [shell]
+bin/semitexa completion ["shell"]
 ```
 
 | option | takes a value |
@@ -45,7 +45,7 @@ bin/semitexa completion [shell]
 Display help for a command
 
 ```bash
-bin/semitexa help [command_name]
+bin/semitexa help ["command_name"]
 ```
 
 | option | takes a value |
@@ -76,7 +76,7 @@ Handled by the `bin/semitexa` wrapper before PHP starts.
 List commands
 
 ```bash
-bin/semitexa list [namespace]
+bin/semitexa list ["namespace"]
 ```
 
 | option | takes a value |

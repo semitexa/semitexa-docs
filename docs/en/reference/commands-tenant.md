@@ -28,6 +28,6 @@ bin/semitexa tenant:list
 Execute a command in a specific tenant context
 
 ```bash
-bin/semitexa tenant:run <tenant> <cmd>
+bin/semitexa tenant:run "<tenant>" "<cmd>"
 ```
 

@@ -342,11 +342,16 @@ final class ReferenceGenerator
             $arguments = (array) ($command['arguments'] ?? []);
             $options = (array) ($command['options'] ?? []);
 
+            // Placeholders are quoted because a reader copies this line. Several commands take
+            // a prose argument — `ai:review-graph:context "adding a payment method"` — and an
+            // unquoted <task> silently becomes three arguments instead of one. Quoting is
+            // correct for every placeholder, so it does not need to be decided per command;
+            // the hand-written pages already write it this way.
             $usage = 'bin/semitexa ' . $command['name'];
             foreach ($arguments as $argument) {
                 $usage .= ($argument['required'] ?? false)
-                    ? ' <' . $argument['name'] . '>'
-                    : ' [' . $argument['name'] . ']';
+                    ? ' "<' . $argument['name'] . '>"'
+                    : ' ["' . $argument['name'] . '"]';
             }
 
             $out .= sprintf("```bash\n%s\n```\n\n", $usage);

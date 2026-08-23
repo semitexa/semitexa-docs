@@ -20,7 +20,7 @@ Every `test` command, with the arguments and options the console actually define
 Test handler instantiation and property injection
 
 ```bash
-bin/semitexa test:handler <handler>
+bin/semitexa test:handler "<handler>"
 ```
 
 ## `test:run`

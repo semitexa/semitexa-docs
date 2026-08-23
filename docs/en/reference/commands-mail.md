@@ -20,6 +20,6 @@ Every `mail` command, with the arguments and options the console actually define
 Run the dedicated mail delivery worker
 
 ```bash
-bin/semitexa mail:work [transport] [queue]
+bin/semitexa mail:work ["transport"] ["queue"]
 ```
 

@@ -20,7 +20,7 @@ Every `ai` command, with the arguments and options the console actually defines.
 Agent-facing introspection aggregator (capabilities, mechanisms, project, module, route, event, path, logs)
 
 ```bash
-bin/semitexa ai:ask [subject]
+bin/semitexa ai:ask ["subject"]
 ```
 
 | option | takes a value |
@@ -45,7 +45,7 @@ bin/semitexa ai:ask [subject]
 Backlog hygiene: stats + cleanup proposals (dry-run; --apply to commit)
 
 ```bash
-bin/semitexa ai:backlog <action>
+bin/semitexa ai:backlog "<action>"
 ```
 
 | option | takes a value |
@@ -58,7 +58,7 @@ bin/semitexa ai:backlog <action>
 Pack prior art + signals for a recipe (NDJSON, agent-facing)
 
 ```bash
-bin/semitexa ai:context <recipe>
+bin/semitexa ai:context "<recipe>"
 ```
 
 | option | takes a value |
@@ -71,7 +71,7 @@ bin/semitexa ai:context <recipe>
 Manage epics for agent-driven work decomposition (start/list/show/update)
 
 ```bash
-bin/semitexa ai:epic <action>
+bin/semitexa ai:epic "<action>"
 ```
 
 | option | takes a value |
@@ -106,7 +106,7 @@ bin/semitexa ai:invoke
 Observatory for agents: ps (live snapshot) | tail (journal rows, --follow streams) | show --id (one process + its trace)
 
 ```bash
-bin/semitexa ai:observe <action>
+bin/semitexa ai:observe "<action>"
 ```
 
 | option | takes a value |
@@ -139,7 +139,7 @@ bin/semitexa ai:orient
 Risk-score a recipe + change set (NDJSON, agent-facing)
 
 ```bash
-bin/semitexa ai:plan <recipe>
+bin/semitexa ai:plan "<recipe>"
 ```
 
 | option | takes a value |
@@ -188,7 +188,7 @@ bin/semitexa ai:review-graph:capabilities
 Build relevant context for a task
 
 ```bash
-bin/semitexa ai:review-graph:context <task>
+bin/semitexa ai:review-graph:context "<task>"
 ```
 
 | option | takes a value |
@@ -215,7 +215,7 @@ bin/semitexa ai:review-graph:diff
 Trace the full lifecycle of an event
 
 ```bash
-bin/semitexa ai:review-graph:event-trace <event>
+bin/semitexa ai:review-graph:event-trace "<event>"
 ```
 
 | option | takes a value |
@@ -228,7 +228,7 @@ bin/semitexa ai:review-graph:event-trace <event>
 Trace an execution flow end-to-end
 
 ```bash
-bin/semitexa ai:review-graph:flow-trace <flow>
+bin/semitexa ai:review-graph:flow-trace "<flow>"
 ```
 
 | option | takes a value |
@@ -254,7 +254,7 @@ bin/semitexa ai:review-graph:generate
 Analyze the impact of changes on the codebase
 
 ```bash
-bin/semitexa ai:review-graph:impact <target>
+bin/semitexa ai:review-graph:impact "<target>"
 ```
 
 | option | takes a value |
@@ -272,7 +272,7 @@ bin/semitexa ai:review-graph:impact <target>
 Query the project graph intelligence layer
 
 ```bash
-bin/semitexa ai:review-graph:intelligence [query]
+bin/semitexa ai:review-graph:intelligence ["query"]
 ```
 
 | option | takes a value |
@@ -289,7 +289,7 @@ bin/semitexa ai:review-graph:intelligence [query]
 Overview of a module with full context
 
 ```bash
-bin/semitexa ai:review-graph:module <module>
+bin/semitexa ai:review-graph:module "<module>"
 ```
 
 | option | takes a value |
@@ -327,7 +327,7 @@ bin/semitexa ai:review-graph:query
 Display or export the review graph
 
 ```bash
-bin/semitexa ai:review-graph:show [focus]
+bin/semitexa ai:review-graph:show ["focus"]
 ```
 
 | option | takes a value |
@@ -379,7 +379,7 @@ bin/semitexa ai:skills
 Classify a task description into a recipe + suggested make:* invocation
 
 ```bash
-bin/semitexa ai:task <description>
+bin/semitexa ai:task "<description>"
 ```
 
 | option | takes a value |
@@ -394,7 +394,7 @@ bin/semitexa ai:task <description>
 Durable per-task trace: start/append/show/list events across sessions
 
 ```bash
-bin/semitexa ai:trace <action>
+bin/semitexa ai:trace "<action>"
 ```
 
 | option | takes a value |
@@ -431,7 +431,7 @@ bin/semitexa ai:verify
 Manage work tasks: start/list/show/update/resume/note (agent-facing, NDJSON)
 
 ```bash
-bin/semitexa ai:work <action>
+bin/semitexa ai:work "<action>"
 ```
 
 | option | takes a value |
