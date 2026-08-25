@@ -20,7 +20,7 @@ Every `docs` command, with the arguments and options the console actually define
 Get a canonical Semitexa document as Markdown or HTML
 
 ```bash
-bin/semitexa docs:get <document-id>
+bin/semitexa docs:get "<document-id>"
 ```
 
 | option | takes a value |
@@ -75,7 +75,7 @@ bin/semitexa docs:reference:generate
 Show canonical documents for one Docs section
 
 ```bash
-bin/semitexa docs:show-section <section>
+bin/semitexa docs:show-section "<section>"
 ```
 
 | option | takes a value |

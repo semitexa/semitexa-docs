@@ -20,7 +20,7 @@ Every `queue` command, with the arguments and options the console actually defin
 Run async events worker (processes handlers enqueued with execution: async)
 
 ```bash
-bin/semitexa queue:work [transport] [queue]
+bin/semitexa queue:work ["transport"] ["queue"]
 ```
 
 | option | takes a value |

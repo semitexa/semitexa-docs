@@ -32,7 +32,7 @@ bin/semitexa routes:list
 Show detailed debug information for a specific route.
 
 ```bash
-bin/semitexa routes:show <id>
+bin/semitexa routes:show "<id>"
 ```
 
 | option | takes a value |

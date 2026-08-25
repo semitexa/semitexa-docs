@@ -46,7 +46,7 @@ bin/semitexa cache:flush
 Remove a single cache entry by key.
 
 ```bash
-bin/semitexa cache:forget <key> [namespace]
+bin/semitexa cache:forget "<key>" ["namespace"]
 ```
 
 ## `cache:tags:flush`
@@ -54,6 +54,6 @@ bin/semitexa cache:forget <key> [namespace]
 Flush all cache entries associated with the given tags.
 
 ```bash
-bin/semitexa cache:tags:flush <tags>
+bin/semitexa cache:tags:flush "<tags>"
 ```
 

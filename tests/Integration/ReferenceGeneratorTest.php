@@ -50,7 +50,9 @@ final class ReferenceGeneratorTest extends TestCase
     {
         $files = (new ReferenceGenerator())->generate($this->index());
 
-        self::assertStringContainsString('bin/semitexa docs:get <document-id>', $files['reference/commands-docs.md']);
+        // Quoted, because a reader copies this line and some commands take a prose argument:
+        // an unquoted <task> becomes three arguments the moment it contains spaces.
+        self::assertStringContainsString('bin/semitexa docs:get "<document-id>"', $files['reference/commands-docs.md']);
     }
 
     /**

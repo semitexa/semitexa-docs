@@ -34,7 +34,7 @@ bin/semitexa skins:eval:run
 Show how the LLM skill resolves a natural-language prompt into skin seed parameters, without generating CSS.
 
 ```bash
-bin/semitexa skins:explain-prompt <prompt>
+bin/semitexa skins:explain-prompt "<prompt>"
 ```
 
 | option | takes a value |
@@ -46,7 +46,7 @@ bin/semitexa skins:explain-prompt <prompt>
 Generate a semantic skin from a primary color hex (seed mode) or a natural-language prompt (LLM mode). Writes both light and dark mode tokens to src/skins/.
 
 ```bash
-bin/semitexa skins:generate [algorithm] [hex]
+bin/semitexa skins:generate ["algorithm"] ["hex"]
 ```
 
 | option | takes a value |
@@ -64,7 +64,7 @@ bin/semitexa skins:generate [algorithm] [hex]
 Re-emit tokens.css for a skin from its skin.json (canonical path; works for every skin source).
 
 ```bash
-bin/semitexa skins:rebuild [slug]
+bin/semitexa skins:rebuild ["slug"]
 ```
 
 | option | takes a value |
@@ -78,7 +78,7 @@ bin/semitexa skins:rebuild [slug]
 Refine an existing skin by adjusting its knobs (LLM or structured). Regenerates both light and dark mode tokens.
 
 ```bash
-bin/semitexa skins:refine <slug>
+bin/semitexa skins:refine "<slug>"
 ```
 
 | option | takes a value |

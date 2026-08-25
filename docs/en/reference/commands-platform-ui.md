@@ -33,7 +33,7 @@ bin/semitexa platform-ui:catalog
 Precompile platform-ui CSS bundles for static asset serving via semitexa/ssr.
 
 ```bash
-bin/semitexa platform-ui:css:build [bundle]
+bin/semitexa platform-ui:css:build ["bundle"]
 ```
 
 | option | takes a value |
@@ -46,7 +46,7 @@ bin/semitexa platform-ui:css:build [bundle]
 Explain what a slice-id or primitive produces — CSS, layer, semantic token references.
 
 ```bash
-bin/semitexa platform-ui:css:explain <id>
+bin/semitexa platform-ui:css:explain "<id>"
 ```
 
 | option | takes a value |
@@ -58,7 +58,7 @@ bin/semitexa platform-ui:css:explain <id>
 Scan a template file for sx-*/ui-* usage and report what CSS slices/primitives it would need.
 
 ```bash
-bin/semitexa platform-ui:css:inspect <path>
+bin/semitexa platform-ui:css:inspect "<path>"
 ```
 
 | option | takes a value |

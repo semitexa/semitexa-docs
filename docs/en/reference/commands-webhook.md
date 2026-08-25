@@ -35,7 +35,7 @@ bin/semitexa webhook:cleanup
 Replay an inbound webhook delivery by ID
 
 ```bash
-bin/semitexa webhook:replay:inbound <id>
+bin/semitexa webhook:replay:inbound "<id>"
 ```
 
 ## `webhook:replay:outbound`
@@ -43,7 +43,7 @@ bin/semitexa webhook:replay:inbound <id>
 Reset an outbound delivery to pending for redelivery
 
 ```bash
-bin/semitexa webhook:replay:outbound <id>
+bin/semitexa webhook:replay:outbound "<id>"
 ```
 
 ## `webhook:show`
@@ -51,7 +51,7 @@ bin/semitexa webhook:replay:outbound <id>
 Display webhook endpoint, inbox, or outbox details
 
 ```bash
-bin/semitexa webhook:show <type> [id]
+bin/semitexa webhook:show "<type>" ["id"]
 ```
 
 | option | takes a value |
@@ -64,6 +64,6 @@ bin/semitexa webhook:show <type> [id]
 Run the webhook outbound delivery worker
 
 ```bash
-bin/semitexa webhook:work [worker-id] [poll-interval]
+bin/semitexa webhook:work ["worker-id"] ["poll-interval"]
 ```
 

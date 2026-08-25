@@ -192,6 +192,21 @@ final class CodeHighlightTwigExtension
 
 — `vendor/semitexa/demo/src/Application/Service/Twig/CodeHighlightTwigExtension.php`
 
+## `#[NotInSitemap]`
+
+`Semitexa\Ssr\Application\Service\Seo\Sitemap\NotInSitemap`
+
+Applies to: class
+
+Takes no arguments.
+
+```php
+#[NotInSitemap]
+final class OptedOutPayload
+```
+
+— `vendor/semitexa/ssr/tests/Unit/Seo/SitemapExclusionTest.php`
+
 ## `#[WithDataProvider]`
 
 `Semitexa\Ssr\Attribute\WithDataProvider`

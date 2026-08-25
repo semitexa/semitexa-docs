@@ -36,7 +36,7 @@ bin/semitexa scheduler:plan
 Create an immediate run for a schedule key (operator intervention)
 
 ```bash
-bin/semitexa scheduler:run-now <schedule-key>
+bin/semitexa scheduler:run-now "<schedule-key>"
 ```
 
 | option | takes a value |
@@ -49,6 +49,6 @@ bin/semitexa scheduler:run-now <schedule-key>
 Run the scheduler worker for a given pool
 
 ```bash
-bin/semitexa scheduler:work [pool]
+bin/semitexa scheduler:work ["pool"]
 ```
 
