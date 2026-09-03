@@ -15,7 +15,7 @@ status: published
 
 What each part of the public surface is, generated from the code itself.
 
-This installation exposes 112 attributes, 167 commands and 5 events.
+This installation exposes 116 attributes, 173 commands and 5 events.
 
 Reference says what a thing is. For when you would want it, see the guides under `en/`.
 
@@ -24,6 +24,7 @@ Reference says what a thing is. For when you would want it, see the guides under
 - [api](attributes-api.md)
 - [auth](attributes-auth.md)
 - [authorization](attributes-authorization.md)
+- [cms](attributes-cms.md)
 - [core](attributes-core.md)
 - [graphql](attributes-graphql.md)
 - [ledger](attributes-ledger.md)
@@ -45,6 +46,7 @@ Reference says what a thing is. For when you would want it, see the guides under
 
 - [ai](commands-ai.md)
 - [cache](commands-cache.md)
+- [cms](commands-cms.md)
 - [contracts](commands-contracts.md)
 - [demo](commands-demo.md)
 - [dev](commands-dev.md)
@@ -80,6 +82,7 @@ Reference says what a thing is. For when you would want it, see the guides under
 - [theme](commands-theme.md)
 - [ui-playground](commands-ui-playground.md)
 - [update](commands-update.md)
+- [user](commands-user.md)
 - [weave](commands-weave.md)
 - [webhook](commands-webhook.md)
 
