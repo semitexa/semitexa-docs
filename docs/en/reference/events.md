@@ -40,6 +40,7 @@ Listeners:
 Listeners:
 
 - `Semitexa\Ssr\Application\Service\Async\ResourceInvalidationPublisher`
+- `Semitexa\Cms\Application\Service\SiteMapRefreshListener`
 
 ## `Semitexa\Tenancy\Domain\Event\TenantResolved`
 

@@ -202,10 +202,15 @@ Takes no arguments.
 
 ```php
 #[NotInSitemap]
-final class OptedOutPayload
+#[AsPublicPayload(
+    path: 'env::SEMITEXA_OS_LOGIN_PATH::/os/login',
+    methods: ['GET'],
+    responseWith: OsLoginResource::class,
+)]
+final class OsLoginPayload
 ```
 
-— `vendor/semitexa/ssr/tests/Unit/Seo/SitemapExclusionTest.php`
+— `vendor/semitexa/os/src/Application/Payload/Request/OsLoginPayload.php`
 
 ## `#[WithDataProvider]`
 
