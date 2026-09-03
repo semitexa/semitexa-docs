@@ -118,6 +118,7 @@ bin/semitexa ai:observe "<action>"
 | `--lines` | yes |
 | `--follow` | no |
 | `--duration` | yes |
+| `--source` | no |
 | `--json` | no |
 
 ## `ai:orient`
