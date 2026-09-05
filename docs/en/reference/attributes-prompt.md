@@ -31,12 +31,12 @@ Applies to: class
 ```php
 #[AsPrompt(
     id: self::ID,
-    channel: 'llm',
-    template: 'resources/prompts/llm.conversation-summary.twig',
-    description: 'Rolling conversation-summary system prompt (JSON summary + active_intent).',
+    channel: 'cms',
+    template: 'resources/prompts/cms.seo.write.twig',
+    description: 'Writes a page\'s search and social metadata from its own content.',
 )]
-final class ConversationSummaryPrompt implements BoundPromptInterface
+final class SeoWriterPrompt implements BoundPromptInterface
 ```
 
-— `vendor/semitexa/llm/src/Application/Prompt/ConversationSummaryPrompt.php`
+— `vendor/semitexa/cms/src/Application/Prompt/SeoWriterPrompt.php`
 
