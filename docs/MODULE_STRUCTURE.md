@@ -282,7 +282,7 @@ Every declared `ModuleStructureRule` carries an explicit validation **mode**. A 
 | `deep_validated` (default) | Walks children and enforces the rule's `allowedDirectories`, `allowedFiles`, `allowedFilePatterns`, `excludedFilePatterns`. `allowFeatureGrouping` and `allowAnyFile` apply as documented. Anything not allowed fires `module_structure.unknown_directory` / `module_structure.invalid_location`. | Default. Use whenever the layer's shape is known and stable. |
 | `opaque_internal` | Validator does **not** scan the directory's contents. The directory is permitted by the parent rule; everything inside passes. | Only for complex framework internals (typically inside `semitexa-core`) where deep child rules have not been authored yet. **Every opaque entry must carry `opaqueReason`, `opaqueOwner`, and `opaqueTodo`.** Opaque is a *tracked deferred rule*, not an escape hatch. |
 | `leaf_files_only` | Files are validated; **every** subdirectory fires `module_structure.unknown_directory`. | For leaves where feature subgrouping is architecturally wrong (e.g. a layer that holds exactly one kind of file). |
-| `vendor_bundle` | Validator does **not** scan the directory's contents. Any files, any nesting, no classification. | For a subtree that belongs to somebody else — a self-hosted third-party asset bundle kept exactly as its author ships it. Used today only by `Application/Static/vendor/`. Unlike `opaque_internal` this is **not** a deferral: a vendored bundle is never going to be deep-validated, because its layout is not ours to decide, so it carries no owner or todo. |
+| `vendor_bundle` | Holds one directory per third-party bundle: any directory name is accepted and its contents are not scanned, while files directly at this level are still rejected. | For a subtree that belongs to somebody else — a self-hosted third-party asset bundle kept exactly as its author ships it. Used today only by `Application/Static/vendor/`. Unlike `opaque_internal` this is **not** a deferral: a vendored bundle is never going to be deep-validated, because its layout is not ours to decide, so it carries no owner or todo. |
 
 #### Vendoring a third-party asset bundle
 
@@ -299,17 +299,23 @@ dispatch on file extension and never on the directory a file sits in.
 
 Put such a bundle in its own directory under `Application/Static/vendor/`:
 
-```
+```text
 Application/Static/vendor/leaflet/
     leaflet.js
     leaflet.css
     images/marker.png
 ```
 
-`Application/Static/vendor` is declared `vendor_bundle`, so everything below it
-is accepted as shipped. The hatch is scoped to `vendor/` — the sibling type
-directories keep classifying, and a bundle is still expected to be one directory
-per bundle rather than a dumping ground.
+`Application/Static/vendor` is declared `vendor_bundle`: it holds **one
+directory per bundle**, each accepted under whatever name its author uses and
+not descended into. That contract is enforced, not merely described — a loose
+file directly under `vendor/` is a violation, because otherwise one root becomes
+a shared dumping ground for several bundles. The hatch is scoped to `vendor/`;
+the sibling type directories keep classifying.
+
+The production-package pollution scan also stops at a bundle root, so a bundle
+that ships its own `examples/` is not accused of polluting the package that
+vendored it.
 
 **The new violation `module_structure.opaque_marker_required` fires** if a directory is permitted at the top level by `packageSpecificCodeRoot` but no `ModuleStructureRule` exists for its path. This catches the spec gap that Phase 1's silent-skip behavior had hidden.
 
