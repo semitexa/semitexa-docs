@@ -17,7 +17,7 @@ Every `cache` command, with the arguments and options the console actually defin
 
 ## `cache:clear`
 
-Clear application cache (e.g. var/cache/twig). Use after template changes or when cache is stale.
+Clear application cache (e.g. var/cache/twig) and cycle running workers so they drop their in-memory templates.
 
 ```bash
 bin/semitexa cache:clear
@@ -26,6 +26,7 @@ bin/semitexa cache:clear
 | option | takes a value |
 |---|---|
 | `--twig` | no |
+| `--no-reload` | no |
 | `--via-docker` | no |
 
 ## `cache:flush`
