@@ -23,5 +23,10 @@ Applies to: class
 
 Takes no arguments.
 
-_No usage found in this installation._
+```php
+#[AsMediaCollectionProvider]
+final class ContentImageCollection implements MediaCollectionProviderInterface
+```
+
+— `vendor/semitexa/cms/src/Application/Service/ContentImageCollection.php`
 
