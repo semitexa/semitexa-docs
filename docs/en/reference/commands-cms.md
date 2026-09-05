@@ -27,6 +27,18 @@ bin/semitexa cms:map:build
 |---|---|
 | `--dry-run` | no |
 
+## `cms:seo:drain`
+
+Write metadata for content whose debounce window has closed.
+
+```bash
+bin/semitexa cms:seo:drain
+```
+
+| option | takes a value |
+|---|---|
+| `--batch` | yes |
+
 ## `cms:translate:drain`
 
 Translate content whose debounce window has closed.

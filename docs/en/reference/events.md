@@ -32,15 +32,15 @@ Listeners:
 Listeners:
 
 - `Semitexa\Modules\EventsDemo\Application\Handler\DomainListener\AnnounceSignupListener`
-- `Semitexa\Modules\EventsDemo\Application\Handler\DomainListener\SendWelcomeMailListener`
 - `Semitexa\Modules\EventsDemo\Application\Handler\DomainListener\AwardWelcomeBadgeListener`
+- `Semitexa\Modules\EventsDemo\Application\Handler\DomainListener\SendWelcomeMailListener`
 
 ## `Semitexa\Orm\Domain\Event\ResourceChangedEvent`
 
 Listeners:
 
-- `Semitexa\Ssr\Application\Service\Async\ResourceInvalidationPublisher`
 - `Semitexa\Cms\Application\Service\SiteMapRefreshListener`
+- `Semitexa\Ssr\Application\Service\Async\ResourceInvalidationPublisher`
 
 ## `Semitexa\Tenancy\Domain\Event\TenantResolved`
 

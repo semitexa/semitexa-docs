@@ -388,7 +388,14 @@ final class ReferenceGenerator
         foreach ($events as $event) {
             $out .= sprintf("## `%s`\n\n", $event['event']);
             $out .= "Listeners:\n\n";
-            foreach ((array) ($event['listeners'] ?? []) as $listener) {
+            // Sorted, like every other section here: discovery hands these back
+            // in class-map order, which shifts on a composer dump-autoload. An
+            // unsorted list made this generated page differ from the committed
+            // one after an unrelated change, failing ai:verify's docs gate for
+            // nothing.
+            $listeners = (array) ($event['listeners'] ?? []);
+            sort($listeners);
+            foreach ($listeners as $listener) {
                 $out .= sprintf("- `%s`\n", $listener);
             }
 
