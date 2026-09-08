@@ -15,6 +15,14 @@ status: published
 
 Every `demo` command, with the arguments and options the console actually defines.
 
+## `demo:deferred-heartbeat`
+
+Broadcast a deferred heartbeat to all authenticated kiss sessions
+
+```bash
+bin/semitexa demo:deferred-heartbeat
+```
+
 ## `demo:install`
 
 Handled by the `bin/semitexa` wrapper before PHP starts.
