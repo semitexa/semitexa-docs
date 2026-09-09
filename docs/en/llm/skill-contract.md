@@ -63,9 +63,74 @@ use Semitexa\Llm\Policy\{AiRiskLevel, AiConfirmationMode, AiArgumentPolicy, AiEx
     argumentPolicy: AiArgumentPolicy::Allowlisted,
     exposeArguments: ['period', 'format', 'output'],
     executionKind: AiExecutionKind::DirectCommand,
+    // Without this the skill is CLI-only — see Channels below.
+    channels: ['console', 'web'],
 )]
 final class GenerateReportCommand extends Command { /* ... */ }
 ```
+
+## Channels — which surfaces a skill appears on
+
+`channels` says where a skill exists. It is not decoration: `SkillManifest::forChannels()`
+is what a planner is shown, so a skill on the wrong channel is a skill the assistant will
+never propose, and `SkillExecutor` re-checks the channel at run time and refuses a skill
+that was not exposed there.
+
+**The default is `['console']`, and that is the thing that catches people.** A skill that
+declares nothing is a CLI skill: the OS console will not see it, and neither will a bot.
+
+| Channel | Who asks for it |
+|---|---|
+| `console` | the CLI assistant (`bin/semitexa ai`) |
+| `web` | HTTP surfaces, and the OS console — `SkillLoopRunner` asks for `web` + `ui` |
+| `ui` | the dialog handler; see the overload below |
+| `telegram` | a Telegram bot |
+
+A skill may declare several. `content-list` ships as
+`channels: ['console', 'telegram', 'web']` so the same listing answers on the CLI, in a bot
+and in the OS console.
+
+### The `ui` overload
+
+`ui` does not mean "has a web page". It means **this skill opens a window instead of
+running**. A `ui` skill needs a `name` and an `entry` route, does not implement
+`InvocableSkillInterface`, and never executes — the OS raises its `entry` as a dialog in
+Focus. Its declared inputs ride the entry as query parameters, so a UI skill can be opened
+at a particular record:
+
+```php
+#[AsAiSkill(
+    name: 'Content',
+    summary: 'Open a page of the site for editing.',
+    argumentPolicy: AiArgumentPolicy::Allowlisted,
+    exposeArguments: ['name', 'ref'],
+    channels: ['ui'],
+    entry: '/os/app/cms',
+)]
+final class ContentEditorSkill {}
+```
+
+Only inputs the skill declares reach the URL; anything else a planner proposes is dropped.
+Because it opens a window, a `ui` skill has no meaning on `telegram` — a bot has nowhere to
+raise it.
+
+### Channels from the environment
+
+`channels` accepts a string as well as a list, so one variable can carry the whole set —
+useful when a project decides which surfaces a skill belongs on:
+
+```php
+channels: 'env::MY_APP_SKILL_CHANNELS::console,web'   // whole list from one var
+channels: ['console', 'env::MY_APP_EXTRA_CHANNEL::']  // one entry from a var
+```
+
+Both forms are split on commas and de-duplicated after resolving; an entry that resolves to
+nothing drops out.
+
+**A skill must resolve to at least one channel.** An empty result is rejected rather than
+accepted, because a skill on no surface sits in the manifest and can never be returned from
+it — invisible everywhere, with no signal anywhere, and an unset variable with no default is
+one typo away. To turn a skill off, say so: `allowed: false`.
 
 ## Internal LLM consumption (not skill-based)
 
