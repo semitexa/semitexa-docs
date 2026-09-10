@@ -107,7 +107,7 @@ Applies to: class
 | parameter | type | required |
 |---|---|---|
 | `event` | `string` | yes |
-| `execution` | `Semitexa\Core\Event\EventExecution|string` | yes |
+| `execution` | `Semitexa\Core\Event\EventExecution\|string` | yes |
 | `transport` | `string` | no |
 | `queue` | `string` | no |
 | `priority` | `int` | no |
@@ -129,7 +129,7 @@ Applies to: class
 |---|---|---|
 | `payload` | `string` | yes |
 | `resource` | `string` | yes |
-| `execution` | `Semitexa\Core\Queue\HandlerExecution|string|null` | no |
+| `execution` | `Semitexa\Core\Queue\HandlerExecution\|string\|null` | no |
 | `transport` | `string` | no |
 | `queue` | `string` | no |
 | `priority` | `int` | no |
@@ -202,7 +202,7 @@ Applies to: class
 | `consumes` | `array` | no |
 | `produces` | `array` | no |
 | `transport` | `Semitexa\Core\Attribute\TransportType` | no |
-| `renderProfile` | `Semitexa\Core\Resource\RenderProfile|array|null` | no |
+| `renderProfile` | `Semitexa\Core\Resource\RenderProfile\|array\|null` | no |
 | `responsesByProfile` | `array` | no |
 | `sseGateModel` | `Semitexa\Core\Attribute\SseGateModel` | no |
 
@@ -337,7 +337,7 @@ Applies to: property
 | parameter | type | required |
 |---|---|---|
 | `env` | `string` | no |
-| `default` | `BackedEnum|string|int|float|bool|null` | no |
+| `default` | `BackedEnum\|string\|int\|float\|bool\|null` | no |
 
 ```php
     #[Config(env: 'CACHE_DRIVER', default: 'array')]

@@ -212,7 +212,7 @@ Applies to: class. Repeatable.
 
 | parameter | type | required |
 |---|---|---|
-| `columns` | `array|string` | yes |
+| `columns` | `array\|string` | yes |
 | `unique` | `bool` | no |
 | `name` | `string` | no |
 

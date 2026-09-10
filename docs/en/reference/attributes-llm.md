@@ -41,18 +41,18 @@ Applies to: class
 
 | parameter | type | required |
 |---|---|---|
-| `allowed` | `string|bool` | no |
+| `allowed` | `string\|bool` | no |
 | `summary` | `string` | no |
 | `useWhen` | `string` | no |
 | `avoidWhen` | `string` | no |
-| `riskLevel` | `Semitexa\Llm\Domain\Enum\AiRiskLevel|string` | no |
-| `confirmation` | `Semitexa\Llm\Domain\Enum\AiConfirmationMode|string` | no |
+| `riskLevel` | `Semitexa\Llm\Domain\Enum\AiRiskLevel\|string` | no |
+| `confirmation` | `Semitexa\Llm\Domain\Enum\AiConfirmationMode\|string` | no |
 | `supportsDryRun` | `bool` | no |
-| `argumentPolicy` | `Semitexa\Llm\Domain\Enum\AiArgumentPolicy|string` | no |
+| `argumentPolicy` | `Semitexa\Llm\Domain\Enum\AiArgumentPolicy\|string` | no |
 | `exposeArguments` | `array` | no |
 | `requiredArguments` | `array` | no |
-| `executionKind` | `Semitexa\Llm\Domain\Enum\AiExecutionKind|string` | no |
-| `channels` | `array|string` | no |
+| `executionKind` | `Semitexa\Llm\Domain\Enum\AiExecutionKind\|string` | no |
+| `channels` | `array\|string` | no |
 | `name` | `string` | no |
 | `icon` | `string` | no |
 | `entry` | `string` | no |
