@@ -290,7 +290,12 @@ final class ReferenceGenerator
                     $out .= sprintf(
                         "| `%s` | `%s` | %s |\n",
                         $parameter['name'],
-                        $parameter['type'],
+                        // A union type carries the character that ends a table
+                        // cell: `array|string` split the row in two and every
+                        // parameter after it rendered in the wrong column.
+                        // Escaped rather than rewritten to `or`, because the
+                        // page documents the signature the code has.
+                        str_replace('|', '\\|', (string) $parameter['type']),
                         ($parameter['optional'] ?? false) ? 'no' : 'yes',
                     );
                 }

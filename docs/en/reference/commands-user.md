@@ -71,4 +71,5 @@ bin/semitexa user:password
 | `--email` | yes |
 | `--tenant` | yes |
 | `--password` | yes |
+| `--must-change` | no |
 

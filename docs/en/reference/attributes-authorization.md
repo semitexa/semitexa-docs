@@ -37,7 +37,7 @@ Applies to: class
 | `consumes` | `array` | no |
 | `produces` | `array` | no |
 | `transport` | `Semitexa\Core\Attribute\TransportType` | no |
-| `renderProfile` | `Semitexa\Core\Resource\RenderProfile|array|null` | no |
+| `renderProfile` | `Semitexa\Core\Resource\RenderProfile\|array\|null` | no |
 | `responsesByProfile` | `array` | no |
 | `sseGateModel` | `Semitexa\Core\Attribute\SseGateModel` | no |
 
@@ -74,7 +74,7 @@ Applies to: class
 | `consumes` | `array` | no |
 | `produces` | `array` | no |
 | `transport` | `Semitexa\Core\Attribute\TransportType` | no |
-| `renderProfile` | `Semitexa\Core\Resource\RenderProfile|array|null` | no |
+| `renderProfile` | `Semitexa\Core\Resource\RenderProfile\|array\|null` | no |
 | `responsesByProfile` | `array` | no |
 | `sseGateModel` | `Semitexa\Core\Attribute\SseGateModel` | no |
 
