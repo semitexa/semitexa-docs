@@ -354,7 +354,17 @@ Applies to: class
 
 Takes no arguments.
 
-_No usage found in this installation._
+```php
+#[CsrfExempt]
+#[AsPublicPayload(
+    path: '/__observatory/stage',
+    methods: ['GET', 'POST'],
+    responseWith: ResourceResponse::class,
+)]
+final class ObservatoryStagePayload
+```
+
+— `vendor/semitexa/dev/src/Application/Payload/Request/ObservatoryStagePayload.php`
 
 ## `#[ExecutionScoped]`
 
