@@ -63,6 +63,7 @@ bin/semitexa ai:context "<recipe>"
 
 | option | takes a value |
 |---|---|
+| `--json` | no |
 | `--module` | yes |
 | `--trace` | yes |
 
@@ -145,6 +146,7 @@ bin/semitexa ai:plan "<recipe>"
 
 | option | takes a value |
 |---|---|
+| `--json` | no |
 | `--module` | yes |
 | `--files` | yes |
 | `--trace` | yes |
