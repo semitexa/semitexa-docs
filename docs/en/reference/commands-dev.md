@@ -30,7 +30,7 @@ bin/semitexa dev:capability-index:build
 
 ## `dev:graph:capabilities`
 
-List all available generator and introspection commands with inputs, outputs, and usage guidance
+List the commands this build actually has; --json adds inputs, outputs and usage guidance
 
 ```bash
 bin/semitexa dev:graph:capabilities
