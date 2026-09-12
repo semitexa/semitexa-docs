@@ -45,9 +45,14 @@ If a page does not clearly serve one of those goals, it should be shortened, mer
 ## Content Rules
 
 - Keep one canonical page per topic.
-- Put philosophy in `README.md` and `AI_REFERENCE.md`.
-- Put practical how-to content in `docs/*.md`.
-- Put deep package internals in package docs such as `vendor/semitexa/core/docs/`.
+- Keep framework-wide and package-specific documentation in `semitexa/docs`.
+- Use `README.md` for the framework's purpose and philosophy, and put practical
+  guides, explanations, and reference material under `docs/`.
+- A package may keep only its `README.md`, `CHANGELOG.md`, and
+  `docs/MODULE_STRUCTURE.md`. Its README links to the canonical page here
+  instead of duplicating user-facing documentation.
+- Keep generated reference pages beside the hand-written guides they support;
+  generated output is evidence, not a second documentation hierarchy.
 
 ## Navigation Rule
 
