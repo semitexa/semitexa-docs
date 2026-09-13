@@ -136,6 +136,13 @@ php bin/phpstan/sync-counts.php phpstan-baseline.neon /tmp/strict.json /tmp/clea
 mv /tmp/cleaned.neon phpstan-baseline.neon
 
 composer phpstan:strict   # must report 0 errors when this is done
+bin/phpstan-sync.sh --adopt   # carry the cleaned baseline back to the versioned copy
 ```
+
+**Do not skip the `--adopt`.** The three scripts rewrite the baseline at the
+project ROOT, because that is where PHPStan runs — and the root is not a git
+repository. Without this step the cleanup exists on one machine, cannot be
+committed, and is lost the next time anyone runs `bin/phpstan-sync.sh` in the
+other direction.
 
 They are not a substitute for the rules above. They exist for the rare case where a sweeping refactor lands and the baseline genuinely needs to be re-aligned with reality. Always run `phpstan:strict` afterwards to confirm the result.
