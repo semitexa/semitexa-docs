@@ -101,6 +101,7 @@ bin/semitexa ai:invoke
 | `--payload` | yes |
 | `--json` | no |
 | `--human` | no |
+| `--expect-field` | yes |
 | `--preview` | no |
 
 ## `ai:observe`
