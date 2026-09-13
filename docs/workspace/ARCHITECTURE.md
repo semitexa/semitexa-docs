@@ -46,7 +46,7 @@ Everything in Semitexa is a **Module**.
 ```
 /
 ├── bin/              # CLI executables
-├── packages/          # Monorepo packages (Core, Frontend, etc.)
+├── packages/          # Monorepo packages — and two directories that are NOT packages, see below
 ├── public/           # Static assets (entry point for Nginx)
 ├── src/              # Application Source Code
 │   └── modules/      # Domain Modules (User, Blog, Shop, etc.)
@@ -54,6 +54,31 @@ Everything in Semitexa is a **Module**.
 ├── vendor/           # Composer dependencies
 └── server.php        # Application Entry Point
 ```
+
+### Not everything under `packages/` is a Composer package
+
+`packages/semitexa-*` is the glob that defines the package set — the capability
+index is built from it, and so is the release. **Two directories sit inside that
+glob and are not Composer packages at all.** They have no `composer.json`, they
+are never tagged by the release flow, and they do not appear on Packagist. Each
+ships by its own route:
+
+| Directory | What it is | How it ships |
+|---|---|---|
+| `semitexa-installer` | A Docker project. `Dockerfile` + `entrypoint.sh` build a `php:8.4-cli-alpine` image that scaffolds a new project from an empty directory. | The image `semitexa/installer` on Docker Hub, pushed by the repository's own `docker-publish.yml` on a semver tag — nothing to do with the Composer release. |
+| `semitexa-companion` | An MV3 browser extension (`manifest.json`, `content.js`, `rules.json`) that strips `X-Frame-Options` so Semitexa OS can embed external sites in its windows. | Loaded unpacked from `chrome://extensions`. |
+
+This surprises people — and agents — every time, because a release reports
+fewer packages than the number of directories it merged, which reads like
+something was forgotten. Nothing was: the release enumerates
+`packages/*/composer.json`, and these two directories have none. The count to
+compare against is `ls -d packages/*/composer.json | wc -l`, never
+`ls -d packages/semitexa-* | wc -l` — the two differ by exactly these two.
+
+`semitexa-installer` still matters to the Composer release **indirectly**: it
+owns `scaffold/`, the source of truth for project skeleton files. Those reach
+consumers through `bin/sync-scaffold.sh` → `semitexa-ultimate` → Packagist, so a
+scaffold change is released as part of `semitexa/ultimate`, not as itself.
 
 ## 🧩 The Module Anatomy
 
