@@ -424,6 +424,7 @@ bin/semitexa ai:verify
 | `--files` | yes |
 | `--git-ref` | yes |
 | `--diff-stdin` | no |
+| `--dirty` | no |
 | `--all` | no |
 | `--scope` | yes |
 | `--trace` | yes |
