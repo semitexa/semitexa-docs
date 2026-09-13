@@ -1,6 +1,16 @@
 # PHPStan workflow
 
-PHPStan runs at `level: max` over `src/` and four packages (`semitexa-core`, `semitexa-ssr`, `semitexa-orm`, `semitexa-tenancy`). Custom Semitexa rules are wired in (`Forbidden*`, `ConfigOn*`, `Inject*`, `StaticContainerAccess`, `Discovery*`, `Factory*`, `Module*`).
+PHPStan runs at `level: max` over four packages (`semitexa-core`, `semitexa-ssr`,
+`semitexa-orm`, `semitexa-tenancy`).
+
+**`src/` is deliberately not analysed** (decided 2026-09-13). The 13 modules under
+`src/modules` are the workspace's exercise surface — the release clone rsyncs them
+and 97 E2E specs run against them — but `src/` is not a git repository and belongs
+to none, so a fix made there lives on one machine while the baseline, which *is*
+versioned, would record the error as gone. A ledger that outlives the code it
+describes is worse than no ledger. The cost is real and worth knowing: the custom
+Semitexa rules no longer run on those modules. A consumer project's own
+`phpstan.neon`, shipped by the installer scaffold, does analyse its `src`. Custom Semitexa rules are wired in (`Forbidden*`, `ConfigOn*`, `Inject*`, `StaticContainerAccess`, `Discovery*`, `Factory*`, `Module*`).
 
 ## Running it
 
