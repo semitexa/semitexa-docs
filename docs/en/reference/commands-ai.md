@@ -87,7 +87,7 @@ bin/semitexa ai:epic "<action>"
 
 ## `ai:invoke`
 
-Dry-run a payload handler from CLI — skip HTTP/auth/middleware. Use for fast feedback on changes.
+Run a payload handler from CLI, skipping HTTP/auth/middleware — dev only. Use --preview to resolve the target without executing.
 
 ```bash
 bin/semitexa ai:invoke
@@ -101,6 +101,7 @@ bin/semitexa ai:invoke
 | `--payload` | yes |
 | `--json` | no |
 | `--human` | no |
+| `--preview` | no |
 
 ## `ai:observe`
 
