@@ -101,6 +101,7 @@ bin/semitexa ai:invoke
 | `--payload` | yes |
 | `--json` | no |
 | `--human` | no |
+| `--expect-field` | yes |
 | `--preview` | no |
 
 ## `ai:observe`
@@ -424,6 +425,7 @@ bin/semitexa ai:verify
 | `--files` | yes |
 | `--git-ref` | yes |
 | `--diff-stdin` | no |
+| `--dirty` | no |
 | `--all` | no |
 | `--scope` | yes |
 | `--trace` | yes |
