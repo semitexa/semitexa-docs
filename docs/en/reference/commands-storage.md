@@ -26,5 +26,6 @@ bin/semitexa storage:migrate-metadata
 | option | takes a value |
 |---|---|
 | `--apply` | no |
+| `--remove-legacy` | no |
 | `--path` | yes |
 
