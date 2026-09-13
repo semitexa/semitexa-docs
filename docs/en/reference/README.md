@@ -15,7 +15,7 @@ status: published
 
 What each part of the public surface is, generated from the code itself.
 
-This installation exposes 117 attributes, 176 commands and 11 events.
+This installation exposes 117 attributes, 177 commands and 11 events.
 
 Reference says what a thing is. For when you would want it, see the guides under `en/`.
 
@@ -76,6 +76,7 @@ Reference says what a thing is. For when you would want it, see the guides under
 - [server](commands-server.md)
 - [sitemap](commands-sitemap.md)
 - [skins](commands-skins.md)
+- [storage](commands-storage.md)
 - [system](commands-system.md)
 - [tasks](commands-tasks.md)
 - [tenant](commands-tenant.md)
