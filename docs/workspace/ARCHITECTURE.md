@@ -68,10 +68,12 @@ ships by its own route:
 | `semitexa-installer` | A Docker project. `Dockerfile` + `entrypoint.sh` build a `php:8.4-cli-alpine` image that scaffolds a new project from an empty directory. | The image `semitexa/installer` on Docker Hub, pushed by the repository's own `docker-publish.yml` on a semver tag — nothing to do with the Composer release. |
 | `semitexa-companion` | An MV3 browser extension (`manifest.json`, `content.js`, `rules.json`) that strips `X-Frame-Options` so Semitexa OS can embed external sites in its windows. | Loaded unpacked from `chrome://extensions`. |
 
-This surprises people — and agents — every time, because a release that says
-"Released 10 package(s)" over an eleven-directory merge reads like something was
-forgotten. Nothing was: the release enumerates `packages/*/composer.json`, and
-these two have none.
+This surprises people — and agents — every time, because a release reports
+fewer packages than the number of directories it merged, which reads like
+something was forgotten. Nothing was: the release enumerates
+`packages/*/composer.json`, and these two directories have none. The count to
+compare against is `ls -d packages/*/composer.json | wc -l`, never
+`ls -d packages/semitexa-* | wc -l` — the two differ by exactly these two.
 
 `semitexa-installer` still matters to the Composer release **indirectly**: it
 owns `scaffold/`, the source of truth for project skeleton files. Those reach
