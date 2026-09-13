@@ -49,6 +49,59 @@ A long-running snapshot accumulated three classes of garbage:
 
 Together, this hid 10 real errors that were leaking past the analysis at the moment the cleanup epic started, including dead branches and a DI-blocking visibility bug. `phpstan:strict` exists so this can't happen quietly again.
 
+## Where these files live
+
+The project root is **not a git repository** — it is a consumer copy of
+`semitexa/ultimate`. So `phpstan.neon`, `phpstan-strict.neon`,
+`phpstan-baseline.neon`, `phpstan-bootstrap.php` and `bin/phpstan/*` at the root
+are versioned by nothing. Measured 2026-09-13: a 147-entry baseline cleanup and
+a rule sweep existed on exactly one machine, with no history and nothing to
+restore from.
+
+The canonical copies now live in **`packages/semitexa-dev/resources/phpstan/`**,
+the same shelf as the agent skills and for the same reason, and
+`bin/phpstan-sync.sh` keeps the root in step:
+
+```bash
+bin/phpstan-sync.sh           # canonical -> root
+bin/phpstan-sync.sh --check   # report drift, exit 1
+bin/phpstan-sync.sh --adopt   # root -> canonical, after an analysis run
+```
+
+`--adopt` is the direction you want after touching the baseline: the helper
+scripts below rewrite it AT THE ROOT, because that is where PHPStan runs. Adopt
+carries the result back to the versioned copy so it can be reviewed.
+
+They are real copies rather than a symlink or an `includes:` indirection because
+PHPStan resolves `paths:` relative to the config file — a root file that merely
+includes the canonical one would resolve its paths four directories deep.
+
+`resources/phpstan/` is `export-ignore`d: its `paths:` name `packages/semitexa-*`
+and the baseline is keyed by files no consumer has. Consumer projects get their
+own config from the installer scaffold.
+
+## The analyser version is part of the measurement
+
+`phpstan/phpstan` is pinned to an exact version, not `^2.1`. A newer analyser
+infers more, so the same bytes measure differently — and for a while the
+workspace and the release clone had drifted to different locks under the same
+constraint. That produced two different error counts for identical code, and
+four baseline entries that matched in one and not the other.
+
+The release gate refuses to judge a clone whose analyser does not match
+`PHPSTAN_EXPECTED_ANALYSER` in `release-auto-checks.sh`. Upgrading is a
+deliberate act: re-measure the ceiling AND re-align the baseline on the new
+version, then update both constants.
+
+## The release gate
+
+`phpstan:strict` is a hard gate at release. `release-auto-checks.sh` runs the
+analysis once under `phpstan-strict.neon` and reads two things from it: real
+errors (compared to `PHPSTAN_CEILING`) and unmatched baseline entries (any is a
+failure). The rot described below happened again — 147 of 1131 entries — because
+this document asked for a CI gate that was never built. A release analyses the
+whole tree anyway, so the check is free there.
+
 ## Helper scripts
 
 When the baseline gets out of sync after a real code change, three idempotent scripts under `bin/phpstan/` can be re-applied:
