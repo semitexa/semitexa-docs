@@ -112,9 +112,11 @@ this whenever the foundation appears to need something a feature package owns.
   entry goes stale so the list cannot rot into a permission.
 - **Direction, where the policy names a position.** A one-way `update → feature`
   edge breaks rule 1 and closes no loop, so components alone do not enforce the
-  policy. `core` is pinned as the foundation — it requires nothing in the
-  workspace — while `update` and `prompt` are pinned as lifecycle, allowed the
-  foundation and persistence and nothing outward. Only the packages this policy
+  policy. `core` is pinned as the foundation — it may require nothing in the
+  workspace beyond the two unbacked entries recorded below, which are permitted
+  only until they are removed and may shrink, never grow — while `update` and
+  `prompt` are pinned as lifecycle, allowed the foundation and persistence and
+  nothing outward. Only the packages this policy
   names by position: classifying all 42 into layers would be inventing a map
   rather than recording decisions that exist.
 
