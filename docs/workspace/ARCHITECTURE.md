@@ -102,10 +102,21 @@ without core knowing either exists.
 declares it, `semitexa-api` satisfies it, and nothing points outward. Reach for
 this whenever the foundation appears to need something a feature package owns.
 
-**The check.** A cycle in the require graph means some package is *depended
-upon* and *depends outward* at once, which none of the three shapes allows.
-`PackageDependencyDirectionTest` in `semitexa-dev` enforces it as a ratchet —
-the list of known cycles may shrink, never grow.
+**The checks**, both in `PackageDependencyDirectionTest` (`semitexa-dev`):
+
+- **No cycle, of any length.** A loop in the require graph means some package is
+  *depended upon* and *depends outward* at once, which none of the three shapes
+  allows. Detected depth-first, so `A → B → C → A` is caught as surely as a
+  mutual pair. A ratchet: the list of known cycles may shrink, never grow, and a
+  second test fails when an entry goes stale so the list cannot rot into a
+  permission.
+- **Direction, where the policy names a position.** A one-way `update → feature`
+  edge breaks rule 1 and closes no loop, so cycles alone do not enforce the
+  policy. `core` is pinned as the foundation — it requires nothing in the
+  workspace — and `update` as lifecycle, allowed the foundation and persistence
+  and nothing outward. Only those two, deliberately: classifying all 42 packages
+  into layers would be inventing a map rather than recording decisions that
+  exist.
 
 **Four cycles exist today, and none of them is a legitimate exception.**
 Measured 2026-09-14: every one is a composer requirement with **zero**
