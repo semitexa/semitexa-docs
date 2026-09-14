@@ -75,6 +75,8 @@ bin/semitexa prompt:override "<action>"
 | `--id` | yes |
 | `--system` | yes |
 | `--rev` | yes |
+| `--author` | yes |
+| `--reason` | yes |
 | `--json` | no |
 
 ## `prompt:render`

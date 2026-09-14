@@ -42,6 +42,10 @@ An override replaces the *whole* body, which is the wrong shape for one sentence
 
 The position in the file **is** the permission: a prompt that prints `{{ guidance }}` above its rules lets guidance reach tone and nothing else, and a prompt that never prints it never shows guidance at all. The shipped body is untouched, so drift detection keeps working and a framework update that improves a prompt still reaches a tenant who has guidance. Each row is individually removable — the thing an override cannot express, where undoing one sentence means reverting a whole version. Guidance is bound as a value and never parsed as Twig, so an operator's `{{ ... }}` is inert text.
 
+One qualification on that permission, worth knowing before you compose prompts: guidance is resolved for the prompt you **render**, and Twig's `include` inherits the parent's context. A partial that prints `{{ guidance }}` therefore shows the *including* prompt's guidance wherever it is spliced in. No shipped partial prints it.
+
+Both the table and the two new `prompt_override_history` columns come from `bin/semitexa orm:sync`. Until that runs, `prompt:guidance` reports what is missing and the render path quietly carries on without guidance — an additive layer never fails a render.
+
 ## Why this matters
 
 Prompt copy is product surface — tone, phrasing, and guardrails often need to differ per customer or be tuned in production. The override layer makes that a data change, not a code change, while the version history keeps every edit reversible and auditable.

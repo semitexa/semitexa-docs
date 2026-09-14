@@ -40,6 +40,10 @@ bin/semitexa prompt:override history --id=os.persona
 bin/semitexa prompt:override revert --id=os.persona --rev=2
 bin/semitexa prompt:override remove --id=os.persona
 
+# Record who changed an override and why (kept on the version)
+bin/semitexa prompt:override set --id=os.persona --system="..." \
+    --author="ops lead" --reason="the room said the answers ramble"
+
 # Append attributable guidance instead of rewriting a body
 bin/semitexa prompt:guidance add --id=os.persona --text="Keep replies to two sentences." \
     --author="ops lead" --reason="the room said the answers ramble"
