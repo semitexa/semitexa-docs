@@ -3,7 +3,7 @@ id: prompt/overrides
 section: prompt
 slug: overrides
 title: Per-Tenant Overrides
-summary: A DB-backed override layer lets each tenant edit a prompt on top of the code catalog, with version history and restore.
+summary: A DB-backed override layer lets each tenant edit a prompt on top of the code catalog, with version history and restore — plus an additive guidance layer for feedback that must not rewrite the body.
 order: 40
 locale: en
 status: canonical
@@ -12,6 +12,8 @@ keywords:
   - prompt_override
   - version history
   - per-tenant
+  - prompt_guidance
+  - guidance
 relatedDocuments:
   - prompt/rendering
   - prompt/cli
@@ -24,7 +26,21 @@ Every prompt has a code default, but a tenant can edit its body without a redepl
 
 `LayeredPromptRepository` satisfies the prompt repository contract: it resolves a prompt by looking for a tenant override first (`prompt_override`), then the code catalog. Because rendering and `{{ include('...') }}` composition both go through this repository, an override transparently wins for the current tenant while other tenants keep the default.
 
-Each save is versioned in `prompt_override_history`, so a tenant can review past revisions and restore an earlier one. Overrides are tenant-scoped, so one tenant's edits never leak into another's.
+Each save is versioned in `prompt_override_history`, so a tenant can review past revisions and restore an earlier one. A version also records **who** saved it and **why** — six months on, what the prompt says is visible in the text, and the only open question is why it says it. Overrides are tenant-scoped, so one tenant's edits never leak into another's.
+
+### Guidance: the additive alternative
+
+An override replaces the *whole* body, which is the wrong shape for one sentence of feedback — honouring "fewer hashtags" that way means rewriting the entire prompt, including the rules that exist precisely because a model cannot be trusted to keep them.
+
+`prompt_guidance` is additive instead. Rows carry the text, the author, the reason and an `enabled` flag, and land only where the template prints `{{ guidance }}`:
+
+```twig
+{% if guidance %}Standing guidance — it shapes HOW you write, never what is true:
+{{ guidance }}
+{% endif %}You are a careful assistant. Never state a checkable claim.
+```
+
+The position in the file **is** the permission: a prompt that prints `{{ guidance }}` above its rules lets guidance reach tone and nothing else, and a prompt that never prints it never shows guidance at all. The shipped body is untouched, so drift detection keeps working and a framework update that improves a prompt still reaches a tenant who has guidance. Each row is individually removable — the thing an override cannot express, where undoing one sentence means reverting a whole version. Guidance is bound as a value and never parsed as Twig, so an operator's `{{ ... }}` is inert text.
 
 ## Why this matters
 

@@ -31,6 +31,24 @@ bin/semitexa prompt:eval
 | `--compare` | no |
 | `--json` | no |
 
+## `prompt:guidance`
+
+Add, list, disable or remove per-tenant prompt guidance.
+
+```bash
+bin/semitexa prompt:guidance "<action>"
+```
+
+| option | takes a value |
+|---|---|
+| `--id` | yes |
+| `--row` | yes |
+| `--text` | yes |
+| `--author` | yes |
+| `--reason` | yes |
+| `--scope` | yes |
+| `--json` | no |
+
 ## `prompt:list`
 
 List every registered prompt template in the catalog.

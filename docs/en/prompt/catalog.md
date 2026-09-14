@@ -18,7 +18,7 @@ relatedDocuments:
 ---
 # Defining Prompts
 
-A prompt is a thin PHP class carrying `#[AsPrompt]` plus a `.twig` file that holds the actual body. The class lives in the owning package's `Application/Prompt/` directory; the body lives in `resources/prompts/`.
+A prompt is a thin PHP class carrying `#[AsPrompt]` plus a `.twig` file that holds the actual body. The class lives in the owning package's or module's `Application/Prompt/` directory; the body lives in `resources/prompts/` at that same root.
 
 ## How it works
 
@@ -42,7 +42,7 @@ final class SemitexaIdentityPrompt implements BoundPromptInterface
 }
 ```
 
-The `id` is the catalog key. `channel` groups related prompts (for example `llm`, `os`, `search`). `template` is the package-relative path to the Twig body — self-documenting, so the class-to-file link is explicit rather than convention-only; when omitted it defaults to `resources/prompts/{id}.twig`. Discovery scans for the attribute, so adding a prompt is just adding a class and a file — no registry to edit.
+The `id` is the catalog key. `channel` groups related prompts (for example `llm`, `os`, `search`). `template` is the path to the Twig body relative to the owning package **or application module** root — an application module needs no `composer.json` for this to resolve — self-documenting, so the class-to-file link is explicit rather than convention-only; when omitted it defaults to `resources/prompts/{id}.twig`. Discovery scans for the attribute, so adding a prompt is just adding a class and a file — no registry to edit. A class that declares `#[AsPrompt]`, ships no template under any owner root and implements no `PromptDefinitionInterface` has no body at all; that is raised as an error naming every root searched, rather than silently dropped from the catalog.
 
 ## Why this matters
 
