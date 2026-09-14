@@ -18,7 +18,7 @@ relatedDocuments:
 ---
 # Defining Prompts
 
-A prompt is a thin PHP class carrying `#[AsPrompt]` plus a `.twig` file that holds the actual body. The class lives in the owning package's or module's `Application/Prompt/` directory; the body lives in `resources/prompts/` at that same root.
+A prompt is a thin PHP class carrying `#[AsPrompt]` plus a `.twig` file that holds the actual body. The class is runtime PHP, so it lives at `<owner-root>/src/Application/Prompt/`; the body is an asset, so it lives at `<owner-root>/resources/prompts/` — beside `src/`, not inside it. The owner root is a package (`packages/semitexa-cms/`) or an application module (`src/modules/Social/`).
 
 ## How it works
 

@@ -48,8 +48,9 @@ bin/semitexa prompt:override set --id=os.persona --system="..." \
 bin/semitexa prompt:guidance add --id=os.persona --text="Keep replies to two sentences." \
     --author="ops lead" --reason="the room said the answers ramble"
 bin/semitexa prompt:guidance list --id=os.persona
-bin/semitexa prompt:guidance disable --row=<row-id>
-bin/semitexa prompt:guidance remove --row=<row-id>
+# The row id comes from `prompt:guidance list` (the "Row" column)
+bin/semitexa prompt:guidance disable --row=01a0a11f-b676-76a2-a307-81861ca79800
+bin/semitexa prompt:guidance remove --row=01a0a11f-b676-76a2-a307-81861ca79800
 ```
 
 `prompt:render` shows the resolved text with overrides **and guidance** applied, so it is the fastest way to confirm what a prompt actually expands to. `prompt:eval` (from `semitexa/llm`) goes one step further and sends the rendered prompt to the live LLM, optionally comparing the tenant override against the catalog default.
