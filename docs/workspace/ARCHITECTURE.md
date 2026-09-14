@@ -80,6 +80,48 @@ owns `scaffold/`, the source of truth for project skeleton files. Those reach
 consumers through `bin/sync-scaffold.sh` → `semitexa-ultimate` → Packagist, so a
 scaffold change is released as part of `semitexa/ultimate`, not as itself.
 
+### Which way a package may depend
+
+Nothing declared cross-package dependency **direction** before, and 184
+`semitexa/*` requirements exist across 42 packages. The policy below is derived
+from decisions already made rather than invented, and each shape names the case
+that produced it.
+
+**1. Lifecycle packages are depended upon; they do not depend outward.**
+`semitexa/update` owns `#[AsDataPatch]`, and `os`, `tasks` and
+`platform-settings` hard-require `update` to use it. `semitexa/prompt` followed
+the same shape for `#[AsUpdateAdvisory]`.
+
+**2. Core declares the contract; packages satisfy it.** Core owns
+`#[AsDoctorCheck]` and `DoctorCheckInterface`; `cache` and `orm` implement them
+without core knowing either exists.
+
+**3. Where the rule bites, the answer is a contract — not an edge.**
+`RouteExecutor` lives in core and cannot see `#[ExternalApi]`, which lives in
+`semitexa-api`. The resolution was `ExceptionResponseMapperInterface`: core
+declares it, `semitexa-api` satisfies it, and nothing points outward. Reach for
+this whenever the foundation appears to need something a feature package owns.
+
+**The check.** A cycle in the require graph means some package is *depended
+upon* and *depends outward* at once, which none of the three shapes allows.
+`PackageDependencyDirectionTest` in `semitexa-dev` enforces it as a ratchet —
+the list of known cycles may shrink, never grow.
+
+**Four cycles exist today, and none of them is a legitimate exception.**
+Measured 2026-09-14: every one is a composer requirement with **zero**
+references of any kind — PHP, Twig, YAML, JSON or JS — in the direction that
+creates it.
+
+| Requirement | References backing it |
+|---|---|
+| `core` → `docs` | none |
+| `core` → `tenancy` | none — the single mention is a docblock in `TenancyBootstrapperInterface`, whose purpose is to *avoid* the dependency |
+| `cms` ↔ `os` | none, either way |
+| `ssr` ↔ `theme` | none, either way |
+
+Removing them is a deliberate change rather than a tidy-up, because dropping a
+requirement changes what a consumer receives transitively.
+
 ## 🧩 The Module Anatomy
 
 A typical module structure (see **the hub page `get-started/module-structure`** for the canonical source):
