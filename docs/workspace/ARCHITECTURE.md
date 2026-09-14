@@ -80,6 +80,61 @@ owns `scaffold/`, the source of truth for project skeleton files. Those reach
 consumers through `bin/sync-scaffold.sh` → `semitexa-ultimate` → Packagist, so a
 scaffold change is released as part of `semitexa/ultimate`, not as itself.
 
+### Which way a package may depend
+
+Nothing declared cross-package dependency **direction** before, and 184
+`semitexa/*` requirements exist across 42 packages. The policy below is derived
+from decisions already made rather than invented, and each shape names the case
+that produced it.
+
+**1. Lifecycle packages are depended upon; they do not depend outward.**
+`semitexa/update` owns `#[AsDataPatch]`, and `os`, `tasks` and
+`platform-settings` hard-require `update` to use it. `semitexa/prompt` followed
+the same shape for `#[AsUpdateAdvisory]`.
+
+**2. Core declares the contract; packages satisfy it.** Core owns
+`#[AsDoctorCheck]` and `DoctorCheckInterface`; `cache` and `orm` implement them
+without core knowing either exists.
+
+**3. Where the rule bites, the answer is a contract — not an edge.**
+`RouteExecutor` lives in core and cannot see `#[ExternalApi]`, which lives in
+`semitexa-api`. The resolution was `ExceptionResponseMapperInterface`: core
+declares it, `semitexa-api` satisfies it, and nothing points outward. Reach for
+this whenever the foundation appears to need something a feature package owns.
+
+**The checks**, both in `PackageDependencyDirectionTest` (`semitexa-dev`):
+
+- **No cycle, of any length.** A loop in the require graph means some package is
+  *depended upon* and *depends outward* at once, which none of the three shapes
+  allows. Detected as strongly connected components, so `A → B → C → A` counts,
+  and so does a new package joining a loop that already exists. A ratchet: the
+  recorded components may shrink, never grow, and a second test fails when an
+  entry goes stale so the list cannot rot into a permission.
+- **Direction, where the policy names a position.** A one-way `update → feature`
+  edge breaks rule 1 and closes no loop, so components alone do not enforce the
+  policy. `core` is pinned as the foundation — it may require nothing in the
+  workspace beyond the two unbacked entries recorded below, which are permitted
+  only until they are removed and may shrink, never grow — while `update` and
+  `prompt` are pinned as lifecycle, allowed the foundation and persistence and
+  nothing outward. Only the packages this policy
+  names by position: classifying all 42 into layers would be inventing a map
+  rather than recording decisions that exist.
+
+**Four cycles exist today, and none of them is a legitimate exception.**
+Measured 2026-09-14: every one is a composer requirement with **zero**
+references of any kind — PHP, Twig, YAML, JSON or JS — in the direction that
+creates it.
+
+| Requirement | References backing it |
+|---|---|
+| `core` → `docs` | none |
+| `core` → `tenancy` | none — the single mention is a docblock in `TenancyBootstrapperInterface`, whose purpose is to *avoid* the dependency |
+| `cms` ↔ `os` | none, either way |
+| `ssr` ↔ `theme` | none, either way |
+
+Removing them is a deliberate change rather than a tidy-up, because dropping a
+requirement changes what a consumer receives transitively.
+
 ## 🧩 The Module Anatomy
 
 A typical module structure (see **the hub page `get-started/module-structure`** for the canonical source):
