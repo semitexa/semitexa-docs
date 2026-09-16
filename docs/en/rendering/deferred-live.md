@@ -3,7 +3,7 @@ id: rendering/deferred-live
 section: rendering
 slug: deferred-live
 title: Live Widgets
-summary: A live slot can refresh itself on a timer while the page stays SSR-first — no SPA runtime and no handwritten polling layer.
+summary: The server re-renders a live slot on a cadence and pushes it down the page's own SSE connection — SSR-first, no SPA runtime, and no polling anywhere.
 order: 110
 locale: en
 status: published

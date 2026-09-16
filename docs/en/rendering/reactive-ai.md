@@ -19,7 +19,7 @@ Submit a task and watch the AI pipeline stages reveal one by one as the cron job
 
 ## How it works
 
-The user submits text through a form. The handler creates a `DemoAiTask` record with status `pending`. A cron job picks up pending tasks and processes them stage by stage, writing stage results into the task record as JSON. A reactive slot with `refreshInterval: 2` re-renders the pipeline view every two seconds, reading the latest stage results from the task record and showing each completed stage.
+The user submits text through a form. The handler creates a `DemoAiTask` record with status `pending`. A cron job picks up pending tasks and processes them stage by stage, writing stage results into the task record as JSON. A reactive slot with `refreshInterval: 2` holds its SSE connection open while the server re-renders the pipeline view every two seconds and pushes it, reading the latest stage results from the task record and showing each completed stage.
 
 ## The flow
 
@@ -33,7 +33,7 @@ The user submits text through a form. The handler creates a `DemoAiTask` record 
 
 - **`DemoAiTask`** — the task record that carries status, stages, and stage results.
 - **stage-by-stage** — the cron processor advances one stage at a time and writes intermediate results.
-- **`refreshInterval: 2`** — the slot checks the server every two seconds for updated stage data.
+- **`refreshInterval: 2`** — the server re-renders and pushes every two seconds; the browser never polls.
 - **user-triggered → cron pickup** — the form submission creates a task; the cron picks it up without a direct async handoff.
 
 ## Why this matters

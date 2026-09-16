@@ -19,7 +19,7 @@ Each panel updates when its own job finishes, so the dashboard feels live withou
 
 ## How it works
 
-Each analytics metric is produced by an independent background job. Each job writes its own snapshot to server storage. A deferred slot with `refreshInterval: 5` re-renders the dashboard HTML every five seconds. Each render reads the latest available snapshot per metric and composes the full dashboard from those server-authoritative values.
+Each analytics metric is produced by an independent background job. Each job writes its own snapshot to server storage. A deferred slot with `refreshInterval: 5` holds its SSE connection open while the server re-renders the dashboard HTML every five seconds and pushes it. Each render reads the latest available snapshot per metric and composes the full dashboard from those server-authoritative values.
 
 The dashboard assembles from server snapshots instead of a frontend sync loop. Panels that have data show values; panels waiting on a job show a pending state. The page model stays consistent throughout.
 
@@ -27,7 +27,7 @@ The dashboard assembles from server snapshots instead of a frontend sync loop. P
 
 - **multi-job snapshots** — each panel reads from its own independent job output rather than a single aggregated API call.
 - **independent panel refresh** — a new snapshot from one job updates that panel without requiring the other panels to re-fetch.
-- **`refreshInterval: 5`** — the slot polls the server every five seconds for updated snapshot data.
+- **`refreshInterval: 5`** — the server re-renders and pushes every five seconds; the browser never polls.
 - **SSR-first live UI** — the dashboard is server-rendered from first byte to live refresh; no client merge layer required.
 
 ## Why this matters
