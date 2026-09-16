@@ -48,7 +48,7 @@ Writing the script inside the block's own template is the obvious thing to do, a
 - **It runs more than once.** Every arrival re-creates it, so every binding it makes has to be idempotent. A listener attached to `document` accumulates silently, once per delivery.
 - **`DOMContentLoaded` has already fired.** Code waiting for it never runs. A field-autocomplete partial that bound on that event simply stopped binding for any block that arrived by SSE.
 
-Two mechanisms avoid all three, and `lint:deferred-twig` reports an inline `<script>` in a deferred template naming them:
+Two mechanisms avoid all three, and `lint:deferred-twig` reports an inline `<script>` in a deferred template naming them (that is the template-compatibility lint; the similarly named `lint:deferred-slots` is a different check — it compares a slot's `deferred: true` against whether any page actually defers it):
 
 - **`clientModules`** for code that belongs to this block — a module served from your own origin, injected once, initialized on `semitexa:block:rendered`.
 - **`#[AsUiBehavior]`** for an interaction with no server state — a dropdown, a modal, tabs, a tooltip. The behavior runtime watches the document with a single `MutationObserver` and connects late-arriving markup wherever it appears, so timing stops being your problem.

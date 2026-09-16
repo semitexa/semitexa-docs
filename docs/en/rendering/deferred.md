@@ -53,7 +53,7 @@ The docs used to present these as one idea. They are two, with opposite threshol
 - **Deferral** is about FIRST PAINT. It pays off when a region is slow, and costs when it is fast. It ends when the region arrives.
 - **Live push** (`refreshInterval`, persistent SSE) is about what happens AFTER first paint — a booking that lands on screen unasked, a counter that moves without a click. Its cost is a held coroutine per connected user, not a round trip.
 
-A fast region can be worth pushing to. A slow region can be worth deferring without ever updating again. Choosing one does not choose the other. See [Live Widgets](deferred-live) for the push side.
+A fast region can be worth pushing to. A slow region can be worth deferring without ever updating again. Choosing one does not choose the other. See [Live Widgets](deferred-live.md) for the push side.
 
 ## Why this matters
 

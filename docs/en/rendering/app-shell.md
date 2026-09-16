@@ -70,9 +70,9 @@ A region move **wins** over a page move for the same click, because it is the ch
 
 ## The one thing to get right on the server
 
-One URL now answers two bodies depending on a header, so both shapes declare `Vary: X-Semitexa-Shell`. The framework sets it — including on the document, which is the response that gets cached, and the one a cache would otherwise hand the chrome-less JSON to.
+One URL now answers THREE bodies — the document, the shell envelope on `X-Semitexa-Shell`, and that page's JSON representation on `Accept: application/json` — so the framework declares `Vary: X-Semitexa-Shell, Accept`. It sets it on every shape, including the document, which is the response that gets cached and the one a cache would otherwise hand the chrome-less JSON to. Naming only one of the two knobs tells a shared cache that the other's variants are interchangeable.
 
-Note that `Accept: application/json` on a page route already means "give me that page's JSON representation", which is a different resource. The shell header alone selects the shape; the shipped client sends no `Accept`.
+That third body is also why `Accept: application/json` is not how you ask for the shell: on a page route it already means "give me that page's JSON representation", which is a different resource. The shell header alone selects the shape, and the shipped client sends no `Accept` at all.
 
 ## Why this matters
 
