@@ -23,7 +23,7 @@ Live UI often pushes teams toward a separate client-side state system for even s
 
 ## How it works
 
-A deferred slot with `refreshInterval` set keeps its SSE connection open after the first delivery. The SERVER holds a coroutine for that page, re-renders the slot when the interval elapses, and pushes the new HTML down the connection the page already has; the client swaps it into position. Nothing is re-requested on a timer — the browser makes no further requests at all. SSE connection recovery is handled by the framework, so reconnection logic does not need to be written by hand.
+A deferred slot with `refreshInterval` set keeps its SSE connection open after the first delivery. The SERVER holds a coroutine for that page, re-renders the slot when the interval elapses, and pushes the new HTML down the connection the page already has; the client swaps it into position. Nothing is re-requested on a timer: there is no polling interval and no request per refresh. The browser does still open a request when the SSE connection itself has to be re-established — recovery is handled by the framework, so reconnection logic does not need to be written by hand, but those reconnects are real HTTP requests and count against authentication, rate limits and capacity like any other.
 
 ## Key mechanisms
 

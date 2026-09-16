@@ -23,7 +23,7 @@ Background jobs often force teams to invent a parallel frontend state machine ju
 
 ## How it works
 
-A background report job runs on a schedule and writes its progress to server storage. A deferred slot with `refreshInterval` set keeps its SSE connection open, and the SERVER re-renders it on that cadence and pushes the HTML down. Each render reads the latest job state; the page swaps the HTML in place and never makes a second request.
+A background report job runs on a schedule and writes its progress to server storage. A deferred slot with `refreshInterval` set keeps its SSE connection open, and the SERVER re-renders it on that cadence and pushes the HTML down. Each render reads the latest job state and the page swaps the HTML in place. There is no request per refresh; the only requests after the first are the framework's own SSE reconnects.
 
 The slot starts as SSR output, not as a placeholder for a client-side widget framework. Background jobs update storage, and the slot simply keeps re-rendering the current server truth.
 
