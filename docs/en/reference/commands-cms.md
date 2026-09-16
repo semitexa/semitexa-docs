@@ -27,6 +27,20 @@ bin/semitexa cms:map:build
 |---|---|
 | `--dry-run` | no |
 
+## `cms:map:check`
+
+Report places the console offers and cannot open, and what changed since a snapshot.
+
+```bash
+bin/semitexa cms:map:check
+```
+
+| option | takes a value |
+|---|---|
+| `--snapshot` | yes |
+| `--compare` | yes |
+| `--json` | no |
+
 ## `cms:seo:drain`
 
 Write metadata for content whose debounce window has closed.
