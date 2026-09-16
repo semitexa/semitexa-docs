@@ -23,7 +23,7 @@ The `semitexa/prompt` package is an "ORM for prompts": instead of hiding LLM ins
 
 ## How it works
 
-A prompt is declared with a small `#[AsPrompt]` class and a standalone `.twig` body under the owning package's `resources/prompts/`. The class is discovered like any other framework attribute, its body is compiled by `PromptRenderer`, and callers resolve it by id (or by passing the typed prompt object itself). Every layer — listing, rendering, per-tenant DB overrides, evaluation — flows through the same catalog, so a prompt has exactly one home.
+A prompt is declared with a small `#[AsPrompt]` class and a standalone `.twig` body under the owning package's **or application module's** `resources/prompts/` — a module needs no `composer.json` for that to resolve. The class is discovered like any other framework attribute, its body is compiled by `PromptRenderer`, and callers resolve it by id (or by passing the typed prompt object itself). Every layer — listing, rendering, per-tenant DB overrides, evaluation — flows through the same catalog, so a prompt has exactly one home.
 
 ## Why this matters
 
