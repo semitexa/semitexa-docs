@@ -21,7 +21,7 @@ The page is usable immediately, and slow regions arrive later as server-rendered
 
 ## How it works
 
-`#[AsSlotResource(deferred: true)]` marks a region for late delivery. The page renders and sends the shell immediately. The server then processes each deferred slot and streams the final HTML into the correct position over SSE. The browser swaps in HTML instead of rebuilding the page from client state.
+`#[AsSlotResource(deferred: true)]` marks a region as ELIGIBLE for late delivery. It takes two halves: the resource declares the flag and a template calls `layout_slot_deferred()` for that slot — `layout_slot()` renders a deferred-declared slot inline without a word, which is what `lint:deferred-slots` further down reports. With both halves in place the page renders and sends the shell immediately. The server then processes each deferred slot and streams the final HTML into the correct position over SSE. The browser swaps in HTML instead of rebuilding the page from client state.
 
 A `skeletonTemplate` can be specified so the region shows a meaningful placeholder while the final HTML is in transit.
 

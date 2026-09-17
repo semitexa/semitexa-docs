@@ -44,7 +44,7 @@ The `clientModules` key in `#[AsSlotResource]` declares the JavaScript module pa
 
 Writing the script inside the block's own template is the obvious thing to do, and it works — until the block starts arriving over SSE. Markup that arrives in a live document changes what a script tag means, in three ways that nothing announces:
 
-- **It is inert.** A script parsed out of a fragment and inserted does not run. It has to be re-created, and re-created with *this* document's CSP nonce rather than the one it was parsed with. Under a strict `script-src` the page then works while reporting a blocked script on every arrival.
+- **It is inert.** A script parsed out of a fragment and inserted does not run. It has to be re-created — and re-created with *this* document's CSP nonce, not the one it was parsed with, which under a strict `script-src` is the difference between running and being blocked on every arrival. A re-creation that carries the current nonce is fine; one that omits it, or copies the nonce from the response the fragment came from, is refused while the page otherwise looks like it works.
 - **It runs more than once.** Every arrival re-creates it, so every binding it makes has to be idempotent. A listener attached to `document` accumulates silently, once per delivery.
 - **`DOMContentLoaded` has already fired.** Code waiting for it never runs. A field-autocomplete partial that bound on that event simply stopped binding for any block that arrived by SSE.
 
