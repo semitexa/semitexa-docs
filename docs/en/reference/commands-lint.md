@@ -58,7 +58,7 @@ bin/semitexa lint:handlers
 
 ## `lint:inline-script`
 
-Find inline <script> blocks that a strict CSP would refuse.
+Find inline `<script>` blocks that a strict CSP would refuse.
 
 ```bash
 bin/semitexa lint:inline-script

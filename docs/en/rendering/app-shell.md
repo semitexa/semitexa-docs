@@ -36,7 +36,7 @@ A layout marks its per-page regions on the elements it already has:
 </main>
 ```
 
-That is the whole consumer-facing surface. A request carrying `X-Semitexa-Shell: 1` gets a JSON envelope of those regions plus the title and the page's assets; a request without it gets the document it always got.
+That is the whole consumer-facing surface. A request carrying `X-Semitexa-Shell: 1` gets a JSON envelope of those regions plus the title and the page's assets; a request without it gets the document it always got — unless it asks for `Accept: application/json`, which selects that page's JSON representation, a third body described below.
 
 **One renderer, two shapes.** The chrome-less variant is *read back out of* the rendered document, never rendered its own way. A direct hit, a bookmark, a crawler and a visitor with no JavaScript get exactly what they got before — from the same route, handler and template — and parity is structural rather than something a test has to keep proving.
 
