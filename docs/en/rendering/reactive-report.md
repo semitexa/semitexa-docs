@@ -27,6 +27,12 @@ A background report job runs on a schedule and writes its progress to server sto
 
 The slot starts as SSR output, not as a placeholder for a client-side widget framework. Background jobs update storage, and the slot simply keeps re-rendering the current server truth.
 
+### Who may connect, and for how long
+
+The slot rides the canonical `/__semitexa_kiss` stream, so the page inherits that stream's access rules rather than any of its own. By default an anonymous connection is refused with `401 Unauthorized`: a status page meant for signed-out visitors will simply never start. `SSE_PUBLIC_ANONYMOUS=true` opens it to them.
+
+Opening it does not remove the limits. The configured connection caps still apply, and `SSE_MAX_CONNECTION_AGE_SECONDS` still ends a connection that has been held too long — the client reconnects, which is an ordinary HTTP request and counts like one. A report page left open on a wallboard is a held coroutine per viewer for as long as the cap allows, so the capacity question is how many viewers, not how many refreshes.
+
 ## Key mechanisms
 
 - **`refreshInterval`** — how often the server re-renders and pushes. Its cost is a held coroutine per connected user, which makes this a capacity decision as well as a UX one.
