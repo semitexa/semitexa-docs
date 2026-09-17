@@ -23,13 +23,13 @@ Long-running import jobs often push teams toward client-side progress simulation
 
 ## How it works
 
-An import job runs in batches on the server and writes authoritative progress to storage. A deferred slot with `refreshInterval: 2` re-requests its HTML every two seconds. Each render reads the actual import state and returns the current progress as HTML. The page swaps the HTML in place.
+An import job runs in batches on the server and writes authoritative progress to storage. A deferred slot with `refreshInterval: 2` holds its SSE connection open and the server pushes freshly rendered HTML every two seconds. Each render reads the actual import state and the page swaps the HTML in place. There is no request per refresh; the only requests after the first are the framework's own SSE reconnects.
 
 Server state is the only state. Each refresh shows the latest job snapshot directly from the server-owned import pipeline.
 
 ## Key mechanisms
 
-- **`refreshInterval: 2`** — the slot checks the server every two seconds for updated progress.
+- **`refreshInterval: 2`** — the server re-renders and pushes every two seconds; the browser never polls.
 - **server-owned progress** — the import job owns the authoritative progress state; the slot reads it on each render.
 - **batch processing** — the import advances in chunks, and each slot refresh picks up the latest committed progress.
 - **SSR-first live UI** — the page never switches rendering models; the live region is always server-rendered HTML.

@@ -15,6 +15,19 @@ status: published
 
 Every `lint` command, with the arguments and options the console actually defines.
 
+## `lint:deferred-slots`
+
+Report slots whose deferred declaration and page template disagree.
+
+```bash
+bin/semitexa lint:deferred-slots
+```
+
+| option | takes a value |
+|---|---|
+| `--strict` | no |
+| `--json` | no |
+
 ## `lint:deferred-twig`
 
 Validate deferred Twig templates against the Semitexa frontend rendering subset.
@@ -42,6 +55,19 @@ Validate handler signatures, return types, and payload/resource bindings
 ```bash
 bin/semitexa lint:handlers
 ```
+
+## `lint:inline-script`
+
+Find inline `<script>` blocks that a strict CSP would refuse.
+
+```bash
+bin/semitexa lint:inline-script
+```
+
+| option | takes a value |
+|---|---|
+| `--strict` | no |
+| `--json` | no |
 
 ## `lint:mechanisms`
 

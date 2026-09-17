@@ -3,7 +3,7 @@ id: rendering/deferred-live
 section: rendering
 slug: deferred-live
 title: Live Widgets
-summary: A live slot can refresh itself on a timer while the page stays SSR-first — no SPA runtime and no handwritten polling layer.
+summary: The server re-renders a live slot on a cadence and pushes it down the page's own SSE connection — SSR-first, no SPA runtime, and no polling anywhere.
 order: 110
 locale: en
 status: published
@@ -23,12 +23,12 @@ Live UI often pushes teams toward a separate client-side state system for even s
 
 ## How it works
 
-A deferred slot with `refreshInterval` set will re-request its server-rendered HTML on a timer. The server renders the slot fresh each time, and the page swaps the new HTML into position. SSE connection recovery is handled by the framework, so reconnection logic does not need to be written by hand.
+A deferred slot with `refreshInterval` set keeps its SSE connection open after the first delivery. The SERVER holds a coroutine for that page, re-renders the slot when the interval elapses, and pushes the new HTML down the connection the page already has; the client swaps it into position. Nothing is re-requested on a timer: there is no polling interval and no request per refresh. The browser does still open a request when the SSE connection itself has to be re-established — recovery is handled by the framework, so reconnection logic does not need to be written by hand, but those reconnects are real HTTP requests and count against authentication, rate limits and capacity like any other.
 
 ## Key mechanisms
 
-- **`refreshInterval`** — declares the refresh cadence in seconds directly on the slot resource.
-- **auto-refresh** — the framework handles the timed request and HTML replacement cycle.
+- **`refreshInterval`** — declares the push cadence in seconds directly on the slot resource. Its cost is a held coroutine per connected user for as long as the page is open, which is what makes this a capacity decision and not only a UX one.
+- **server push** — the framework re-renders on its own clock and pushes; the page never polls.
 - **SSE reconnection** — the framework recovers dropped connections automatically without custom retry code.
 - **SSR-first live UI** — the slot stays part of the server-rendered page model rather than becoming a client-managed widget.
 
