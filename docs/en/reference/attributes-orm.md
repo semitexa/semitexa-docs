@@ -266,7 +266,12 @@ Applies to: property
 | `onUpdate` | `Semitexa\Orm\Domain\Enum\ForeignKeyAction` | no |
 | `writePolicy` | `Semitexa\Orm\Domain\Enum\RelationWritePolicy` | no |
 
-_No usage found in this installation._
+```php
+        #[OneToOne(target: TenantRelationRecord::class, foreignKey: 'orderId', writePolicy: RelationWritePolicy::ReferenceOnly)]
+        public ?RelationState $profile = null,
+```
+
+— `vendor/semitexa/orm/tests/Unit/Hydration/TenantScopedRelationLoadingTest.php`
 
 ## `#[PrimaryKey]`
 
