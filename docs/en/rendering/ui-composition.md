@@ -7,6 +7,7 @@ summary: How a component declares the primitives it is made of, how part props r
 order: 170
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - UiPart
   - UiSlot

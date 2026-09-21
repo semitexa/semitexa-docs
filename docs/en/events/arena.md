@@ -7,6 +7,7 @@ summary: Launch the same backend intent in sync, Swoole async, and queued modes,
 order: 10
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - EventExecution::Sync
   - EventExecution::Async

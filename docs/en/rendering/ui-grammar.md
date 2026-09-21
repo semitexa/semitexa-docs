@@ -7,6 +7,7 @@ summary: The attribute grammar a component author writes: what each attribute me
 order: 200
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - grammar
   - AsUiPrimitive

@@ -7,6 +7,7 @@ summary: What `semitexa/prompt` adds to the framework — an ORM-style catalog t
 order: 10
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - "#[AsPrompt]"
   - prompt catalog

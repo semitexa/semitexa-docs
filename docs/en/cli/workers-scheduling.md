@@ -7,6 +7,7 @@ summary: Run queues, scheduler pools, mail delivery, webhooks, and tenant-scoped
 order: 40
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - queue:work
   - scheduler:list

@@ -7,6 +7,7 @@ summary: GraphQL-first Semitexa contracts built with typed payloads and typed ou
 order: 60
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - POST /graphql
   - "#[ExposeAsGraphql]"

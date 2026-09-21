@@ -7,6 +7,7 @@ summary: How platform-ui primitives and components sit on top of the SSR module.
 order: 210
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - SSR
   - AsComponent

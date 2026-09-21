@@ -7,6 +7,7 @@ summary: The atomic ui="..." vocabulary -- button, input, label, field-shell, su
 order: 160
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - AsUiPrimitive
   - ui=

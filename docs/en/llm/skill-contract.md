@@ -7,6 +7,7 @@ summary: What a class must satisfy to be discovered and invoked as an AI skill.
 order: 50
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - AsAiSkill
   - skill

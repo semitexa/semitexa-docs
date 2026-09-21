@@ -7,6 +7,7 @@ summary: A DB-backed override layer lets each tenant edit a prompt on top of the
 order: 40
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - LayeredPromptRepository
   - prompt_override

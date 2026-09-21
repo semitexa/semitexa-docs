@@ -7,6 +7,7 @@ summary: Set title, description, and Open Graph tags from your handler — no te
 order: 50
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - pageTitle()
   - seoTag()

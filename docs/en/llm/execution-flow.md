@@ -7,6 +7,7 @@ summary: How a user request becomes a planner decision, a reviewed skill proposa
 order: 40
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - Planner
   - PlannerResponse

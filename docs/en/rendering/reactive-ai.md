@@ -7,6 +7,7 @@ summary: Submit a task and watch the AI pipeline stages reveal one by one as the
 order: 150
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - DemoAiTask
   - stage-by-stage

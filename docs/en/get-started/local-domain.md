@@ -7,6 +7,7 @@ summary: Register .test domains through the built-in local-domain helper instead
 order: 20
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - TENANCY_BASE_DOMAIN
   - bin/semitexa local-domain:add

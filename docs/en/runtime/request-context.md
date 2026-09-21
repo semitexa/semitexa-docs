@@ -7,6 +7,7 @@ summary: Reaching the per-request tenant, auth and locale -- through the request
 order: 30
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - RequestContext
   - tenant

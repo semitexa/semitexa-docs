@@ -7,6 +7,7 @@ summary: A multi-page admin feels like one application by marking which regions 
 order: 120
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - shell_region()
   - X-Semitexa-Shell

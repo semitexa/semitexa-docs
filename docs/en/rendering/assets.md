@@ -7,6 +7,7 @@ summary: Declare assets with glob patterns in assets.json — served, versioned,
 order: 60
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - assets.json
   - asset_head()

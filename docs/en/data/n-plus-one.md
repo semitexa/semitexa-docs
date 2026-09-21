@@ -7,6 +7,7 @@ summary: Semitexa avoids N+1 by using resource slices for the exact columns and 
 order: 90
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - ResourceModelRelationLoader
   - resource slice

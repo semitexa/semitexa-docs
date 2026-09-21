@@ -7,6 +7,7 @@ summary: Two identical blocks on the same page run independently — scoped DOM,
 order: 100
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - DOM scoping
   - data-instance

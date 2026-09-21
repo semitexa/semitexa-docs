@@ -7,6 +7,7 @@ summary: "#[AsService] makes a plain class a worker-scoped singleton the contain
 order: 20
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - AsService
   - make:service

@@ -7,6 +7,7 @@ summary: Semitexa exposes AI-facing commands as explicit CLI contracts: capabili
 order: 50
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - ai:ask
   - dev:graph:capabilities

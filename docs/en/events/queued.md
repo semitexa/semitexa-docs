@@ -7,6 +7,7 @@ summary: Events survive restarts and scale across workers — backed by a durabl
 order: 40
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - EventExecution::Queued
   - queue transport

@@ -7,6 +7,7 @@ summary: Understand why Semitexa keeps transport, use case, and rendering as sep
 order: 70
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - controllers
   - payload

@@ -7,6 +7,7 @@ summary: How the Twig cache behaves under long-running workers and when you need
 order: 220
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - Twig
   - cache

@@ -7,6 +7,7 @@ summary: How PromptRenderer compiles a prompt with Twig, and how a self-binding 
 order: 30
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - PromptRenderer
   - BoundPromptInterface

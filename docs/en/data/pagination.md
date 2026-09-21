@@ -7,6 +7,7 @@ summary: Offset and cursor pagination out of the box — switch modes with a sin
 order: 60
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - PaginatedResult
   - limit()

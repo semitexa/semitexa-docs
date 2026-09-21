@@ -7,6 +7,7 @@ summary: The prompt surface the platform exposes to language models.
 order: 60
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - prompt
   - LLM

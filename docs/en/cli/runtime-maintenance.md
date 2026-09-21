@@ -7,6 +7,7 @@ summary: Reload workers, clear stale cache, sync registries, lint architecture r
 order: 20
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - server:reload
   - cache:clear

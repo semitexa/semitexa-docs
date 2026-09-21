@@ -7,6 +7,7 @@ summary: Creating a module and its first route end to end: JSON and HTML respons
 order: 20
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - discovery
   - error.404

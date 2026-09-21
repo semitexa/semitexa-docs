@@ -7,6 +7,7 @@ summary: Use Project Graph queries and intelligence views to inspect modules, de
 order: 20
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - ai:review-graph:show
   - ai:review-graph:query

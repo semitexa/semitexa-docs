@@ -7,6 +7,7 @@ summary: How a package teaches boot-time discovery to recognise its own attribut
 order: 90
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - AsDiscoveryContributor
   - DiscoveryContributor

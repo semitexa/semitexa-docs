@@ -7,6 +7,7 @@ summary: One Semitexa use case can serve both REST and GraphQL without duplicati
 order: 70
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - REST + GraphQL
   - "#[ExposeAsGraphql]"

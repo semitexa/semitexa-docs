@@ -7,6 +7,7 @@ summary: Independent analytics jobs can light up one dashboard progressively, wh
 order: 140
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - multi-job snapshots
   - independent panel refresh

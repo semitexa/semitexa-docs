@@ -7,6 +7,7 @@ summary: Authorization is required for demo SSE blocks that keep a long-lived ba
 order: 30
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - Authorization is required
   - Google Account

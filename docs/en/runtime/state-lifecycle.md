@@ -7,6 +7,7 @@ summary: Per-request, per-worker, persistent, and test-only state — the Swoole
 order: 10
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - PerRequestStateRegistry
   - TestStateResetRegistry

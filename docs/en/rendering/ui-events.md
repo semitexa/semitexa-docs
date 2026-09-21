@@ -7,6 +7,7 @@ summary: Declaring events with UiOn, the signed render-time manifest, the captur
 order: 180
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - UiOn
   - event manifest

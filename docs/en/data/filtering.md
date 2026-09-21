@@ -7,6 +7,7 @@ summary: Mark a property #[Filterable] and the ORM handles the rest — no manua
 order: 50
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - "#[Filterable]"
   - FilterableTrait

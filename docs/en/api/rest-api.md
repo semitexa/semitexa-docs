@@ -7,6 +7,7 @@ summary: Classic Semitexa REST endpoints with typed payloads, versioning, and co
 order: 10
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - "#[ExternalApi]"
   - "#[ApiVersion]"

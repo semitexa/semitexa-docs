@@ -7,6 +7,7 @@ summary: The server-side rules DSL for platform-ui fields, including cross-field
 order: 20
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - field validation
   - rules DSL

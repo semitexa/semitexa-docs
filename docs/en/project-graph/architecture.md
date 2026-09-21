@@ -7,6 +7,7 @@ summary: How the graph is built: parsers, the extractor pipeline, node and edge 
 order: 40
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - extractor
   - NodeType

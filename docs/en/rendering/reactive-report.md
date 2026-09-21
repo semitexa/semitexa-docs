@@ -7,6 +7,7 @@ summary: Background work updates an SSR-first slot in place, so the UI feels liv
 order: 120
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - refreshInterval
   - "#[AsScheduledJob]"

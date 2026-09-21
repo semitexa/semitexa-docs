@@ -7,6 +7,7 @@ summary: Google signs the user in, then the session stores the selected demo rol
 order: 10
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - Google OAuth
   - "#[SessionSegment]"

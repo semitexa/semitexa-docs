@@ -7,6 +7,7 @@ summary: Feeding graph slices to an assistant: what to ask for, what comes back,
 order: 70
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - AI context
   - ai:review-graph:context

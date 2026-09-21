@@ -7,6 +7,7 @@ summary: Real-time server push without WebSockets — connect once and receive r
 order: 50
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - AsyncResourceSseServer
   - EventSource

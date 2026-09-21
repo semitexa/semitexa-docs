@@ -7,6 +7,7 @@ summary: Run one project-level contract suite through the canonical test runner 
 order: 10
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - "#[TestablePayload]"
   - test:run

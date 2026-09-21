@@ -7,6 +7,7 @@ summary: Hybrid RBAC with coarse-grained capabilities, exact permission slugs, a
 order: 70
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - "#[RequiresCapability]"
   - "#[RequiresPermission]"

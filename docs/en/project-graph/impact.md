@@ -7,6 +7,7 @@ summary: Use impact analysis, context packing, and watch mode to scope risky cha
 order: 30
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - ai:review-graph:impact
   - --context
