@@ -61,17 +61,26 @@ final class DocumentationClaimLinter
     public function lint(array $index, array $roots): array
     {
         $known = $this->knownSurface($index);
+        $installedRelease = is_string($index['release_version'] ?? null) ? $index['release_version'] : null;
         $findings = [];
         $filesScanned = 0;
 
         foreach ($this->markdownFiles($roots) as $path) {
             $filesScanned++;
             $body = (string) file_get_contents($path);
+            // An exempt page is exempt from every check, release provenance
+            // included: generated reference carries whatever release the
+            // generator could resolve, and a proposal is not a claim at all.
             if (
                 str_contains($body, self::IGNORE_FILE_MARKER)
                 || str_contains($body, self::GENERATED_REFERENCE_MARKER)
             ) {
                 continue;
+            }
+
+            $releaseFinding = $this->releaseMetadataFinding($body, $path, $installedRelease);
+            if ($releaseFinding !== null) {
+                $findings[] = $releaseFinding;
             }
 
             $lines = preg_split('/\R/', $body) ?: [];
@@ -120,6 +129,58 @@ final class DocumentationClaimLinter
             'findings' => $findings,
             'by_kind' => $this->countByKind($findings),
         ];
+    }
+
+    /**
+     * @return array{file: string, line: int, kind: string, claim: string, suggestion: ?string}|null
+     */
+    private function releaseMetadataFinding(string $body, string $path, ?string $installedRelease): ?array
+    {
+        if (preg_match('/\A---\R(.*?)\R---\R/s', $body, $frontMatter) !== 1) {
+            return null;
+        }
+
+        if (preg_match('/^status:\s*(canonical|published)\s*$/mi', $frontMatter[1]) !== 1) {
+            return null;
+        }
+
+        if (preg_match('/^verified_against:\s*([^\s]+)\s*$/mi', $frontMatter[1], $verified, PREG_OFFSET_CAPTURE) !== 1) {
+            return [
+                'file' => $path,
+                'line' => 1,
+                'kind' => 'release_metadata',
+                'claim' => 'verified_against',
+                'suggestion' => $installedRelease,
+            ];
+        }
+
+        $version = $verified[1][0];
+        $line = substr_count(substr($frontMatter[1], 0, $verified[0][1]), "\n") + 2;
+        if (preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $version) !== 1) {
+            return [
+                'file' => $path,
+                'line' => $line,
+                'kind' => 'release_metadata',
+                'claim' => $version,
+                'suggestion' => $installedRelease,
+            ];
+        }
+
+        if (
+            $installedRelease !== null
+            && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $installedRelease) === 1
+            && strcmp($version, $installedRelease) > 0
+        ) {
+            return [
+                'file' => $path,
+                'line' => $line,
+                'kind' => 'release_version',
+                'claim' => $version,
+                'suggestion' => $installedRelease,
+            ];
+        }
+
+        return null;
     }
 
     /**

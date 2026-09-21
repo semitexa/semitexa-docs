@@ -29,5 +29,6 @@ final readonly class DocumentMetadata
         public array $recommendedRuntimePanels = [],
         public array $sourceExamples = [],
         public array $callouts = [],
+        public string $verifiedAgainst = '',
     ) {}
 }

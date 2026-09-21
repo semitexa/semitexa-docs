@@ -90,7 +90,7 @@ final class FileDocumentRepository
         $parsed = $this->frontMatterParser->parse($contents, $path);
         $meta = $parsed['meta'];
 
-        $this->assertRequired($meta, ['id', 'section', 'slug', 'title', 'summary', 'order', 'locale', 'status'], $path);
+        $this->assertRequired($meta, ['id', 'section', 'slug', 'title', 'summary', 'order', 'locale', 'status', 'verified_against'], $path);
 
         if ($meta['id'] !== $id->toString()) {
             $declaredId = is_scalar($meta['id']) || $meta['id'] === null ? (string) $meta['id'] : get_debug_type($meta['id']);
@@ -124,6 +124,7 @@ final class FileDocumentRepository
                 recommendedRuntimePanels: $this->normalizeList($meta['recommended_runtime_panels'] ?? []),
                 sourceExamples: $this->normalizeList($meta['source_examples'] ?? []),
                 callouts: $this->normalizeList($meta['callouts'] ?? []),
+                verifiedAgainst: is_string($meta['verified_against'] ?? null) ? $meta['verified_against'] : '',
             ),
             markdown: $parsed['body'],
             path: $path,

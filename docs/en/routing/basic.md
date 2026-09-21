@@ -22,6 +22,19 @@ keywords:
 
 A single access attribute on a PHP class creates a fully routed HTTP endpoint — no XML, no YAML, no config files. Access is explicit at the type level: every payload picks one of `#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]`.
 
+```semitexa-diagram
+title: HTTP request lifecycle
+node: request | HTTP request | Method, path, headers | 0 | 0
+node: payload | Payload | Route and input contract | 1 | 0
+node: handler | Handler | Runs the use case | 2 | 0
+node: resource | Resource | Shapes the response | 3 | 0
+node: template | Template | Produces final HTML | 4 | 0
+edge: request -> payload | match and hydrate
+edge: payload -> handler | dispatch
+edge: handler -> resource | populate
+edge: resource -> template | render
+```
+
 ## How it works
 
 The framework scans the Composer classmap for classes carrying any of the three access attributes, extracts path and method metadata, resolves `env::` placeholders if present, and registers routes at boot. The route compiler then turns path patterns into optimized regex matchers cached in memory.

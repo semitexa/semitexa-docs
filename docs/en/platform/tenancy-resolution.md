@@ -19,6 +19,19 @@ keywords:
 
 Semitexa decides the active tenant before configuration, data access, queues, and rendering continue downstream.
 
+```semitexa-diagram
+title: Tenant context propagation
+node: signal | Request signal | Host, header, path, query | 0 | 0
+node: resolver | Resolver chain | First matching strategy wins | 1 | 0
+node: tenant | Tenant identity | Stable active tenant id | 2 | 0
+node: context | Execution context | Carries tenant downstream | 3 | 0
+node: layers | Isolated layers | Config, data, jobs, UI | 4 | 0
+edge: signal -> resolver | inspect
+edge: resolver -> tenant | resolve
+edge: tenant -> context | activate
+edge: context -> layers | scope
+```
+
 ## How it works
 
 The resolver chain tries the configured strategies in priority order. Each strategy inspects one transport signal -- subdomain, request header, path segment, or query parameter. The first match wins and becomes the tenant context for the rest of the execution.

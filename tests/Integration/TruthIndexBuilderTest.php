@@ -28,6 +28,8 @@ final class TruthIndexBuilderTest extends TestCase
     {
         $index = $this->build($this->applicationWithSampleCommand());
 
+        self::assertMatchesRegularExpression('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', (string) $index['release_version']);
+
         $command = $this->commandNamed($index, 'demo:thing');
 
         self::assertSame('console', $command['kind']);

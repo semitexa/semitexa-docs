@@ -111,6 +111,13 @@ Pages that break the contract are not rejected; they are marked. A page with no
 runnable example is a page that needs one, and saying so in the page is more
 useful than a policy nobody reads.
 
+The note is stored as `verified_against: YYYY.MM.DD.HHMM` in front matter.
+Published and canonical pages must carry it. `docs:lint` rejects a missing or
+malformed value and also rejects a page that claims verification against a
+release newer than the installed Semitexa Ultimate version. HTML rendering
+shows the value before the page title, so readers can judge freshness without
+opening the source file.
+
 ## Where consolidated package docs land
 
 By subject, not by package. A reader looking for how the ORM maps a relation
