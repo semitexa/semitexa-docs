@@ -67,7 +67,11 @@ final class DocumentationClaimLinter
 
         foreach ($this->markdownFiles($roots) as $path) {
             $filesScanned++;
-            $body = (string) file_get_contents($path);
+            $body = @file_get_contents($path);
+            if ($body === false) {
+                // A gate that could not read a file must not pass it.
+                throw new \RuntimeException(sprintf('Cannot read documentation file "%s".', $path));
+            }
             // An exempt page is exempt from every check, release provenance
             // included: generated reference carries whatever release the
             // generator could resolve, and a proposal is not a claim at all.
@@ -140,11 +144,14 @@ final class DocumentationClaimLinter
             return null;
         }
 
-        if (preg_match('/^status:\s*(canonical|published)\s*$/mi', $frontMatter[1]) !== 1) {
+        // The front-matter parser unquotes scalars, so `status: "published"`
+        // is the same page as `status: published`. A gate that only sees one
+        // spelling silently exempts the other.
+        if (preg_match('/^status:\s*["\']?(canonical|published)["\']?\s*$/mi', $frontMatter[1]) !== 1) {
             return null;
         }
 
-        if (preg_match('/^verified_against:\s*([^\s]+)\s*$/mi', $frontMatter[1], $verified, PREG_OFFSET_CAPTURE) !== 1) {
+        if (preg_match('/^verified_against:\s*["\']?([^"\'\s]+)["\']?\s*$/mi', $frontMatter[1], $verified, PREG_OFFSET_CAPTURE) !== 1) {
             return [
                 'file' => $path,
                 'line' => 1,

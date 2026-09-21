@@ -7,6 +7,7 @@ namespace Semitexa\Docs\Tests\Integration;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Semitexa\Docs\Application\Service\DocumentationClaimLinter;
+use Semitexa\Docs\Tests\Support\UnreadableFileStream;
 
 /**
  * The linter's value is entirely in being believed, so the tests that matter are
@@ -57,6 +58,22 @@ MD);
             static fn (array $finding): array => [$finding['kind'], $finding['claim']],
             $findings,
         ));
+    }
+
+    #[Test]
+    public function a_quoted_status_is_the_same_page_as_an_unquoted_one(): void
+    {
+        // DocumentFrontMatterParser unquotes scalars, so both spellings load
+        // as `published`. A gate that only matched one silently exempted the
+        // other from the release check.
+        foreach (['"published"', "'canonical'"] as $status) {
+            $findings = $this->lint("---\nstatus: {$status}\n---\n# Page\n");
+
+            self::assertSame([['release_metadata', 'verified_against']], array_map(
+                static fn (array $finding): array => [$finding['kind'], $finding['claim']],
+                $findings,
+            ), $status . ' must still be checked for provenance.');
+        }
     }
 
     #[Test]
@@ -241,6 +258,20 @@ MD);
     /**
      * @return list<array<string, mixed>>
      */
+    #[Test]
+    public function an_unreadable_page_fails_the_gate_instead_of_passing_it(): void
+    {
+        self::assertTrue(stream_wrapper_register('unreadable', UnreadableFileStream::class));
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessageMatches('/Cannot read documentation file/');
+            (new DocumentationClaimLinter())->lint($this->index(), ['unreadable://page.md']);
+        } finally {
+            stream_wrapper_unregister('unreadable');
+        }
+    }
+
     private function lint(string $markdown): array
     {
         file_put_contents($this->dir . '/page.md', $markdown);

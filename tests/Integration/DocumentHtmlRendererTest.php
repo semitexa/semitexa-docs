@@ -85,6 +85,71 @@ MD,
     }
 
     #[Test]
+    public function a_supplied_coordinate_that_is_not_a_number_is_a_typo_not_a_default(): void
+    {
+        // Auto-placing it would draw a diagram that disagrees with its source
+        // while looking perfectly fine.
+        $document = new ResolvedDocument(
+            id: new DocumentId('architecture', 'bad-coordinate'),
+            metadata: new DocumentMetadata('Bad coordinate', 'Bad coordinate.', 10),
+            markdown: "```semitexa-diagram\nnode: api | API | Details | left | 0\n```\n",
+            path: '/docs/bad-coordinate.md',
+        );
+
+        $content = (new DocumentHtmlRenderer())->renderHtml($document)->content;
+
+        self::assertStringContainsString('class="language-semitexa-diagram"', $content);
+        self::assertStringNotContainsString('class="sx-docs-diagram"', $content);
+    }
+
+    #[Test]
+    public function an_omitted_coordinate_still_falls_back_to_auto_placement(): void
+    {
+        $document = new ResolvedDocument(
+            id: new DocumentId('architecture', 'auto-placement'),
+            metadata: new DocumentMetadata('Auto', 'Auto.', 10),
+            markdown: "```semitexa-diagram\nnode: api | API | Details\nnode: db | DB | Stores it\nedge: api -> db\n```\n",
+            path: '/docs/auto-placement.md',
+        );
+
+        $content = (new DocumentHtmlRenderer())->renderHtml($document)->content;
+
+        self::assertStringContainsString('data-node="api"', $content);
+        self::assertStringContainsString('data-node="db"', $content);
+    }
+
+    #[Test]
+    public function provenance_is_shown_only_when_it_names_a_real_release(): void
+    {
+        foreach (['', 'unverified', '2026.09.19', 'v2026.09.19.1020'] as $value) {
+            $document = new ResolvedDocument(
+                id: new DocumentId('cli', 'provenance'),
+                metadata: new DocumentMetadata('P', 'P.', 10, verifiedAgainst: $value),
+                markdown: '# Page',
+                path: '/docs/provenance.md',
+            );
+
+            self::assertStringNotContainsString(
+                'sx-docs-verified',
+                (new DocumentHtmlRenderer())->renderHtml($document)->content,
+                sprintf('%s must not be dressed up as verification.', var_export($value, true)),
+            );
+        }
+
+        $valid = new ResolvedDocument(
+            id: new DocumentId('cli', 'provenance'),
+            metadata: new DocumentMetadata('P', 'P.', 10, verifiedAgainst: '2026.09.19.1020'),
+            markdown: '# Page',
+            path: '/docs/provenance.md',
+        );
+
+        self::assertStringContainsString(
+            'data-verified-against="2026.09.19.1020"',
+            (new DocumentHtmlRenderer())->renderHtml($valid)->content,
+        );
+    }
+
+    #[Test]
     public function keeps_invalid_diagram_source_visible_for_diagnosis(): void
     {
         $document = new ResolvedDocument(

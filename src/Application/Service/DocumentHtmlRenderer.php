@@ -25,8 +25,12 @@ final class DocumentHtmlRenderer
         $html = (string) $this->converter()->convert($document->markdown);
         $html = $this->renderCommands($html);
         $html = $this->renderDiagrams($html);
+        // Show provenance only when it is a real release. An empty value, or
+        // the `unverified` sentinel a generated page carries when the release
+        // could not be resolved, must not be dressed up as verification.
         $verifiedAgainst = $document->metadata->verifiedAgainst;
-        $verification = $verifiedAgainst === '' ? '' : sprintf(
+        $isRelease = preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $verifiedAgainst) === 1;
+        $verification = !$isRelease ? '' : sprintf(
             '<p class="sx-docs-verified" data-verified-against="%s"><strong>Verified against</strong> Semitexa Ultimate <code>%s</code></p>' . "\n",
             $this->escape($verifiedAgainst),
             $this->escape($verifiedAgainst),
@@ -159,8 +163,14 @@ final class DocumentHtmlRenderer
                     return null;
                 }
 
-                $column = isset($parts[3]) && ctype_digit($parts[3]) ? (int) $parts[3] : $nextColumn;
-                $row = isset($parts[4]) && ctype_digit($parts[4]) ? (int) $parts[4] : 0;
+                // A supplied coordinate that is not a number is a typo. Falling
+                // back to auto-placement would draw a diagram that quietly
+                // disagrees with its own source, so reject it instead.
+                $column = $this->coordinate($parts[3] ?? null, $nextColumn);
+                $row = $this->coordinate($parts[4] ?? null, 0);
+                if ($column === null || $row === null) {
+                    return null;
+                }
                 $nodes[$parts[0]] = [
                     'id' => $parts[0],
                     'label' => $parts[1],
@@ -195,6 +205,16 @@ final class DocumentHtmlRenderer
         }
 
         return ['title' => $title, 'nodes' => $nodes, 'edges' => $edges];
+    }
+
+    /** Null means "supplied and unusable"; the default means "not supplied". */
+    private function coordinate(?string $value, int $default): ?int
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        return ctype_digit($value) ? (int) $value : null;
     }
 
     /**

@@ -106,7 +106,19 @@ final class TruthIndexBuilder
         }
 
         $manifest = ProjectRoot::get() . '/packages/semitexa-ultimate/composer.json';
-        $decoded = is_file($manifest) ? json_decode((string) file_get_contents($manifest), true) : null;
+        if (!is_file($manifest)) {
+            return null;
+        }
+
+        // The manifest is there and we cannot read it: that is a broken
+        // checkout, not "no release". Reporting null here would stamp every
+        // generated page `unverified` and quietly disable the release gate.
+        $contents = @file_get_contents($manifest);
+        if ($contents === false) {
+            throw new \RuntimeException(sprintf('Cannot read "%s" to resolve the release version.', $manifest));
+        }
+
+        $decoded = json_decode($contents, true);
         $coreVersion = is_array($decoded) ? ($decoded['require']['semitexa/core'] ?? null) : null;
 
         return is_string($coreVersion) && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $coreVersion) === 1
