@@ -32,14 +32,18 @@ final class TruthIndexBuilderTest extends TestCase
         // every generated page would be stamped `unverified` and the release
         // half of docs:lint would switch itself off, both silently.
         self::assertTrue(stream_wrapper_register('unreadable', UnreadableFileStream::class));
-        (new \ReflectionProperty(ProjectRoot::class, 'root'))->setValue(null, 'unreadable://workspace');
+        // Snapshot rather than reset(): reset() nulls the root, which is not
+        // the same as putting back whatever the suite had already resolved.
+        $root = new \ReflectionProperty(ProjectRoot::class, 'root');
+        $previous = $root->getValue();
+        $root->setValue(null, 'unreadable://workspace');
 
         try {
             $this->expectException(\RuntimeException::class);
             $this->expectExceptionMessageMatches('/Cannot read .*composer\.json.* to resolve the release version/');
             $this->build($this->applicationWithSampleCommand());
         } finally {
-            ProjectRoot::reset();
+            $root->setValue(null, $previous);
             stream_wrapper_unregister('unreadable');
         }
     }

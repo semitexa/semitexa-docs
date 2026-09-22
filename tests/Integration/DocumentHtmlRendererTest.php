@@ -129,9 +129,15 @@ MD,
                 path: '/docs/provenance.md',
             );
 
+            $content = (new DocumentHtmlRenderer())->renderHtml($document)->content;
+
+            // Prove the page rendered before asserting what it does not
+            // contain: empty output would satisfy the negative on its own.
+            self::assertStringContainsString('<article class="sx-docs-fragment"', $content);
+            self::assertStringContainsString('Page</h1>', $content);
             self::assertStringNotContainsString(
                 'sx-docs-verified',
-                (new DocumentHtmlRenderer())->renderHtml($document)->content,
+                $content,
                 sprintf('%s must not be dressed up as verification.', var_export($value, true)),
             );
         }
