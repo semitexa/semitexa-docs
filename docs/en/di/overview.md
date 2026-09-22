@@ -19,6 +19,19 @@ keywords:
 
 Semitexa has exactly one dependency injection channel for container-managed classes: **protected properties carrying an injection attribute**.
 
+```semitexa-diagram
+title: Container resolution at worker boot
+node: discovery | Class discovery | Finds managed classes | 0 | 0
+node: metadata | Injection metadata | Reads property attributes | 1 | 0
+node: bindings | Contract bindings | Selects implementations | 2 | 0
+node: instance | Managed instance | Injects protected properties | 3 | 0
+node: sealed | Sealed container | Serves stable workers | 4 | 0
+edge: discovery -> metadata | inspect
+edge: metadata -> bindings | resolve
+edge: bindings -> instance | construct
+edge: instance -> sealed | validate
+```
+
 ```php
 #[AsService]
 final class WebhookConfig

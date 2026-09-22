@@ -9,7 +9,9 @@ use PHPUnit\Framework\TestCase;
 use Semitexa\Core\Discovery\AttributeDiscovery;
 use Semitexa\Core\Discovery\ClassDiscovery;
 use Semitexa\Core\ModuleRegistry;
+use Semitexa\Core\Support\ProjectRoot;
 use Semitexa\Docs\Application\Service\TruthIndexBuilder;
+use Semitexa\Docs\Tests\Support\UnreadableFileStream;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -24,9 +26,34 @@ use Symfony\Component\Console\Input\InputOption;
 final class TruthIndexBuilderTest extends TestCase
 {
     #[Test]
+    public function an_unreadable_ultimate_manifest_fails_instead_of_reporting_no_release(): void
+    {
+        // Returning null here would be indistinguishable from "not installed":
+        // every generated page would be stamped `unverified` and the release
+        // half of docs:lint would switch itself off, both silently.
+        self::assertTrue(stream_wrapper_register('unreadable', UnreadableFileStream::class));
+        // Snapshot rather than reset(): reset() nulls the root, which is not
+        // the same as putting back whatever the suite had already resolved.
+        $root = new \ReflectionProperty(ProjectRoot::class, 'root');
+        $previous = $root->getValue();
+        $root->setValue(null, 'unreadable://workspace');
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessageMatches('/Cannot read .*composer\.json.* to resolve the release version/');
+            $this->build($this->applicationWithSampleCommand());
+        } finally {
+            $root->setValue(null, $previous);
+            stream_wrapper_unregister('unreadable');
+        }
+    }
+
+    #[Test]
     public function console_commands_keep_their_arguments_and_options(): void
     {
         $index = $this->build($this->applicationWithSampleCommand());
+
+        self::assertMatchesRegularExpression('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', (string) $index['release_version']);
 
         $command = $this->commandNamed($index, 'demo:thing');
 

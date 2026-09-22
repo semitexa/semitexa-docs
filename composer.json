@@ -35,5 +35,10 @@
         "documentation",
         "guides",
         "architecture"
-    ]
+    ],
+    "autoload-dev": {
+        "psr-4": {
+            "Semitexa\\Docs\\Tests\\": "tests/"
+        }
+    }
 }

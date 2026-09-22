@@ -65,6 +65,7 @@ final class TruthIndexBuilder
 
         return [
             'artifact' => self::ARTIFACT,
+            'release_version' => $this->releaseVersion(),
             'attributes' => $this->attributes(),
             'foreign_attributes' => $this->foreignAttributes(),
             'commands' => $this->commands($console, $notes),
@@ -78,6 +79,51 @@ final class TruthIndexBuilder
             // leaving a caller to read an empty list as "none exist".
             'incomplete' => $notes,
         ];
+    }
+
+    private function releaseVersion(): ?string
+    {
+        $fromEnvironment = getenv('SEMITEXA_RELEASE_VERSION');
+        if (is_string($fromEnvironment) && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $fromEnvironment) === 1) {
+            return $fromEnvironment;
+        }
+
+        if (class_exists(\Composer\InstalledVersions::class)) {
+            $root = \Composer\InstalledVersions::getRootPackage();
+            if (($root['name'] ?? null) === 'semitexa/ultimate') {
+                $rootVersion = $root['pretty_version'] ?? null;
+                if (is_string($rootVersion) && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $rootVersion) === 1) {
+                    return $rootVersion;
+                }
+            }
+
+            if (\Composer\InstalledVersions::isInstalled('semitexa/ultimate')) {
+                $installed = \Composer\InstalledVersions::getPrettyVersion('semitexa/ultimate');
+                if (is_string($installed) && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $installed) === 1) {
+                    return $installed;
+                }
+            }
+        }
+
+        $manifest = ProjectRoot::get() . '/packages/semitexa-ultimate/composer.json';
+        if (!is_file($manifest)) {
+            return null;
+        }
+
+        // The manifest is there and we cannot read it: that is a broken
+        // checkout, not "no release". Reporting null here would stamp every
+        // generated page `unverified` and quietly disable the release gate.
+        $contents = @file_get_contents($manifest);
+        if ($contents === false) {
+            throw new \RuntimeException(sprintf('Cannot read "%s" to resolve the release version.', $manifest));
+        }
+
+        $decoded = json_decode($contents, true);
+        $coreVersion = is_array($decoded) ? ($decoded['require']['semitexa/core'] ?? null) : null;
+
+        return is_string($coreVersion) && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $coreVersion) === 1
+            ? $coreVersion
+            : null;
     }
 
     /**
