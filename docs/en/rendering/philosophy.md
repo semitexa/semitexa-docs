@@ -7,6 +7,7 @@ summary: Semitexa SSR is one continuous rendering architecture: page, slots, def
 order: 10
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - one rendering story
   - HtmlResponse

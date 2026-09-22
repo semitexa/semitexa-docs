@@ -7,6 +7,7 @@ summary: Seeing which implementation is bound to a contract, using a resolver as
 order: 80
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - contract:list
   - SatisfiesServiceContract

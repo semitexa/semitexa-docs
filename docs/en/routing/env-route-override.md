@@ -7,6 +7,7 @@ summary: Keep the payload as the route source of truth while allowing operations
 order: 40
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - env::VAR::/fallback
   - path override

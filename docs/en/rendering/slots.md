@@ -7,6 +7,7 @@ summary: Each page region is its own resource pipeline with the same template sy
 order: 30
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - "#[AsSlotResource]"
   - HtmlSlotResponse

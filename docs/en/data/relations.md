@@ -7,6 +7,7 @@ summary: Declare parent and child links on the resource itself, then read typed 
 order: 70
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - "#[HasMany]"
   - "#[BelongsTo]"

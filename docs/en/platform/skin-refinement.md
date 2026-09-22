@@ -7,6 +7,7 @@ summary: Refining an existing skin with skin:refine instead of regenerating it.
 order: 80
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - skin
   - skin:refine

@@ -7,6 +7,7 @@ summary: Reusable, attribute-registered UI components — discovered automatical
 order: 40
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - "#[AsComponent]"
   - event

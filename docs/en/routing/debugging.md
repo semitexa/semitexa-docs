@@ -7,6 +7,7 @@ summary: Three commands that answer why a route is not matching, what it resolve
 order: 90
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - routes:list
   - routes:show

@@ -7,6 +7,7 @@ summary: Every ai:review-graph command with its options, output shape and a work
 order: 50
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - ai:review-graph
   - generate

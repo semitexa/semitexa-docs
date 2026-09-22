@@ -7,6 +7,7 @@ summary: Product listing scoped by tenant -- switch tenant, list changes. Zero m
 order: 40
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - tenant_id
   - data isolation

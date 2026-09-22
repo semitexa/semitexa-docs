@@ -7,6 +7,7 @@ summary: The canonical Semitexa path: handlers depend on repository contracts, r
 order: 20
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - repository contract
   - domain model

@@ -7,6 +7,7 @@ summary: Tenant context travels with queued jobs -- _tenant key injected automat
 order: 50
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - TenantAwareJobSerializer
   - _tenant envelope

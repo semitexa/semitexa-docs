@@ -7,6 +7,7 @@ summary: "#[InjectAsFactory] injects a ContractFactory that selects among a cont
 order: 50
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - InjectAsFactory
   - ContractFactory

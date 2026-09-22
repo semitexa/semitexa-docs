@@ -7,6 +7,7 @@ summary: Provider contracts, backend resolution, local vs remote Ollama, and the
 order: 20
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - LlmProviderInterface
   - LlmProviderResolver

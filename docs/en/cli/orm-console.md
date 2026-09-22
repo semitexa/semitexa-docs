@@ -7,6 +7,7 @@ summary: The ORM ships with a practical CLI surface: status, diff, sync, and see
 order: 60
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - orm:status
   - orm:diff

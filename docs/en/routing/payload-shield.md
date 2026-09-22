@@ -7,6 +7,7 @@ summary: Hydration happens before the handler, and each setter owns the normaliz
 order: 50
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - PayloadHydrator
   - ValidationException

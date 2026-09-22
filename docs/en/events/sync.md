@@ -7,6 +7,7 @@ summary: Dispatch an event and all sync listeners run before the response is sen
 order: 20
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - "#[AsEvent]"
   - "#[Propagated]"

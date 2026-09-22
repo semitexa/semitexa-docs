@@ -7,6 +7,7 @@ summary: How the graph scores relevance, traces flows and infers intent, and wha
 order: 60
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - relevance
   - hotspot

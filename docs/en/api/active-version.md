@@ -7,6 +7,7 @@ summary: The current collection endpoint with a clean X-Api-Version header and n
 order: 30
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - "#[ApiVersion]"
   - X-Api-Version

@@ -7,6 +7,7 @@ summary: Configure the minimal Locale contract so translations and locale-aware 
 order: 50
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - locale
   - supported locales

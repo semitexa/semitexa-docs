@@ -7,6 +7,7 @@ summary: Inspect, render, override, and evaluate catalog prompts from the consol
 order: 50
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - prompt:list
   - prompt:show

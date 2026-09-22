@@ -7,6 +7,7 @@ summary: One module owns the route, another module can extend the same payload c
 order: 60
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - "#[AsPayloadPart]"
   - PayloadFactory

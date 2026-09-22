@@ -7,6 +7,7 @@ summary: Background batches keep moving, and the page reflects server progress a
 order: 130
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - "refreshInterval: 2"
   - server-owned progress

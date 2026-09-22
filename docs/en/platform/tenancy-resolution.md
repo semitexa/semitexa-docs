@@ -7,6 +7,7 @@ summary: See how Semitexa resolves the active tenant from subdomain, header, pat
 order: 10
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - HeaderStrategy
   - SubdomainStrategy

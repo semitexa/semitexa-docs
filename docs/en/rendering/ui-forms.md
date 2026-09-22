@@ -7,6 +7,7 @@ summary: Composing platform.form, the authoritative submit pipeline, per-field s
 order: 190
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - platform.form
   - submit pipeline

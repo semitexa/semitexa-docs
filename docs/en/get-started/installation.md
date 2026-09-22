@@ -7,6 +7,7 @@ summary: Create the project, review the baseline env contract, and bring up the 
 order: 10
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - install.sh
   - bin/semitexa

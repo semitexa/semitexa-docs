@@ -7,6 +7,7 @@ summary: A Semitexa SSR component can own its optional enhancement asset, so beh
 order: 70
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - "#[AsComponent]"
   - script

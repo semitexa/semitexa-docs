@@ -7,6 +7,7 @@ summary: Compose type-safe queries with a fluent API — no raw SQL, no magic st
 order: 40
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - ResourceModelQuery
   - where()

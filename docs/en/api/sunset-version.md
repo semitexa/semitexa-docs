@@ -7,6 +7,7 @@ summary: A deprecated product endpoint that emits both Deprecation and Sunset he
 order: 40
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - "#[ApiVersion]"
   - Deprecation

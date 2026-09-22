@@ -7,6 +7,7 @@ summary: The server re-renders a live slot on a cadence and pushes it down the p
 order: 110
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - refreshInterval
   - auto-refresh

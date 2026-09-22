@@ -7,6 +7,7 @@ summary: SSR renders the shell first, then expensive regions stream in as real H
 order: 90
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - "#[AsSlotResource(deferred: true)]"
   - skeletonTemplate

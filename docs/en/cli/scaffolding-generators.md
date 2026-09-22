@@ -7,6 +7,7 @@ summary: Scaffold modules, pages, payloads, services, and contracts through comm
 order: 30
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - make:module
   - make:page

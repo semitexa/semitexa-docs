@@ -7,6 +7,7 @@ summary: Heavy work runs after the response is sent — the user gets instant fe
 order: 30
 locale: en
 status: published
+verified_against: 2026.09.19.1020
 keywords:
   - EventExecution::Async
   - "Swoole\\Event::defer()"

@@ -7,6 +7,7 @@ summary: Establish one default tenant context early so tenant-aware behavior is 
 order: 40
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - tenant
   - tenant context

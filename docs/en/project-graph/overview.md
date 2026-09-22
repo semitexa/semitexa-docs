@@ -7,6 +7,7 @@ summary: Understand what `semitexa-project-graph` adds: a stored structural map,
 order: 10
 locale: en
 status: canonical
+verified_against: 2026.09.19.1020
 keywords:
   - semitexa-project-graph
   - task-first workflow
