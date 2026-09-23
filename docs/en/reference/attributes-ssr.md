@@ -213,6 +213,18 @@ final class OsLoginPayload
 
 — `vendor/semitexa/os/src/Application/Payload/Request/OsLoginPayload.php`
 
+## `#[PublishesScope]`
+
+`Semitexa\Ssr\Attribute\PublishesScope`
+
+Applies to: class. Repeatable.
+
+| parameter | type | required |
+|---|---|---|
+| `scopes` | `string` | no |
+
+_No usage found in this installation._
+
 ## `#[WithDataProvider]`
 
 `Semitexa\Ssr\Attribute\WithDataProvider`
