@@ -27,6 +27,8 @@ bin/semitexa platform-ui:catalog
 | option | takes a value |
 |---|---|
 | `--kind` | yes |
+| `--details` | no |
+| `--name` | yes |
 | `--json` | no |
 
 ## `platform-ui:css:build`

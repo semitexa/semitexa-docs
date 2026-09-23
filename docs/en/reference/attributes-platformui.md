@@ -46,6 +46,39 @@ final class AccordionBehavior {}
 
 — `vendor/semitexa/platform-ui/src/Application/Service/Behavior/Builtin/AccordionBehavior.php`
 
+## `#[AsUiContract]`
+
+`Semitexa\PlatformUi\Attribute\AsUiContract`
+
+Applies to: class
+
+| parameter | type | required |
+|---|---|---|
+| `summary` | `string` | yes |
+| `props` | `array` | no |
+| `examples` | `array` | no |
+| `previewSafe` | `bool` | no |
+
+```php
+#[AsUiContract(
+    summary: 'Group related content in a themed surface with optional media and actions.',
+    props: [
+        new UiProp('variant', default: 'elevated', values: ['elevated', 'outlined', 'plain']),
+        new UiProp('title', default: '', description: 'Heading used when the header slot is empty.'),
+        new UiProp('subtitle', default: ''),
+    ],
+    examples: [
+        new UiExample('default', 'Project overview', ['title' => 'Your workspace', 'subtitle' => 'A place for the next idea'], ['body' => 'Build something useful.', 'footer' => 'Updated just now']),
+        new UiExample('outlined', 'Outlined', ['variant' => 'outlined', 'title' => 'A quieter surface'], ['body' => 'The same content, another token-driven treatment.']),
+        new UiExample('empty', 'Empty', ['title' => 'Nothing here yet'], ['body' => 'Create your first item to get started.']),
+    ],
+    previewSafe: true,
+)]
+final class CardComponent
+```
+
+— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/CardComponent.php`
+
 ## `#[AsUiPrimitive]`
 
 `Semitexa\PlatformUi\Attribute\AsUiPrimitive`
