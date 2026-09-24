@@ -504,7 +504,24 @@ final class ReferenceGenerator
             return $generated;
         }
 
-        return $this->withoutStamp($onDisk) === $this->withoutStamp($generated) ? $onDisk : $generated;
+        if ($this->withoutStamp($onDisk) !== $this->withoutStamp($generated)) {
+            return $generated;
+        }
+
+        // Kept only when it is a stamp the corpus could have written: a valid
+        // release version no newer than this one. docs:lint skips generated
+        // pages, so a hand-edited "invalid" or future stamp kept here would
+        // be checked by nothing.
+        $kept = $this->stampOf($onDisk);
+        $valid = $kept !== null && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $kept) === 1
+            && ($this->releaseVersion === 'unverified' || strcmp($kept, $this->releaseVersion) <= 0);
+
+        return $valid ? $onDisk : $generated;
+    }
+
+    private function stampOf(string $page): ?string
+    {
+        return preg_match('/^verified_against: (\S+)$/m', $page, $m) === 1 ? $m[1] : null;
     }
 
     private function withoutStamp(string $page): string

@@ -59,6 +59,19 @@ final class ReferenceGeneratorTest extends TestCase
     }
 
     #[Test]
+    public function a_stamp_the_corpus_could_not_have_written_is_not_kept(): void
+    {
+        // docs:lint skips generated pages, so nothing else would catch these.
+        $generator = new ReferenceGenerator();
+        $page = $generator->generate($this->index())['reference/attributes-core.md'];
+
+        foreach (['invalid', '2099.01.01.0000'] as $stamp) {
+            $onDisk = str_replace('verified_against: 2026.09.19.1020', 'verified_against: ' . $stamp, $page);
+            self::assertSame($page, $generator->preserveStamp($page, $onDisk), "stamp '{$stamp}' must be replaced");
+        }
+    }
+
+    #[Test]
     public function a_page_whose_content_moved_takes_the_new_stamp(): void
     {
         $generator = new ReferenceGenerator();
