@@ -16,6 +16,24 @@ verified_against: 2026.09.23.1717
 
 Every `ai` command, with the arguments and options the console actually defines.
 
+## `ai:agent`
+
+Agent presence: join with a name and intent, see who else is working and what is being edited, leave when done
+
+```bash
+bin/semitexa ai:agent ["action"]
+```
+
+| option | takes a value |
+|---|---|
+| `--name` | yes |
+| `--intent` | yes |
+| `--repo` | yes |
+| `--task` | yes |
+| `--id` | yes |
+| `--all` | no |
+| `--json` | no |
+
 ## `ai:ask`
 
 Agent-facing introspection aggregator (capabilities, mechanisms, project, module, route, event, path, logs)
@@ -467,6 +485,7 @@ bin/semitexa ai:work "<action>"
 | `--risk` | yes |
 | `--status` | yes |
 | `--scope` | yes |
+| `--take-over` | no |
 | `--context-ref` | yes |
 | `--next-step` | yes |
 | `--note` | yes |
