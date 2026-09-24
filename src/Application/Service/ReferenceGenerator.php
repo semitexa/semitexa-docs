@@ -511,10 +511,14 @@ final class ReferenceGenerator
         // Kept only when it is a stamp the corpus could have written: a valid
         // release version no newer than this one. docs:lint skips generated
         // pages, so a hand-edited "invalid" or future stamp kept here would
-        // be checked by nothing.
+        // be checked by nothing. With no known release the ceiling is now:
+        // versions are dated, so a stamp from the future is one nobody wrote,
+        // while a past one is still true (and dropping it would turn every
+        // page stale on an unversioned tree).
         $kept = $this->stampOf($onDisk);
+        $ceiling = $this->releaseVersion === 'unverified' ? gmdate('Y.m.d.Hi') : $this->releaseVersion;
         $valid = $kept !== null && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $kept) === 1
-            && ($this->releaseVersion === 'unverified' || strcmp($kept, $this->releaseVersion) <= 0);
+            && strcmp($kept, $ceiling) <= 0;
 
         return $valid ? $onDisk : $generated;
     }

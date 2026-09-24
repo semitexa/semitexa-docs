@@ -72,6 +72,21 @@ final class ReferenceGeneratorTest extends TestCase
     }
 
     #[Test]
+    public function without_a_known_release_a_future_stamp_is_still_replaced(): void
+    {
+        $index = ['release_version' => null] + $this->index();
+        $generator = new ReferenceGenerator();
+        $page = $generator->generate($index)['reference/attributes-core.md'];
+        self::assertStringContainsString('verified_against: unverified', $page);
+
+        $future = str_replace('verified_against: unverified', 'verified_against: 2099.01.01.0000', $page);
+        $past = str_replace('verified_against: unverified', 'verified_against: 2026.09.01.0900', $page);
+
+        self::assertSame($page, $generator->preserveStamp($page, $future));
+        self::assertSame($past, $generator->preserveStamp($page, $past));
+    }
+
+    #[Test]
     public function a_page_whose_content_moved_takes_the_new_stamp(): void
     {
         $generator = new ReferenceGenerator();
