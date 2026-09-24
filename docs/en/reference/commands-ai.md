@@ -164,6 +164,7 @@ bin/semitexa ai:quality ["action"]
 
 | option | takes a value |
 |---|---|
+| `--limit` | yes |
 | `--metric` | yes |
 | `--reason` | yes |
 | `--all` | no |
