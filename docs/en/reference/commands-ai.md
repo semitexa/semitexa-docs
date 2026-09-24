@@ -154,6 +154,21 @@ bin/semitexa ai:plan ["recipe"]
 | `--files` | yes |
 | `--trace` | yes |
 
+## `ai:quality`
+
+Quality ledger: check metrics against their baseline, record improvements, accept a regression with a reason
+
+```bash
+bin/semitexa ai:quality ["action"]
+```
+
+| option | takes a value |
+|---|---|
+| `--metric` | yes |
+| `--reason` | yes |
+| `--all` | no |
+| `--json` | no |
+
 ## `ai:report`
 
 Report a Semitexa framework defect (and its workaround) as a GitHub issue
