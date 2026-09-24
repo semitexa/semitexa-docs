@@ -483,6 +483,35 @@ final class ReferenceGenerator
         return sprintf("%s\n\n<!-- %s -->\n\n# %s\n\n%s\n\n", $frontMatter, self::PROVENANCE, $title, $summary);
     }
 
+    /**
+     * The page to keep when one is already on disk.
+     *
+     * `verified_against` is the release the generator ran under, so every new
+     * release changed that one line on every page while nothing they say had
+     * moved. `--check` then reported all of them stale, and ai:verify runs it on
+     * every edit: after a release it was red on an untouched tree, for every
+     * agent, until someone committed a stamp-only diff of every page. A gate
+     * that is always red teaches people to read red as noise.
+     *
+     * A page whose body is unchanged keeps the stamp it has. That stamp is
+     * still true — the page was verified against that release and nothing in it
+     * has changed since — and the linter only rejects a stamp newer than the
+     * installed release, never an older one.
+     */
+    public function preserveStamp(string $generated, ?string $onDisk): string
+    {
+        if ($onDisk === null || $onDisk === $generated) {
+            return $generated;
+        }
+
+        return $this->withoutStamp($onDisk) === $this->withoutStamp($generated) ? $onDisk : $generated;
+    }
+
+    private function withoutStamp(string $page): string
+    {
+        return (string) preg_replace('/^verified_against: .*$/m', '', $page, 1);
+    }
+
     private function escapeYaml(string $value): string
     {
         return str_contains($value, ':') ? '"' . str_replace('"', '\\"', $value) . '"' : $value;

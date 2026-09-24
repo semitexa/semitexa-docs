@@ -47,6 +47,33 @@ final class ReferenceGeneratorTest extends TestCase
     }
 
     #[Test]
+    public function a_new_release_alone_does_not_make_a_page_stale(): void
+    {
+        // Every release moved the stamp on every page, --check called all of
+        // them stale, and ai:verify was red on an untouched tree.
+        $generator = new ReferenceGenerator();
+        $page = $generator->generate($this->index())['reference/attributes-core.md'];
+        $olderStamp = str_replace('verified_against: 2026.09.19.1020', 'verified_against: 2026.09.01.0900', $page);
+
+        self::assertSame($olderStamp, $generator->preserveStamp($page, $olderStamp));
+    }
+
+    #[Test]
+    public function a_page_whose_content_moved_takes_the_new_stamp(): void
+    {
+        $generator = new ReferenceGenerator();
+        $page = $generator->generate($this->index())['reference/attributes-core.md'];
+        $stale = str_replace(
+            ['verified_against: 2026.09.19.1020', '| `path` | `string` | no |'],
+            ['verified_against: 2026.09.01.0900', '| `path` | `int` | no |'],
+            $page,
+        );
+
+        self::assertSame($page, $generator->preserveStamp($page, $stale));
+        self::assertSame($page, $generator->preserveStamp($page, null));
+    }
+
+    #[Test]
     public function a_command_page_shows_the_arguments_the_console_defines(): void
     {
         $files = (new ReferenceGenerator())->generate($this->index());
