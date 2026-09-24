@@ -47,6 +47,61 @@ final class ReferenceGeneratorTest extends TestCase
     }
 
     #[Test]
+    public function a_new_release_alone_does_not_make_a_page_stale(): void
+    {
+        // Every release moved the stamp on every page, --check called all of
+        // them stale, and ai:verify was red on an untouched tree.
+        $generator = new ReferenceGenerator();
+        $page = $generator->generate($this->index())['reference/attributes-core.md'];
+        $olderStamp = str_replace('verified_against: 2026.09.19.1020', 'verified_against: 2026.09.01.0900', $page);
+
+        self::assertSame($olderStamp, $generator->preserveStamp($page, $olderStamp));
+    }
+
+    #[Test]
+    public function a_stamp_the_corpus_could_not_have_written_is_not_kept(): void
+    {
+        // docs:lint skips generated pages, so nothing else would catch these.
+        $generator = new ReferenceGenerator();
+        $page = $generator->generate($this->index())['reference/attributes-core.md'];
+
+        foreach (['invalid', '2099.01.01.0000'] as $stamp) {
+            $onDisk = str_replace('verified_against: 2026.09.19.1020', 'verified_against: ' . $stamp, $page);
+            self::assertSame($page, $generator->preserveStamp($page, $onDisk), "stamp '{$stamp}' must be replaced");
+        }
+    }
+
+    #[Test]
+    public function without_a_known_release_a_future_stamp_is_still_replaced(): void
+    {
+        $index = ['release_version' => null] + $this->index();
+        $generator = new ReferenceGenerator();
+        $page = $generator->generate($index)['reference/attributes-core.md'];
+        self::assertStringContainsString('verified_against: unverified', $page);
+
+        $future = str_replace('verified_against: unverified', 'verified_against: 2099.01.01.0000', $page);
+        $past = str_replace('verified_against: unverified', 'verified_against: 2026.09.01.0900', $page);
+
+        self::assertSame($page, $generator->preserveStamp($page, $future));
+        self::assertSame($past, $generator->preserveStamp($page, $past));
+    }
+
+    #[Test]
+    public function a_page_whose_content_moved_takes_the_new_stamp(): void
+    {
+        $generator = new ReferenceGenerator();
+        $page = $generator->generate($this->index())['reference/attributes-core.md'];
+        $stale = str_replace(
+            ['verified_against: 2026.09.19.1020', '| `path` | `string` | no |'],
+            ['verified_against: 2026.09.01.0900', '| `path` | `int` | no |'],
+            $page,
+        );
+
+        self::assertSame($page, $generator->preserveStamp($page, $stale));
+        self::assertSame($page, $generator->preserveStamp($page, null));
+    }
+
+    #[Test]
     public function a_command_page_shows_the_arguments_the_console_defines(): void
     {
         $files = (new ReferenceGenerator())->generate($this->index());

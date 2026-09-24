@@ -98,17 +98,19 @@ workspace and the release clone had drifted to different locks under the same
 constraint. That produced two different error counts for identical code, and
 four baseline entries that matched in one and not the other.
 
-The release gate refuses to judge a clone whose analyser does not match
-`PHPSTAN_EXPECTED_ANALYSER` in `release-auto-checks.sh`. Upgrading is a
-deliberate act: re-measure the ceiling AND re-align the baseline on the new
-version, then update both constants.
+The release gate refuses to judge a clone whose analyser does not match the
+`analyser` in `packages/semitexa-dev/resources/phpstan/phpstan-ceiling.json`.
+Upgrading is a deliberate act: re-measure the ceiling AND re-align the baseline
+on the new version, then update both `analyser` and `ceiling` in that file.
 
 ## The release gate
 
 `phpstan:strict` is a hard gate at release. `release-auto-checks.sh` runs the
 analysis once under `phpstan-strict.neon` and reads two things from it: real
-errors (compared to `PHPSTAN_CEILING`) and unmatched baseline entries (any is a
-failure). The rot described below happened again — 147 of 1131 entries — because
+errors (compared to the `ceiling` in
+`packages/semitexa-dev/resources/phpstan/phpstan-ceiling.json`: above fails, below
+warns with the lower number to record there) and unmatched
+baseline entries (any is a failure). The rot described below happened again — 147 of 1131 entries — because
 this document asked for a CI gate that was never built. A release analyses the
 whole tree anyway, so the check is free there.
 

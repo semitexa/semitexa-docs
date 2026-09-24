@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Semitexa\Docs\Application\Console\Command;
 
 use Semitexa\Core\Attribute\AsCommand;
+use Semitexa\Core\Attribute\InjectAsReadonly;
 use Semitexa\Core\Console\BaseCommand;
 use Semitexa\Docs\Application\Service\ReferenceGenerator;
 use Semitexa\Docs\Application\Service\TruthIndexBuilder;
@@ -18,7 +19,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * Run it as part of a release. `--check` is the CI form: it regenerates into
  * memory and fails if what is on disk differs, which catches a signature that
- * changed without the page being rebuilt.
+ * changed without the page being rebuilt. A page that differs only in its
+ * `verified_against` stamp is not stale — see ReferenceGenerator::preserveStamp().
  */
 #[AsCommand(
     name: 'docs:reference:generate',
@@ -26,12 +28,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class DocsReferenceGenerateCommand extends BaseCommand
 {
-    public function __construct(
-        private readonly TruthIndexBuilder $truthIndexBuilder,
-        private readonly ReferenceGenerator $generator,
-    ) {
-        parent::__construct();
-    }
+    #[InjectAsReadonly]
+    protected TruthIndexBuilder $truthIndexBuilder;
+
+    #[InjectAsReadonly]
+    protected ReferenceGenerator $generator;
 
     protected function configure(): void
     {
@@ -48,6 +49,11 @@ final class DocsReferenceGenerateCommand extends BaseCommand
         $root = is_string($out) && $out !== '' ? rtrim($out, '/') : dirname(__DIR__, 4) . '/docs/en';
 
         $files = $this->generator->generate($this->truthIndexBuilder->build($this->getApplication()));
+        foreach ($files as $relative => $contents) {
+            $path = $root . '/' . $relative;
+            $onDisk = is_file($path) ? file_get_contents($path) : false;
+            $files[$relative] = $this->generator->preserveStamp($contents, $onDisk === false ? null : $onDisk);
+        }
 
         if ((bool) $input->getOption('check')) {
             // A consumer project installs its own mix of semitexa/* packages, so
@@ -107,7 +113,13 @@ final class DocsReferenceGenerateCommand extends BaseCommand
 
         $io->error(sprintf('%d reference page(s) no longer match the code:', count($stale)));
         $io->listing(array_slice($stale, 0, 20));
-        $io->text('Run `bin/semitexa docs:reference:generate` and commit the result.');
+        // ai:verify keeps only the last line as its signal. Naming the pages
+        // there is what tells an agent whether its own change moved them or
+        // the tree was already stale.
+        $io->text(sprintf(
+            'Stale: %s. Run `bin/semitexa docs:reference:generate` and commit the result.',
+            implode(', ', array_map('basename', array_slice($stale, 0, 5))) . (count($stale) > 5 ? sprintf(' (+%d more)', count($stale) - 5) : ''),
+        ));
 
         return self::FAILURE;
     }

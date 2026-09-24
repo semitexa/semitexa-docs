@@ -483,6 +483,56 @@ final class ReferenceGenerator
         return sprintf("%s\n\n<!-- %s -->\n\n# %s\n\n%s\n\n", $frontMatter, self::PROVENANCE, $title, $summary);
     }
 
+    /**
+     * The page to keep when one is already on disk.
+     *
+     * `verified_against` is the release the generator ran under, so every new
+     * release changed that one line on every page while nothing they say had
+     * moved. `--check` then reported all of them stale, and ai:verify runs it on
+     * every edit: after a release it was red on an untouched tree, for every
+     * agent, until someone committed a stamp-only diff of every page. A gate
+     * that is always red teaches people to read red as noise.
+     *
+     * A page whose body is unchanged keeps the stamp it has. That stamp is
+     * still true — the page was verified against that release and nothing in it
+     * has changed since — and the linter only rejects a stamp newer than the
+     * installed release, never an older one.
+     */
+    public function preserveStamp(string $generated, ?string $onDisk): string
+    {
+        if ($onDisk === null || $onDisk === $generated) {
+            return $generated;
+        }
+
+        if ($this->withoutStamp($onDisk) !== $this->withoutStamp($generated)) {
+            return $generated;
+        }
+
+        // Kept only when it is a stamp the corpus could have written: a valid
+        // release version no newer than this one. docs:lint skips generated
+        // pages, so a hand-edited "invalid" or future stamp kept here would
+        // be checked by nothing. With no known release the ceiling is now:
+        // versions are dated, so a stamp from the future is one nobody wrote,
+        // while a past one is still true (and dropping it would turn every
+        // page stale on an unversioned tree).
+        $kept = $this->stampOf($onDisk);
+        $ceiling = $this->releaseVersion === 'unverified' ? gmdate('Y.m.d.Hi') : $this->releaseVersion;
+        $valid = $kept !== null && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $kept) === 1
+            && strcmp($kept, $ceiling) <= 0;
+
+        return $valid ? $onDisk : $generated;
+    }
+
+    private function stampOf(string $page): ?string
+    {
+        return preg_match('/^verified_against: (\S+)$/m', $page, $m) === 1 ? $m[1] : null;
+    }
+
+    private function withoutStamp(string $page): string
+    {
+        return (string) preg_replace('/^verified_against: .*$/m', '', $page, 1);
+    }
+
     private function escapeYaml(string $value): string
     {
         return str_contains($value, ':') ? '"' . str_replace('"', '\\"', $value) . '"' : $value;
