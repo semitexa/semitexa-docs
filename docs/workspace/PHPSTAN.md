@@ -107,8 +107,10 @@ version, then update both constants.
 
 `phpstan:strict` is a hard gate at release. `release-auto-checks.sh` runs the
 analysis once under `phpstan-strict.neon` and reads two things from it: real
-errors (compared to `PHPSTAN_CEILING`) and unmatched baseline entries (any is a
-failure). The rot described below happened again — 147 of 1131 entries — because
+errors (compared to the `ceiling` in
+`packages/semitexa-dev/resources/phpstan/phpstan-ceiling.json`, in both directions:
+above fails, and below fails until the ceiling is lowered to match) and unmatched
+baseline entries (any is a failure). The rot described below happened again — 147 of 1131 entries — because
 this document asked for a CI gate that was never built. A release analyses the
 whole tree anyway, so the check is free there.
 
