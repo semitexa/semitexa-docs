@@ -3,7 +3,7 @@ id: di/factory
 section: di
 slug: factory
 title: Factory Injection
-summary: "#[InjectAsFactory] injects a ContractFactory that selects among a contract's implementations by backed-enum key — not a closure, and not a new instance per call."
+summary: "#[InjectAsFactory] injects a factory that selects among a contract's implementations by backed-enum key — not a closure; execution-scoped implementations come back as a fresh per-execution instance."
 order: 50
 locale: en
 status: canonical
@@ -16,17 +16,24 @@ keywords:
 ---
 # Factory Injection
 
-`#[InjectAsFactory]` is for the case where one contract has **several implementations and the caller picks which one**. The property receives a `ContractFactory` object built at boot:
+`#[InjectAsFactory]` is for the case where one contract has **several implementations and the caller picks which one**. The property receives a factory object built at boot. Type it one of two ways:
 
 ```php
+// The contract's generated Factory* interface: typed get() / getDefault().
 #[InjectAsFactory]
+protected FactoryStorageInterface $storage;
+
+// The generic factory: name the contract with `of`, since the type alone cannot.
+#[InjectAsFactory(of: StorageInterface::class)]
 protected ContractFactory $storage;
 ```
 
-Two things this is *not*, both of which are easy to assume:
+A `ContractFactory` (or `ContractFactoryInterface`) property without `of` is rejected at boot — the type does not say which contract it wants. The typed form needs the generated `App\Registry\Contracts\*Factory` class; if it is missing or out of date the worker refuses to boot and tells you to run `bin/semitexa registry:sync:contracts`.
+
+Two things to know about what you get:
 
 - It is **not a closure**. You get an object with a small API, not something you invoke.
-- It does **not build a fresh instance per call**. The implementations are the same container-built instances; the factory selects between them.
+- It **selects, it does not construct** — except for `#[ExecutionScoped]` implementations, which come back as a fresh per-execution instance (with their `#[InjectAsMutable]` dependencies bound), exactly as `container->get()` would hand them out. Worker-scoped implementations are the same shared instances every time.
 
 ## The API
 
