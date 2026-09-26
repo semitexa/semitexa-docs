@@ -51,9 +51,17 @@ final class TruthIndexBuilderTest extends TestCase
     #[Test]
     public function console_commands_keep_their_arguments_and_options(): void
     {
-        $index = $this->build($this->applicationWithSampleCommand());
+        // Pinned: an app built from a branch checkout has no release, and this
+        // test is about the command surface, not about where it runs.
+        $previousRelease = getenv('SEMITEXA_RELEASE_VERSION');
+        putenv('SEMITEXA_RELEASE_VERSION=2026.09.19.1020');
+        try {
+            $index = $this->build($this->applicationWithSampleCommand());
+        } finally {
+            putenv($previousRelease === false ? 'SEMITEXA_RELEASE_VERSION' : 'SEMITEXA_RELEASE_VERSION=' . $previousRelease);
+        }
 
-        self::assertMatchesRegularExpression('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', (string) $index['release_version']);
+        self::assertSame('2026.09.19.1020', $index['release_version']);
 
         $command = $this->commandNamed($index, 'demo:thing');
 
