@@ -402,7 +402,9 @@ _No usage found in this installation._
 
 Applies to: property
 
-Takes no arguments.
+| parameter | type | required |
+|---|---|---|
+| `of` | `string` | no |
 
 ```php
     #[InjectAsFactory]
