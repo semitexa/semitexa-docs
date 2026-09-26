@@ -36,6 +36,8 @@ edge: context -> layers | scope
 
 The resolver chain tries the configured strategies in priority order. Each strategy inspects one transport signal -- subdomain, request header, path segment, or query parameter. The first match wins and becomes the tenant context for the rest of the execution.
 
+The header strategy (`X-Tenant-ID`, or `TENANCY_HEADER_NAME`) is honoured only when the request comes from a trusted proxy: loopback, or a peer listed in `TRUSTED_PROXIES`, the same rule as `X-Forwarded-Proto`. Any client can send a header, so it is meant for a gateway in front of the app that authenticates the caller and sets the header itself. From any other peer the header is ignored and the next strategy in the chain decides.
+
 ## Why this matters
 
 If tenant resolution is ambiguous, every "isolated" layer above it becomes unreliable. That is why this boundary deserves explicit design -- the resolver chain makes the decision visible and deterministic instead of relying on implicit state.
