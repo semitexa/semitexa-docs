@@ -68,8 +68,8 @@ There is no separate “Factory” pattern in Semitexa: service contracts with m
 
 When you need to **choose** an implementation at runtime (by a backed-enum key) instead of always using the active one, define an interface whose short name **starts with `Factory`** in the same namespace as the base contract.
 
-- **Example:** For `ItemListProviderInterface`, define `FactoryItemListProviderInterface` extending `Semitexa\Core\Contract\ContractFactoryInterface`, with `getDefault()`, `get(<Enum> $key)`, and `keys()` returning the base contract type.
+- **Example:** For `ItemListProviderInterface`, define a plain `FactoryItemListProviderInterface` with `getDefault()`, `get(ItemListProviderKind $key)`, and `keys()` returning the base contract type. Do **not** extend `Semitexa\Core\Contract\ContractFactoryInterface`: its `get()` takes `\BackedEnum`, and narrowing that to a concrete enum is a fatal error when PHP loads the interface (`semitexa.factoryContract` flags it).
 - **Keys** are the cases of one backed enum: every implementation declares its own with `#[SatisfiesServiceContract(of: ..., factoryKey: ItemListProviderKind::Website)]`, and all keys must come from the same enum. Run **`bin/semitexa registry:sync:contracts`** to generate the implementation in `src/registry/Contracts/{ContractShortName}Factory.php`.
 - **Usage:** Inject the Factory* interface where you need to pick; use `getDefault()` for the active implementation or `get(ItemListProviderKind::Website)` for a specific one. A string is not a key — `get()` takes the enum case. Details: [Factory Injection](factory.md).
 
-See `Semitexa\Core\Contract\ContractFactoryInterface` for the base interface.
+`Semitexa\Core\Contract\ContractFactoryInterface` is the generic, untyped API — what a `ContractFactory` property injected with `#[InjectAsFactory(of: ...)]` exposes.
