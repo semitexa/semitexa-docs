@@ -215,15 +215,27 @@ final class ReferenceGenerator
             : $candidateRank < $currentRank;
     }
 
+    /**
+     * Lower is better. A negative fixture (`Invalid*`, written to be refused)
+     * ranks below every valid declaration in any package — the page must
+     * never offer as the example a declaration built to fail. Among the rest:
+     * the preferred package first, then production code before tests.
+     */
     private function exampleRank(string $relative): int
     {
+        $packageRank = count(self::EXAMPLE_PACKAGES);
         foreach (self::EXAMPLE_PACKAGES as $index => $package) {
             if (str_starts_with($relative, 'vendor/semitexa/' . $package . '/')) {
-                return $index;
+                $packageRank = $index;
+                break;
             }
         }
 
-        return count(self::EXAMPLE_PACKAGES);
+        $inTests  = str_contains($relative, '/tests/') ? 1 : 0;
+        $negative = str_starts_with(basename($relative), 'Invalid') ? 1 : 0;
+        $packages = count(self::EXAMPLE_PACKAGES) + 1;
+
+        return ($negative * $packages + $packageRank) * 2 + $inTests;
     }
 
     /**
