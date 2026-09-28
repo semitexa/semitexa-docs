@@ -476,10 +476,10 @@ Takes no arguments.
 
 ```php
     #[LiveFilterParam]
-    protected ?string $q = null;
+    private ?string $from = null;
 ```
 
-— `vendor/semitexa/core/tests/Unit/Http/PayloadMetadataReflectorTest.php`
+— `vendor/semitexa/platform-ui/src/Application/Payload/Request/CalendarEventsFeedPayload.php`
 
 ## `#[PathParam]`
 
@@ -702,11 +702,11 @@ Applies to: class
 | `scopes` | `string` | no |
 
 ```php
-#[WatchScopes('ui_playground_pings', 'playground_articles')]
-final class WatchScopedFeedPayloadFixture
+#[WatchScopes('os_process')]
+final class ProcessFeedPayload implements SseFeedPayloadInterface, OsSurfacePayloadInterface
 ```
 
-— `vendor/semitexa/api/tests/Unit/Discovery/CollectionContractBlockContributorPhase4Test.php`
+— `vendor/semitexa/os/src/Application/Payload/Request/ProcessFeedPayload.php`
 
 ## `#[WorkerState]`
 

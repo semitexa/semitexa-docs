@@ -215,15 +215,25 @@ final class ReferenceGenerator
             : $candidateRank < $currentRank;
     }
 
+    /**
+     * Lower is better: the package first, then production code before tests,
+     * and a negative fixture (`Invalid*`, written to be refused) last of all —
+     * the page must never offer as the example a declaration built to fail.
+     */
     private function exampleRank(string $relative): int
     {
+        $packageRank = count(self::EXAMPLE_PACKAGES);
         foreach (self::EXAMPLE_PACKAGES as $index => $package) {
             if (str_starts_with($relative, 'vendor/semitexa/' . $package . '/')) {
-                return $index;
+                $packageRank = $index;
+                break;
             }
         }
 
-        return count(self::EXAMPLE_PACKAGES);
+        $inTests = str_contains($relative, '/tests/') ? 1 : 0;
+        $negative = str_starts_with(basename($relative), 'Invalid') ? 2 : 0;
+
+        return $packageRank * 4 + $negative + $inTests;
     }
 
     /**
