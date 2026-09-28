@@ -216,9 +216,10 @@ final class ReferenceGenerator
     }
 
     /**
-     * Lower is better: the package first, then production code before tests,
-     * and a negative fixture (`Invalid*`, written to be refused) last of all —
-     * the page must never offer as the example a declaration built to fail.
+     * Lower is better. A negative fixture (`Invalid*`, written to be refused)
+     * ranks below every valid declaration in any package — the page must
+     * never offer as the example a declaration built to fail. Among the rest:
+     * the preferred package first, then production code before tests.
      */
     private function exampleRank(string $relative): int
     {
@@ -230,10 +231,11 @@ final class ReferenceGenerator
             }
         }
 
-        $inTests = str_contains($relative, '/tests/') ? 1 : 0;
-        $negative = str_starts_with(basename($relative), 'Invalid') ? 2 : 0;
+        $inTests  = str_contains($relative, '/tests/') ? 1 : 0;
+        $negative = str_starts_with(basename($relative), 'Invalid') ? 1 : 0;
+        $packages = count(self::EXAMPLE_PACKAGES) + 1;
 
-        return $packageRank * 4 + $negative + $inTests;
+        return ($negative * $packages + $packageRank) * 2 + $inTests;
     }
 
     /**
