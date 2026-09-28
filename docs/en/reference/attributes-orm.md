@@ -302,10 +302,10 @@ Takes no arguments.
 
 ```php
 #[Replicated]
-final readonly class ReplicatedNoteResourceModel
+final readonly class ReplicatedArticleResourceModel
 ```
 
-— `vendor/semitexa/orm/tests/Fixture/Metadata/ReplicatedNoteResourceModel.php`
+— `vendor/semitexa/ledger/tests/Integration/Fixture/ReplicatedArticleResourceModel.php`
 
 ## `#[ResourceKey]`
 
