@@ -42,11 +42,11 @@ Applies to: class
 | `eventVersion` | `int` | no |
 
 ```php
-#[AsReplayHandler(domain: 'ledgerit', eventType: 'replication_probe_recorded')]
-final class RecordingReplayHandler implements ReplayHandlerInterface
+#[AsReplayHandler(domain: ReplicationCaptureService::EVENT_DOMAIN, eventType: ReplicationCaptureService::EVENT_TYPE)]
+final class RowChangedReplayHandler implements ReplayHandlerInterface
 ```
 
-— `vendor/semitexa/ledger/tests/Integration/Fixture/RecordingReplayHandler.php`
+— `vendor/semitexa/ledger/src/Application/Service/Replication/RowChangedReplayHandler.php`
 
 ## `#[OwnedAggregate]`
 
