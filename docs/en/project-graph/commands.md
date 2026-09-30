@@ -7,7 +7,7 @@ summary: Every ai:review-graph command with its options, output shape and a work
 order: 50
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.09.30.1034
 keywords:
   - ai:review-graph
   - generate
@@ -342,24 +342,38 @@ bin/semitexa ai:review-graph:module Ordering --include-events --include-flows --
 ### diff
 
 ```bash
+bin/semitexa ai:review-graph:diff --base=origin/develop --path=packages/semitexa-orm
+bin/semitexa ai:review-graph:diff --base=origin/develop --format=markdown --fail-on=orphaned-removals
 bin/semitexa ai:review-graph:diff
 ```
 
-Show how the graph changed since the last scan.
+With `--base=<git ref>`: the structural difference between the working tree and that ref, edge by edge. Both graphs are built fresh — the working tree, and a detached worktree of the ref that is removed afterwards — by the same code over the same directory; the project graph is neither read nor changed. An edge is identified by its type, source and target, so a line diff that moves code around without changing what depends on what shows nothing here, and a changed `#[AsPublicPayload]` path shows as the route dropped and the route served now.
+
+Without `--base`: node and edge counts since the previous run, kept in the graph.
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
-| `--format=text\|json` | Output format (default: text) |
-| `--module=NAME` | Limit to specific module |
+| `--base=REF` | Git ref to compare the working tree with (e.g. `origin/develop`, `HEAD~1`) |
+| `--path=DIR` | With `--base`: the directory to compare, inside a git repository (default: the project root). In a workspace of package repositories, the package: `--path=packages/semitexa-orm` |
+| `--format=text\|json\|markdown` | `markdown` is a pull-request comment: wiring changes first (routes, handlers, listeners, injection, contracts), then code references; imports and inferred edges folded into one count line |
+| `--fail-on=orphaned-removals` | Exit non-zero when a removal leaves something pointing at nothing (below), or when the head has files the graph could not parse |
+| `--module=NAME` | Without `--base`: limit the counts to a module |
 
-**Shows:**
-- Node/edge counts (previous → current, delta)
-- Changes by type
-- New/removed modules
+**Orphaned removals.** Removing a route, a handler or a listener is often the point of a change and passes. The gate fails only when the head still relies on what went away:
 
-**When to use:** After a big refactor to see what changed structurally.
+| Kind | Meaning |
+|---|---|
+| `unhandled_payload` | a payload still serves a route but lost its handler |
+| `unsatisfied_contract` | a contract is still injected but lost its only implementation |
+| `unemitted_event` | an event is still listened to but nobody emits it |
+| `unserved_route` | something points at a route nothing serves |
+| `deleted_class_still_referenced` | a declared class is gone while declared classes still reference it (a rename that missed a caller) |
+
+There is no rule about mentioning a change in the pull-request description: the gate checks the code. A file the graph could not parse makes the gate fail rather than pass — it cannot vouch for code it did not read. Edges the graph could not see at all (runtime class names) are not in the diff; the markdown comment says so when there are any (see [coverage](coverage.md)).
+
+**When to use:** In review, to see the structural change a line diff hides; in CI, as a gate on removals.
 
 ---
 
