@@ -269,6 +269,22 @@ bin/semitexa ai:review-graph:event-trace "<event>"
 | `--format` | yes |
 | `--include-code` | no |
 
+## `ai:review-graph:findings`
+
+Unused classes graded by confidence, and class dependency loops
+
+```bash
+bin/semitexa ai:review-graph:findings
+```
+
+| option | takes a value |
+|---|---|
+| `--kind` | yes |
+| `--min-confidence` | yes |
+| `--module` | yes |
+| `--format` | yes |
+| `--no-refresh` | no |
+
 ## `ai:review-graph:flow-trace`
 
 Trace an execution flow end-to-end
