@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Semitexa\Docs\Application\Console\Command;
 
 use Semitexa\Core\Attribute\AsCommand;
+use Semitexa\Core\Attribute\InjectAsReadonly;
 use Semitexa\Core\Console\BaseCommand;
 use Semitexa\Core\Support\ProjectRoot;
 use Semitexa\Docs\Application\Service\DocumentationClaimLinter;
@@ -31,12 +32,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class DocsLintCommand extends BaseCommand
 {
-    public function __construct(
-        private readonly TruthIndexBuilder $truthIndexBuilder,
-        private readonly DocumentationClaimLinter $linter,
-    ) {
-        parent::__construct();
-    }
+    #[InjectAsReadonly]
+    protected TruthIndexBuilder $truthIndexBuilder;
+
+    #[InjectAsReadonly]
+    protected DocumentationClaimLinter $linter;
 
     protected function configure(): void
     {

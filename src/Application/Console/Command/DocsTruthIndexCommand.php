@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Semitexa\Docs\Application\Console\Command;
 
 use Semitexa\Core\Attribute\AsCommand;
+use Semitexa\Core\Attribute\InjectAsReadonly;
 use Semitexa\Core\Console\BaseCommand;
 use Semitexa\Docs\Application\Service\TruthIndexBuilder;
 use Symfony\Component\Console\Input\InputInterface;
@@ -26,11 +27,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class DocsTruthIndexCommand extends BaseCommand
 {
-    public function __construct(
-        private readonly TruthIndexBuilder $builder,
-    ) {
-        parent::__construct();
-    }
+    #[InjectAsReadonly]
+    protected TruthIndexBuilder $builder;
 
     protected function configure(): void
     {

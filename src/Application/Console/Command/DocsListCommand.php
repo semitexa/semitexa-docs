@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Semitexa\Docs\Application\Console\Command;
 
 use Semitexa\Core\Attribute\AsCommand;
+use Semitexa\Core\Attribute\InjectAsReadonly;
 use Semitexa\Core\Console\BaseCommand;
 use Semitexa\Docs\Application\Service\DocumentManifestBuilder;
 use Symfony\Component\Console\Input\InputInterface;
@@ -15,11 +16,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 #[AsCommand(name: 'docs:list', description: 'List canonical Semitexa documents by section')]
 final class DocsListCommand extends BaseCommand
 {
-    public function __construct(
-        private readonly DocumentManifestBuilder $manifestBuilder,
-    ) {
-        parent::__construct();
-    }
+    #[InjectAsReadonly]
+    protected DocumentManifestBuilder $manifestBuilder;
 
     protected function configure(): void
     {

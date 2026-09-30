@@ -66,7 +66,8 @@ final class DocsListAndShowSectionCommandTest extends TestCase
 
     private function createListTester(): CommandTester
     {
-        $command = new DocsListCommand($this->createManifestBuilder());
+        $command = new DocsListCommand();
+        (new \ReflectionProperty(DocsListCommand::class, 'manifestBuilder'))->setValue($command, $this->createManifestBuilder());
         $command->setName('docs:list');
 
         $application = new Application('Test', '1.0');
@@ -78,7 +79,8 @@ final class DocsListAndShowSectionCommandTest extends TestCase
 
     private function createShowSectionTester(): CommandTester
     {
-        $command = new DocsShowSectionCommand($this->createManifestBuilder());
+        $command = new DocsShowSectionCommand();
+        (new \ReflectionProperty(DocsShowSectionCommand::class, 'manifestBuilder'))->setValue($command, $this->createManifestBuilder());
         $command->setName('docs:show-section');
 
         $application = new Application('Test', '1.0');

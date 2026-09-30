@@ -66,10 +66,9 @@ final class DocsGetCommandTest extends TestCase
 
     private function createTester(): CommandTester
     {
-        $command = new DocsGetCommand(
-            repository: $this->createRepository(),
-            renderer: new DocumentHtmlRenderer(),
-        );
+        $command = new DocsGetCommand();
+        (new \ReflectionProperty(DocsGetCommand::class, 'repository'))->setValue($command, $this->createRepository());
+        (new \ReflectionProperty(DocsGetCommand::class, 'renderer'))->setValue($command, new DocumentHtmlRenderer());
         $command->setName('docs:get');
 
         $application = new Application('Test', '1.0');
