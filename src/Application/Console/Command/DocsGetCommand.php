@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Semitexa\Docs\Application\Console\Command;
 
 use Semitexa\Core\Attribute\AsCommand;
+use Semitexa\Core\Attribute\InjectAsReadonly;
 use Semitexa\Core\Console\BaseCommand;
 use Semitexa\Docs\Domain\Model\DocumentId;
 use Semitexa\Docs\Application\Service\DocumentHtmlRenderer;
@@ -18,12 +19,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 #[AsCommand(name: 'docs:get', description: 'Get a canonical Semitexa document as Markdown or HTML')]
 final class DocsGetCommand extends BaseCommand
 {
-    public function __construct(
-        private readonly FileDocumentRepository $repository,
-        private readonly DocumentHtmlRenderer $renderer,
-    ) {
-        parent::__construct();
-    }
+    #[InjectAsReadonly]
+    protected FileDocumentRepository $repository;
+
+    #[InjectAsReadonly]
+    protected DocumentHtmlRenderer $renderer;
 
     protected function configure(): void
     {
