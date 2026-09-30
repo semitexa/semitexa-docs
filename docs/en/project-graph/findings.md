@@ -29,7 +29,7 @@ Answered from the project graph in well under a second. Every finding has a stab
 
 ## Unused classes
 
-A class counts as **used** when a declared class outside `tests/` depends on it — a code reference (extends, implements, `new`, a type, a static call, a constant, `instanceof`, `catch`, an attribute) or wiring (injection, `handles`, `listens_to`, ...). What is left is graded:
+A class counts as **used** when a declared class (or a configuration file) outside `tests/` depends on it — a code reference (extends, implements, `new`, a type, a static call, a constant, `instanceof`, `catch`, an attribute) or wiring (injection, `handles`, `listens_to`, ...). What is left is graded:
 
 | Confidence | Meaning |
 |---|---|
@@ -39,7 +39,9 @@ A class counts as **used** when a declared class outside `tests/` depends on it 
 
 Test code is never a candidate; `#[GraphIgnore]` classes are skipped. The evidence line says which rule applied.
 
-**Read before deleting.** A `high` finding is a class this workspace does not use. A package may still offer it to its consumers — a test double documented in the README, say — and that is a decision for a person, not for the report. Classes referenced only from configuration files (a PHPStan rule registered in `phpstan.neon`) are not seen yet and show up as "used only by tests" or `high`.
+A class named in a configuration file — `*.neon`, `*.yaml`, `composer.json`, `phpunit.xml` — counts as used too: a PHPStan rule registered in `phpstan.neon` is not a finding. Only exact fully-qualified names are read.
+
+**Read before deleting.** A `high` finding is a class this workspace does not use. A package may still offer it to its consumers — a test double documented in the README, say — and that is a decision for a person, not for the report.
 
 ## Dependency loops
 
