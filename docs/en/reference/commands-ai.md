@@ -254,6 +254,7 @@ bin/semitexa ai:review-graph:diff
 | `--module` | yes |
 | `--base` | yes |
 | `--path` | yes |
+| `--fail-on` | yes |
 
 ## `ai:review-graph:event-trace`
 
