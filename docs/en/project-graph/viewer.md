@@ -24,7 +24,7 @@ The project graph can be read without a query: the Observatory has a Graph view,
 
 ## In the Observatory
 
-Open `/__observatory` and switch the header from **live** to **graph** (or press `G`). The view is available in dev mode only: it maps the application's internals, so monitor mode gets no switch, no viewer assets and no data.
+Open `/__observatory` and switch the header from **live** to **graph** (or press `g`). The view is available in dev mode only: it maps the application's internals, so monitor mode gets no switch, no viewer assets and no data.
 
 | Part | What it shows |
 |---|---|

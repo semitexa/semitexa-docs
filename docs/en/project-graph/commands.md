@@ -14,6 +14,7 @@ keywords:
   - query
   - impact
   - watch
+  - findings
 ---
 
 # Project Graph Command Reference
@@ -80,25 +81,30 @@ Graph Statistics:
 ### show
 
 ```bash
-bin/semitexa ai:review-graph:show <node-id>
+bin/semitexa ai:review-graph:show
+bin/semitexa ai:review-graph:show 'App\Ordering\CheckoutHandler' --depth=2 --format=markdown
+bin/semitexa ai:review-graph:show --module=Ordering --format=html --output=var/tmp/ordering.html
 ```
 
-Show details for a specific node — type, metadata, incoming/outgoing edges.
+Render the graph, or a slice of it, as text or as a self-contained HTML viewer.
 
 **Arguments:**
 
 | Argument | Description |
 |----------|-------------|
-| `node-id` | Node ID (e.g. `class:App\Ordering\CheckoutHandler`) or FQCN |
+| `focus` | Optional. The node to centre the slice on: an FQCN, a file path or a module name |
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
-| `--depth=N` | How many edge levels to show (default: 1) |
-| `--json` | Output as JSON |
+| `--format=summary\|json\|dot\|markdown\|html` | Output format (default: `summary`). An unknown format is an error |
+| `--output=FILE` | File to write; required for `html`, which writes the [graph viewer](viewer.md) with the slice embedded |
+| `--module=NAME` | Only nodes of this module |
+| `--type=T1,T2` | Only nodes of these types |
+| `--depth=N` | Steps from the focus node (default: 3) |
 
-**When to use:** Inspect a specific component's connections and metadata.
+**When to use:** Look at a slice of the graph, or hand one to a reviewer as a file that opens without a running stack.
 
 ---
 
@@ -357,8 +363,8 @@ Without `--base`: node and edge counts since the previous run, kept in the graph
 |--------|-------------|
 | `--base=REF` | Git ref to compare the working tree with (e.g. `origin/develop`, `HEAD~1`) |
 | `--path=DIR` | With `--base`: the directory to compare, inside a git repository (default: the project root). In a workspace of package repositories, the package: `--path=packages/semitexa-orm` |
-| `--format=text\|json\|markdown` | `markdown` is a pull-request comment: wiring changes first (routes, handlers, listeners, injection, contracts), then code references; imports and inferred edges folded into one count line |
-| `--fail-on=orphaned-removals` | Exit non-zero when a removal leaves something pointing at nothing (below), or when the head has files the graph could not parse |
+| `--format=text\|json\|markdown` | With `--base`: `markdown` is a pull-request comment (without `--base` it falls back to text): wiring changes first (routes, handlers, listeners, injection, contracts), then code references; imports and inferred edges folded into one count line |
+| `--fail-on=orphaned-removals` | With `--base` (ignored without it): exit non-zero when a removal leaves something pointing at nothing (below), or when the head has files the graph could not parse |
 | `--module=NAME` | Without `--base`: limit the counts to a module |
 
 **Orphaned removals.** Removing a route, a handler or a listener is often the point of a change and passes. The gate fails only when the head still relies on what went away:
@@ -374,6 +380,16 @@ Without `--base`: node and edge counts since the previous run, kept in the graph
 There is no rule about mentioning a change in the pull-request description: the gate checks the code. A file the graph could not parse makes the gate fail rather than pass — it cannot vouch for code it did not read. Edges the graph could not see at all (runtime class names) are not in the diff; the markdown comment says so when there are any (see [coverage](coverage.md)).
 
 **When to use:** In review, to see the structural change a line diff hides; in CI, as a gate on removals.
+
+---
+
+### findings
+
+```bash
+bin/semitexa ai:review-graph:findings --min-confidence=high
+```
+
+Unused classes graded by confidence, and class dependency loops, each with the reason. Options and grading rules: [Unused Classes and Dependency Loops](findings.md).
 
 ---
 
