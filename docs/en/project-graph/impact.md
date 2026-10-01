@@ -17,6 +17,7 @@ demo_preview: get-started-playbook
 related_documents:
   - project-graph/overview
   - project-graph/inspection
+  - project-graph/coverage
 ---
 # Impact, Context, and Watch Mode
 
@@ -36,6 +37,10 @@ bin/semitexa ai:review-graph:impact Semitexa\\Demo\\Application\\Service\\DemoCa
 bin/semitexa ai:review-graph:impact Semitexa\\Demo\\Application\\Service\\DemoCatalogService --context --prompt=review
 bin/semitexa ai:review-graph:watch --full-on-start
 ```
+
+## When the answer is "nothing"
+
+Zero impact is only proof when the graph read everything that could hide a dependent. The text output says "not proof" and names the gaps when it did not, and `--json` carries `coverage.absence_is_proof`. See [What the Graph Could Not See](coverage.md).
 
 ## Why this matters
 
