@@ -179,6 +179,8 @@ The three views serve different questions:
 
 A request made with `?__trace=1` records a full waterfall. The same trace is available to humans at `/__trace` and to agents through `ai:observe show`.
 
+The Observatory also shows the code's structure: its **graph** mode browses the project graph, and links a class to the recent traces that ran it. See [Browsing the Graph](../project-graph/viewer.md).
+
 When a recorded request needs controlled reproduction, replay it in the development sandbox:
 
 ```bash
