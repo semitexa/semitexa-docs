@@ -9,6 +9,7 @@ use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
 use League\CommonMark\MarkdownConverter;
 use Semitexa\Core\Attribute\AsService;
+use Semitexa\Docs\Domain\Model\DocumentId;
 use Semitexa\Docs\Domain\Model\RenderedDocument;
 use Semitexa\Docs\Domain\Model\ResolvedDocument;
 
@@ -20,9 +21,16 @@ final class DocumentHtmlRenderer
         return new RenderedDocument($document, 'markdown', $document->markdown);
     }
 
-    public function renderHtml(ResolvedDocument $document): RenderedDocument
+    /**
+     * @param string $docsBaseUrl where `<section>/<slug>` pages are served. A
+     *        page on another host than the docs (the framework demo) passes an
+     *        absolute URL; a relative `x.md` link left as written resolves
+     *        against the page's own URL and 404s.
+     */
+    public function renderHtml(ResolvedDocument $document, string $docsBaseUrl = '/docs/'): RenderedDocument
     {
         $html = (string) $this->converter()->convert($document->markdown);
+        $html = $this->rewriteDocumentLinks($html, $document->id, $docsBaseUrl);
         $html = $this->renderCommands($html);
         $html = $this->renderDiagrams($html);
         // Show provenance only when it is a real release. An empty value, or
@@ -45,6 +53,48 @@ final class DocumentHtmlRenderer
                 htmlspecialchars($document->metadata->locale, ENT_QUOTES),
                 $verification . trim($html),
             ),
+        );
+    }
+
+    /**
+     * Authors link pages the way the files sit on disk — `mutable.md`,
+     * `../auth/protected.md#roles` — which is right on GitHub and wrong on a
+     * rendered page: the browser resolves it against the page URL, giving
+     * /docs/di/mutable.md or /demo/di/services.md. Search Console listed 17
+     * such 404s on 2026-09-29. Each one becomes the URL of the page it names.
+     *
+     * A link that does not resolve to exactly `<section>/<slug>` is left as
+     * written; guessing would turn a visible broken link into a wrong one.
+     */
+    private function rewriteDocumentLinks(string $html, DocumentId $id, string $docsBaseUrl): string
+    {
+        $base = rtrim($docsBaseUrl, '/') . '/';
+
+        return (string) preg_replace_callback(
+            '/<a href="(?![a-z][a-z0-9+.\-]*:|\/|#)([^"#?]+)\.md(#[^"]*)?"/i',
+            function (array $match) use ($id, $base): string {
+                $segments = [$id->section];
+                foreach (explode('/', $match[1]) as $segment) {
+                    if ($segment === '' || $segment === '.') {
+                        continue;
+                    }
+                    if ($segment === '..') {
+                        if ($segments === []) {
+                            return $match[0];
+                        }
+                        array_pop($segments);
+                        continue;
+                    }
+                    $segments[] = $segment;
+                }
+
+                if (count($segments) !== 2) {
+                    return $match[0];
+                }
+
+                return '<a href="' . $base . implode('/', $segments) . ($match[2] ?? '') . '"';
+            },
+            $html,
         );
     }
 
