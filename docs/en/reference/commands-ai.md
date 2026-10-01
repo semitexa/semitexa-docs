@@ -395,6 +395,7 @@ bin/semitexa ai:review-graph:show ["focus"]
 | option | takes a value |
 |---|---|
 | `--format` | yes |
+| `--output` | yes |
 | `--module` | yes |
 | `--type` | yes |
 | `--depth` | yes |
