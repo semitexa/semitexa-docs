@@ -139,4 +139,5 @@ bin/semitexa lint:var-artifacts
 | option | takes a value |
 |---|---|
 | `--json` | no |
+| `--path` | yes |
 
