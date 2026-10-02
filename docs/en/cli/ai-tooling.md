@@ -200,6 +200,22 @@ bin/semitexa ai:invoke \
 
 The response states which pipeline layers were omitted. Treat it as a handler probe, then use an HTTP or browser check when the complete request pipeline matters.
 
+## Keep review evidence private
+
+A screenshot, a recording, a request trace or a graph export made to prove a change shows whatever was on screen or in the database. Keep it in the evidence store, not in a pull request:
+
+```bash
+bin/semitexa ai:evidence add var/tmp/cart.png --kind=screenshot --data=synthetic --note="cart after the fix"
+bin/semitexa ai:evidence list
+bin/semitexa ai:evidence prune --dry-run --tmp
+```
+
+Each item lives in `var/evidence/<id>/` with a passport — what it is, whether it was made from synthetic or real data, who recorded it, when it expires (14 days by default). `var/evidence/` is in the project's `.gitignore`, and `lint:var-artifacts` fails `ai:verify` when anything else under `var/` is about to be committed.
+
+Publishing is the operator's step, in their own terminal: `ai:evidence publish <id> --to="PR acme/shop#7"` checks the item — a picture of real data never goes, text is scanned for tokens and workstation paths — then asks for the id to be typed. It refuses without a terminal, so an agent cannot approve its own upload by accident. The same check guards `review-prep`'s PR description and `pr-reply.sh`.
+
+The Observatory's **evidence** mode (`V`) lists the store: search, filters by kind, data, visibility and day, sortable columns, pages, and a passport with a preview for each item. It is dev-only, and files are served sandboxed.
+
 ## Keep long work recoverable
 
 Semitexa stores long-lived work in three layers:
