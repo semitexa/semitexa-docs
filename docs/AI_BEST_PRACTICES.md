@@ -2672,7 +2672,7 @@ generator is not part of the framework today (would be a follow-up epic)."
 
 `bin/semitexa ai:verify` is the AI-facing entry point that runs the precise
 lint + test + structure + DI subset for a diff/file list and emits an NDJSON
-report. Three guards are active beyond syntax + scoped lints.
+report. Four guards are active beyond syntax + scoped lints.
 
 ### 23.1 Module-structure guard
 
@@ -2754,3 +2754,40 @@ no expansion is emitted (rather than a guessed expansion).
 If the impact graph hasn't been refreshed recently, the `suggested_fix`
 field on every `semitexa.brokenFqcn` violation reminds you to run
 `bin/semitexa ai:review-graph:generate` before relying on Layer 1.
+
+### 23.4 Test-integrity guard (`lint:test-integrity`)
+
+A suite can be made green by deleting or loosening the test instead of
+fixing the code, and "all tests pass" is then true and worthless. Whenever a
+changed path is a `*Test.php`, ai:verify compares each changed test file with
+its committed version (`HEAD` of the repository that owns it) and fails when
+the file now checks less:
+
+| Code | Meaning |
+|---|---|
+| `test_file_removed` | the test file is gone, with its assertions |
+| `test_removed` | a test method with assertions is gone (a rename that keeps the same checks is not) |
+| `assertions_removed` | a method, or the file as a whole, has fewer assertions |
+| `assertion_weakened` | a value check (`assertSame`, `assertCount`, `expectException`, …) became a shape check (`assertNotNull`, `assertIsString`, `assertTrue`, …) |
+| `skip_added` | `markTestSkipped()` / `markTestIncomplete()` added |
+
+The file is the unit: checks moved between methods, or several loose checks
+folded into one exact assertion, do not fire. Every finding is sometimes the
+right change — a test for deleted code goes with it — so the guard does not
+forbid it; it asks the change to say so. An **added** line carrying
+
+```php
+// verify:accept-test-change <reason of at least 20 characters>
+```
+
+in the same test file (for a deleted file, in any file of the change) turns
+the findings into accepted ones, and the reason sits in the diff where a
+reviewer reads it. A marker that was already committed accepts nothing new.
+Run `bin/semitexa lint:test-integrity` on its own to check every uncommitted
+change.
+
+Considered and not shipped: flagging a new assertion whose expected literal
+the same change wrote into production code. Measured over two months of this
+workspace it fired in 77 of 856 commits, nearly always on a value a
+specification defines (a header name, a status code, a rule identifier) that
+code and test rightly share.
