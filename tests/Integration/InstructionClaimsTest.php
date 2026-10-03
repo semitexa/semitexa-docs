@@ -81,6 +81,17 @@ final class InstructionClaimsTest extends TestCase
     }
 
     #[Test]
+    public function an_indented_fence_is_not_a_fence_and_a_titled_link_is_still_a_link(): void
+    {
+        // Review of docs#87: four spaces before ~~~ is an indented code line,
+        // and a link title hid the destination from the matcher.
+        self::assertSame(
+            ['ai:vanished', 'docs/Gone.md'],
+            array_column($this->lint('AGENTS.md', "    ~~~\nRun `ai:vanished`.\nSee [guide](docs/Gone.md \"Guide\").\n"), 'claim'),
+        );
+    }
+
+    #[Test]
     public function a_link_is_not_rescued_by_a_file_of_that_name_at_the_root(): void
     {
         // Review of docs#87: the root was tried first, so a skill linking

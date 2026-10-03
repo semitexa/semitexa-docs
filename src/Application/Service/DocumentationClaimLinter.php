@@ -375,7 +375,8 @@ final class DocumentationClaimLinter
         $fence = null;
         $pendingIgnore = false;
         foreach ($lines as $offset => $line) {
-            if (preg_match('/^\s*(`{3,}|~{3,})/', $line, $marker) === 1) {
+            // Up to three spaces: four make an indented code line, not a fence.
+            if (preg_match('/^ {0,3}(`{3,}|~{3,})/', $line, $marker) === 1) {
                 if ($fence === null) {
                     $fence = $marker[1];
                     continue;
@@ -399,7 +400,8 @@ final class DocumentationClaimLinter
                 $claims[] = ['kind' => 'path', 'value' => $value, 'line' => $number, 'from' => 'root'];
             }
             // A link is read by whoever follows it from the file it is in.
-            foreach ($this->matches('/\]\((?![a-z]+:|#|\/)([^)\s#]+)(?:#[^)]*)?\)/', $line) as $value) {
+            // A destination may carry a title: [guide](docs/x.md "Guide").
+            foreach ($this->matches('/\]\(\s*(?![a-z]+:|#|\/)([^)\s#]+)(?:#[^)\s]*)?(?:\s+(?:"[^"]*"|\'[^\']*\'|\([^)]*\)))?\s*\)/', $line) as $value) {
                 $claims[] = ['kind' => 'path', 'value' => $value, 'line' => $number, 'from' => 'file'];
             }
         }
