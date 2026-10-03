@@ -2700,6 +2700,14 @@ Rules live in `packages/semitexa-core/src/PHPStan/Rules/`. The same set runs
 under the project's level=max `phpstan.neon` for `composer phpstan` over a
 narrower path set.
 
+Every violation also carries a `rationale`: why the rule exists, written in
+the rule itself (its `RATIONALE` constant, attached as the PHPStan tip, so
+`composer phpstan` prints it too). It reads either `Why: … Learned <date>: …`,
+the incident that taught it, or `Why: … no incident on record`, when the rule
+is policy rather than a scar. The `phpstan_di` signal line ends with the first
+violation's rationale. Read it before arguing with the rule: the approach you
+are about to try may be the one that was already tried.
+
 ### 23.3 Broken-FQCN guard (Layer 1 of `ep-ai-verify-broken-fqcn-guard`)
 
 PHPStan's native level-0 checks (`class.notFound`, `interface.notFound`,
