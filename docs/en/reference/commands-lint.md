@@ -128,6 +128,19 @@ bin/semitexa lint:templates
 | `--strict` | no |
 | `--json` | no |
 
+## `lint:test-integrity`
+
+Fail when a change removes or weakens test checks without saying why
+
+```bash
+bin/semitexa lint:test-integrity
+```
+
+| option | takes a value |
+|---|---|
+| `--json` | no |
+| `--path` | yes |
+
 ## `lint:var-artifacts`
 
 Fail when git would commit runtime output (screenshots, traces, exports) from a var/ directory

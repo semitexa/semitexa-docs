@@ -28,6 +28,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class DocsReferenceGenerateCommand extends BaseCommand
 {
+    /** Why this check exists, and what taught us; ai:verify prints it when the gate fails. */
+    public const RATIONALE = 'Why: the reference section is generated from the framework\'s own surface, so a signature that changed without the page being rebuilt teaches the old one. Learned 2026-09-24: a page that differed only in its release stamp turned ai:verify red, so the stamp is no longer compared.';
+
     #[InjectAsReadonly]
     protected TruthIndexBuilder $truthIndexBuilder;
 

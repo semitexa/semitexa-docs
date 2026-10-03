@@ -32,6 +32,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class DocsLintCommand extends BaseCommand
 {
+    /** Why this check exists, and what taught us; ai:verify prints it when the gate fails. */
+    public const RATIONALE = 'Why: a rename is invisible to prose: the code moves on and the page keeps teaching the old name until a reader copies it. Learned 2026-08-11: the corpus already held broken claims when the gate arrived, so a project can record a baseline (var/docs/docs-lint-baseline.json, which ai:verify passes when it exists) and then fail only on claims missing from it; without one, every finding fails.';
+
     #[InjectAsReadonly]
     protected TruthIndexBuilder $truthIndexBuilder;
 
@@ -45,7 +48,8 @@ final class DocsLintCommand extends BaseCommand
             ->addOption('index', null, InputOption::VALUE_REQUIRED, 'Compare against a stored truth index instead of the live one')
             ->addOption('baseline', null, InputOption::VALUE_REQUIRED, 'Ignore findings listed in this baseline file')
             ->addOption('write-baseline', null, InputOption::VALUE_REQUIRED, 'Record current findings as the baseline and succeed')
-            ->addOption('json', null, InputOption::VALUE_NONE, 'Output findings as JSON');
+            ->addOption('json', null, InputOption::VALUE_NONE, 'Output findings as JSON')
+            ->addOption('instructions', null, InputOption::VALUE_NONE, 'Lint the instructions to an agent instead (root *.md and .claude/skills), and also check the bare commands and file paths they name');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -57,14 +61,15 @@ final class DocsLintCommand extends BaseCommand
             return self::FAILURE;
         }
 
-        $roots = $this->resolveRoots($input);
+        $instructions = (bool) $input->getOption('instructions');
+        $roots = $instructions && $this->explicitRoots($input) === [] ? $this->instructionFiles() : $this->resolveRoots($input);
         if ($roots === []) {
             $io->error('No documentation roots to scan.');
 
             return self::FAILURE;
         }
 
-        $report = $this->linter->lint($index, $roots);
+        $report = $this->linter->lint($index, $roots, $instructions ? ProjectRoot::get() : null);
         $projectRoot = ProjectRoot::get();
 
         /** @var list<array<string, mixed>> $findings */
@@ -134,9 +139,7 @@ final class DocsLintCommand extends BaseCommand
      */
     private function resolveRoots(InputInterface $input): array
     {
-        /** @var list<string> $paths */
-        $paths = (array) $input->getOption('path');
-        $paths = array_values(array_filter($paths, static fn (string $p): bool => $p !== ''));
+        $paths = $this->explicitRoots($input);
 
         if ($paths !== []) {
             return $paths;
@@ -147,6 +150,44 @@ final class DocsLintCommand extends BaseCommand
         $default = dirname(__DIR__, 4) . '/docs';
 
         return is_dir($default) ? [$default] : [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function explicitRoots(InputInterface $input): array
+    {
+        /** @var list<string> $paths */
+        $paths = (array) $input->getOption('path');
+
+        return array_values(array_filter($paths, static fn (string $p): bool => $p !== ''));
+    }
+
+    /**
+     * What an agent is told to read: every markdown file at the project root
+     * (AGENTS.md, CLAUDE.md, AI_NOTES.md, ...) and every skill. No list of names
+     * to keep in step with the scaffold; the rule is the same in this workspace
+     * and in a consumer project.
+     *
+     * @return list<string>
+     */
+    private function instructionFiles(): array
+    {
+        $root = rtrim(ProjectRoot::get(), '/');
+        $files = glob($root . '/*.md') ?: [];
+        if (is_dir($root . '/.claude/skills')) {
+            $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root . '/.claude/skills', \FilesystemIterator::SKIP_DOTS));
+            foreach ($iterator as $file) {
+                $path = $file instanceof \SplFileInfo ? $file->getPathname() : '';
+                // A hidden directory holds a disabled or backed-up skill nothing loads.
+                if (str_ends_with($path, '.md') && !str_contains(substr($path, strlen($root . '/.claude/skills')), '/.')) {
+                    $files[] = $path;
+                }
+            }
+        }
+        sort($files);
+
+        return $files;
     }
 
     /**
@@ -228,7 +269,7 @@ final class DocsLintCommand extends BaseCommand
         if ($findings === []) {
             $io->success($baselined
                 ? 'No new claims beyond the baseline.'
-                : 'Every documented attribute, command and env key exists.');
+                : sprintf('Every documented %s exists.', implode(', ', (array) ($report['kinds_checked'] ?? ['claim']))));
 
             return self::SUCCESS;
         }

@@ -2672,7 +2672,7 @@ generator is not part of the framework today (would be a follow-up epic)."
 
 `bin/semitexa ai:verify` is the AI-facing entry point that runs the precise
 lint + test + structure + DI subset for a diff/file list and emits an NDJSON
-report. Three guards are active beyond syntax + scoped lints.
+report. Five guards are active beyond syntax + scoped lints.
 
 ### 23.1 Module-structure guard
 
@@ -2699,6 +2699,25 @@ flow through to NDJSON verbatim:
 Rules live in `packages/semitexa-core/src/PHPStan/Rules/`. The same set runs
 under the project's level=max `phpstan.neon` for `composer phpstan` over a
 narrower path set.
+
+Every violation also carries a `rationale`: why the rule exists, written in
+the rule itself (its `RATIONALE` constant, attached as the PHPStan tip, so
+`composer phpstan` prints it too). It reads either `Why: … Learned <date>: …`,
+the incident that taught it, or `Why: … no incident on record`, when the rule
+is policy rather than a scar. The `phpstan_di` signal line ends with the first
+violation's rationale. Read it before arguing with the rule: the approach you
+are about to try may be the one that was already tried.
+
+The same contract covers every other gate ai:verify runs:
+
+| Gate | Where the rationale lives | What a failure carries |
+|---|---|---|
+| `module_structure` | `ModuleStructureViolation::RATIONALES`, one per code | `rationale` on each violation; ends the signal |
+| `live_tenancy` | `LiveTenancyViolation::RATIONALES`, one per code | `rationale` on each violation; ends the signal |
+| `lint:*`, `docs:*` | `RATIONALE` constant on the command class | one violation named after the command, with `rationale`; ends the signal |
+| ratchet tests (`tests/Unit/Structure`) | `RATIONALE` constant on the test class, read from source | ends the failure headline |
+
+Each is pinned by a test that fails a gate added without one.
 
 ### 23.3 Broken-FQCN guard (Layer 1 of `ep-ai-verify-broken-fqcn-guard`)
 
@@ -2735,3 +2754,65 @@ no expansion is emitted (rather than a guessed expansion).
 If the impact graph hasn't been refreshed recently, the `suggested_fix`
 field on every `semitexa.brokenFqcn` violation reminds you to run
 `bin/semitexa ai:review-graph:generate` before relying on Layer 1.
+
+### 23.4 Test-integrity guard (`lint:test-integrity`)
+
+A suite can be made green by deleting or loosening the test instead of
+fixing the code, and "all tests pass" is then true and worthless. Whenever a
+changed path is a `*Test.php`, ai:verify compares each changed test file with
+its committed version (`HEAD` of the repository that owns it) and fails when
+the file now checks less:
+
+| Code | Meaning |
+|---|---|
+| `test_file_removed` | the test file is gone, with its assertions |
+| `test_removed` | a test method with assertions is gone (a rename that keeps the same checks is not) |
+| `assertions_removed` | a method, or the file as a whole, has fewer assertions |
+| `assertion_weakened` | a value check (`assertSame`, `assertCount`, `expectException`, …) became a shape check (`assertNotNull`, `assertIsString`, `assertTrue`, …) |
+| `skip_added` | `markTestSkipped()` / `markTestIncomplete()` added |
+
+The file is the unit: checks moved between methods, or several loose checks
+folded into one exact assertion, do not fire. Every finding is sometimes the
+right change — a test for deleted code goes with it — so the guard does not
+forbid it; it asks the change to say so. An **added** line carrying
+
+```php
+// verify:accept-test-change <reason of at least 20 characters>
+```
+
+in the same test file (for a deleted file, in any file of the change) turns
+the findings into accepted ones, and the reason sits in the diff where a
+reviewer reads it. A marker that was already committed accepts nothing new.
+Run `bin/semitexa lint:test-integrity` on its own to check every uncommitted
+change.
+
+Considered and not shipped: flagging a new assertion whose expected literal
+the same change wrote into production code. Measured over two months of this
+workspace it fired in 77 of 856 commits, nearly always on a value a
+specification defines (a header name, a status code, a rule identifier) that
+code and test rightly share.
+
+### 23.5 Instruction-claims guard (`docs:lint --instructions`)
+
+An agent acts on what its instructions name: a command in AGENTS.md gets run,
+a file a skill links gets opened. Those names go stale from either side: the
+instruction is edited, or the file it names is deleted or renamed. So
+ai:verify (standard scope and above) runs `docs:lint --instructions` whenever
+a root `*.md`, a skill, or any deleted or renamed file is in the change.
+
+It reads every markdown file at the project root (`AGENTS.md`, `CLAUDE.md`,
+`AI_NOTES.md`, …) and every skill under `.claude/skills/` (hidden directories
+are disabled skills and are skipped), with the usual attribute, command and
+env checks plus two more:
+
+- a command in backticks without the `semitexa` prefix (`ai:orient`), in a
+  namespace commands actually use; a family such as `ai:review-graph:*` is not
+  a name;
+- a file path, in backticks from the project root (`packages/…`, `src/…`) or
+  as a relative markdown link. Placeholders (`{Name}`, `<id>`, `*`, `...`) are
+  shapes, not files. A workspace path `packages/semitexa-x/…` also counts as
+  present when a consumer has it at `vendor/semitexa/x/…`.
+
+Project structure itself is not written into any of these files: it is served
+live by `ai:ask project|module|route` and `ai:review-graph:query`, so there is
+no second copy to drift.
