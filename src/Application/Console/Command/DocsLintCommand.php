@@ -32,6 +32,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class DocsLintCommand extends BaseCommand
 {
+    /** Why this check exists, and what taught us; ai:verify prints it when the gate fails. */
+    public const RATIONALE = 'Why: a rename is invisible to prose: the code moves on and the page keeps teaching the old name until a reader copies it. Learned 2026-08-11: the corpus already held broken claims when the gate arrived, so it fails only on claims missing from the recorded baseline.';
+
     #[InjectAsReadonly]
     protected TruthIndexBuilder $truthIndexBuilder;
 

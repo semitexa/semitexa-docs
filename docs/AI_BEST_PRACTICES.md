@@ -2708,6 +2708,17 @@ is policy rather than a scar. The `phpstan_di` signal line ends with the first
 violation's rationale. Read it before arguing with the rule: the approach you
 are about to try may be the one that was already tried.
 
+The same contract covers every other gate ai:verify runs:
+
+| Gate | Where the rationale lives | What a failure carries |
+|---|---|---|
+| `module_structure` | `ModuleStructureViolation::RATIONALES`, one per code | `rationale` on each violation; ends the signal |
+| `live_tenancy` | `LiveTenancyViolation::RATIONALES`, one per code | `rationale` on each violation; ends the signal |
+| `lint:*`, `docs:*` | `RATIONALE` constant on the command class | one violation named after the command, with `rationale`; ends the signal |
+| ratchet tests (`tests/Unit/Structure`) | `RATIONALE` constant on the test class, read from source | ends the failure headline |
+
+Each is pinned by a test that fails a gate added without one.
+
 ### 23.3 Broken-FQCN guard (Layer 1 of `ep-ai-verify-broken-fqcn-guard`)
 
 PHPStan's native level-0 checks (`class.notFound`, `interface.notFound`,
