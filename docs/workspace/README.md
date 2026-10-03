@@ -36,6 +36,7 @@ Framework-level, cross-cutting material that does not belong to any one package 
 
 ### Workflow and tooling
 
+- [GIT_FLOW.md](GIT_FLOW.md) — how work moves through the framework's repositories: `develop` only, no feature branches, `develop` → `master` pull requests.
 - [PHPSTAN.md](PHPSTAN.md) — PHPStan baseline discipline, strict mode, helper scripts.
 - [TESTING.md](TESTING.md) — testing entry guide; see also `packages/semitexa-testing/` for the full toolkit.
 - [EVENTS_TESTING.md](EVENTS_TESTING.md) — testing event-driven (async) handling with NATS.
