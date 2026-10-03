@@ -33,7 +33,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class DocsLintCommand extends BaseCommand
 {
     /** Why this check exists, and what taught us; ai:verify prints it when the gate fails. */
-    public const RATIONALE = 'Why: a rename is invisible to prose: the code moves on and the page keeps teaching the old name until a reader copies it. Learned 2026-08-11: the corpus already held broken claims when the gate arrived, so it fails only on claims missing from the recorded baseline.';
+    public const RATIONALE = 'Why: a rename is invisible to prose: the code moves on and the page keeps teaching the old name until a reader copies it. Learned 2026-08-11: the corpus already held broken claims when the gate arrived, so a project can record a baseline (var/docs/docs-lint-baseline.json, which ai:verify passes when it exists) and then fail only on claims missing from it; without one, every finding fails.';
 
     #[InjectAsReadonly]
     protected TruthIndexBuilder $truthIndexBuilder;

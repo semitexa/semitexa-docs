@@ -103,7 +103,7 @@ final class DocumentationClaimLinter
             if ($instructionsRoot !== null) {
                 foreach ($this->instructionClaims($lines) as $claim) {
                     if ($claim['kind'] === 'path') {
-                        if (!$this->pathExists($claim['value'], $path, $instructionsRoot)) {
+                        if (!$this->pathExists($claim['value'], ($claim['from'] ?? 'root') === 'file' ? dirname($path) : $instructionsRoot, $instructionsRoot)) {
                             $findings[] = ['file' => $path, 'line' => $claim['line'], 'kind' => 'path', 'claim' => $claim['value'], 'suggestion' => null];
                         }
                         continue;
@@ -365,20 +365,28 @@ final class DocumentationClaimLinter
      *
      * @param list<string> $lines
      *
-     * @return list<array{kind: string, value: string, line: int}>
+     * @return list<array{kind: string, value: string, line: int, from?: string}>
      */
     private function instructionClaims(array $lines): array
     {
         $claims = [];
-        $inFence = false;
+        // The opening fence, `` ``` `` or `~~~` of some length: only the same
+        // character, at least as long, closes it (CommonMark).
+        $fence = null;
         $pendingIgnore = false;
         foreach ($lines as $offset => $line) {
-            if (preg_match('/^\s*```/', $line) === 1) {
-                $inFence = !$inFence;
-                continue;
+            if (preg_match('/^\s*(`{3,}|~{3,})/', $line, $marker) === 1) {
+                if ($fence === null) {
+                    $fence = $marker[1];
+                    continue;
+                }
+                if ($marker[1][0] === $fence[0] && strlen($marker[1]) >= strlen($fence) && trim(substr(ltrim($line), strlen($marker[1]))) === '') {
+                    $fence = null;
+                    continue;
+                }
             }
             $marked = str_contains($line, self::IGNORE_MARKER);
-            $ignored = $inFence || $marked || $pendingIgnore;
+            $ignored = $fence !== null || $marked || $pendingIgnore;
             $pendingIgnore = $marked;
             if ($ignored) {
                 continue;
@@ -388,10 +396,11 @@ final class DocumentationClaimLinter
                 $claims[] = ['kind' => 'command', 'value' => $value, 'line' => $number];
             }
             foreach ($this->matches('/`((?:packages|src|bin|config|tests|resources|docs|\.claude)\/[^`\s]+)`/', $line) as $value) {
-                $claims[] = ['kind' => 'path', 'value' => $value, 'line' => $number];
+                $claims[] = ['kind' => 'path', 'value' => $value, 'line' => $number, 'from' => 'root'];
             }
+            // A link is read by whoever follows it from the file it is in.
             foreach ($this->matches('/\]\((?![a-z]+:|#|\/)([^)\s#]+)(?:#[^)]*)?\)/', $line) as $value) {
-                $claims[] = ['kind' => 'path', 'value' => $value, 'line' => $number];
+                $claims[] = ['kind' => 'path', 'value' => $value, 'line' => $number, 'from' => 'file'];
             }
         }
 
@@ -402,20 +411,29 @@ final class DocumentationClaimLinter
     }
 
     /**
-     * A root-anchored path is read from the project root, a link from the file
-     * that holds it. A scaffold doc names a framework file by its workspace
-     * path, `packages/semitexa-docs/...`; a consumer project has the same file
-     * at `vendor/semitexa/docs/...`, and it is not missing there.
+     * Resolved from one base only: the project root for a root-anchored path,
+     * the linking file's directory for a link. Trying both let a broken link
+     * pass on a file of the same name at the root (review of docs#87).
+     *
+     * A scaffold doc names a framework file by its workspace path,
+     * `packages/semitexa-docs/...`; a consumer project has the same file at
+     * `vendor/semitexa/docs/...`, and it is not missing there.
      */
-    private function pathExists(string $value, string $file, string $projectRoot): bool
+    private function pathExists(string $value, string $base, string $projectRoot): bool
     {
         $value = rtrim($value, '/.,;:');
-        $root = rtrim($projectRoot, '/');
-        $installed = preg_replace('#^packages/semitexa-([a-z0-9-]+)/#', 'vendor/semitexa/$1/', $value) ?? $value;
+        $candidate = rtrim($base, '/') . '/' . $value;
+        if (file_exists($candidate)) {
+            return true;
+        }
+        $root = rtrim($projectRoot, '/') . '/';
+        if (!str_starts_with($candidate, $root)) {
+            return false;
+        }
+        $relative = substr($candidate, strlen($root));
+        $installed = preg_replace('#^packages/semitexa-([a-z0-9-]+)/#', 'vendor/semitexa/$1/', $relative) ?? $relative;
 
-        return file_exists($root . '/' . $value)
-            || file_exists(dirname($file) . '/' . $value)
-            || ($installed !== $value && file_exists($root . '/' . $installed));
+        return $installed !== $relative && file_exists($root . $installed);
     }
 
     /**

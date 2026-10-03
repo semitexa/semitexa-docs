@@ -73,6 +73,29 @@ final class InstructionClaimsTest extends TestCase
     }
 
     #[Test]
+    public function a_tilde_fence_is_an_example_too(): void
+    {
+        // Review of docs#87: only backtick fences were skipped.
+        self::assertSame([], $this->lint('AGENTS.md', "~~~bash\n`ai:vanished` then open `packages/semitexa-dev/src/Gone.php`\n```\nstill inside: a backtick line does not close a tilde fence\n~~~\n"));
+        self::assertSame(['ai:vanished'], array_column($this->lint('AGENTS.md', "~~~\nexample\n~~~\nRun `ai:vanished`.\n"), 'claim'));
+    }
+
+    #[Test]
+    public function a_link_is_not_rescued_by_a_file_of_that_name_at_the_root(): void
+    {
+        // Review of docs#87: the root was tried first, so a skill linking
+        // docs/README.md passed on the project's own docs/README.md.
+        mkdir($this->root . '/docs');
+        touch($this->root . '/docs/README.md');
+
+        self::assertSame(
+            [['path', 'docs/README.md']],
+            array_map(static fn (array $f): array => [$f['kind'], $f['claim']], $this->lint('.claude/skills/review/SKILL.md', "See [docs](docs/README.md).\n")),
+        );
+        self::assertSame([], $this->lint('AGENTS.md', "See [docs](docs/README.md) and `docs/README.md`.\n"));
+    }
+
+    #[Test]
     public function a_skill_s_shell_environment_is_not_the_framework_s(): void
     {
         // RELEASE_CHANNEL is read by the release scripts a skill drives, not by PHP.
