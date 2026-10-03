@@ -2672,7 +2672,7 @@ generator is not part of the framework today (would be a follow-up epic)."
 
 `bin/semitexa ai:verify` is the AI-facing entry point that runs the precise
 lint + test + structure + DI subset for a diff/file list and emits an NDJSON
-report. Four guards are active beyond syntax + scoped lints.
+report. Five guards are active beyond syntax + scoped lints.
 
 ### 23.1 Module-structure guard
 
@@ -2791,3 +2791,28 @@ the same change wrote into production code. Measured over two months of this
 workspace it fired in 77 of 856 commits, nearly always on a value a
 specification defines (a header name, a status code, a rule identifier) that
 code and test rightly share.
+
+### 23.5 Instruction-claims guard (`docs:lint --instructions`)
+
+An agent acts on what its instructions name: a command in AGENTS.md gets run,
+a file a skill links gets opened. Those names go stale from either side: the
+instruction is edited, or the file it names is deleted or renamed. So
+ai:verify (standard scope and above) runs `docs:lint --instructions` whenever
+a root `*.md`, a skill, or any deleted or renamed file is in the change.
+
+It reads every markdown file at the project root (`AGENTS.md`, `CLAUDE.md`,
+`AI_NOTES.md`, …) and every skill under `.claude/skills/` (hidden directories
+are disabled skills and are skipped), with the usual attribute, command and
+env checks plus two more:
+
+- a command in backticks without the `semitexa` prefix (`ai:orient`), in a
+  namespace commands actually use; a family such as `ai:review-graph:*` is not
+  a name;
+- a file path, in backticks from the project root (`packages/…`, `src/…`) or
+  as a relative markdown link. Placeholders (`{Name}`, `<id>`, `*`, `...`) are
+  shapes, not files. A workspace path `packages/semitexa-x/…` also counts as
+  present when a consumer has it at `vendor/semitexa/x/…`.
+
+Project structure itself is not written into any of these files: it is served
+live by `ai:ask project|module|route` and `ai:review-graph:query`, so there is
+no second copy to drift.

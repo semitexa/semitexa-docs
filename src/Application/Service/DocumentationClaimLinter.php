@@ -55,12 +55,18 @@ final class DocumentationClaimLinter
     /**
      * @param array<string, mixed> $index
      * @param list<string>         $roots
+     * @param string|null          $instructionsRoot the project root, to read the corpus as instructions
+     *                                               to an agent as well (see instructionClaims())
      *
      * @return array<string, mixed>
      */
-    public function lint(array $index, array $roots): array
+    public function lint(array $index, array $roots, ?string $instructionsRoot = null): array
     {
         $known = $this->knownSurface($index);
+        $namespaces = array_fill_keys(array_map(
+            static fn (string $command): string => explode(':', $command)[0],
+            $known['command'],
+        ), true);
         $installedRelease = is_string($index['release_version'] ?? null) ? $index['release_version'] : null;
         $findings = [];
         $filesScanned = 0;
@@ -88,8 +94,29 @@ final class DocumentationClaimLinter
             }
 
             $lines = preg_split('/\R/', $body) ?: [];
+            $claims = $this->claims($lines);
+            if ($instructionsRoot !== null && str_contains($path, '/skills/')) {
+                // A skill drives shell scripts: its `KEY=value` lines are their
+                // environment (RELEASE_CHANNEL), which no PHP code reads.
+                $claims = array_values(array_filter($claims, static fn (array $claim): bool => $claim['kind'] !== 'env'));
+            }
+            if ($instructionsRoot !== null) {
+                foreach ($this->instructionClaims($lines) as $claim) {
+                    if ($claim['kind'] === 'path') {
+                        if (!$this->pathExists($claim['value'], $path, $instructionsRoot)) {
+                            $findings[] = ['file' => $path, 'line' => $claim['line'], 'kind' => 'path', 'claim' => $claim['value'], 'suggestion' => null];
+                        }
+                        continue;
+                    }
+                    // A bare `x:y` is a command only in a namespace commands use:
+                    // `skill_copies:project` is a verify target id, not something to run.
+                    if (isset($namespaces[explode(':', $claim['value'])[0]])) {
+                        $claims[] = $claim;
+                    }
+                }
+            }
 
-            foreach ($this->claims($lines) as $claim) {
+            foreach ($claims as $claim) {
                 $names = $known[$claim['kind']] ?? [];
                 if (in_array($claim['value'], $names, true)) {
                     continue;
@@ -130,6 +157,7 @@ final class DocumentationClaimLinter
         return [
             'artifact' => self::ARTIFACT,
             'files_scanned' => $filesScanned,
+            'kinds_checked' => $instructionsRoot === null ? ['attribute', 'command', 'env key'] : ['attribute', 'command', 'env key', 'file path'],
             'findings' => $findings,
             'by_kind' => $this->countByKind($findings),
         ];
@@ -310,6 +338,84 @@ final class DocumentationClaimLinter
         }
 
         return $claims;
+    }
+
+    /**
+     * The claims an instruction file makes that a docs page does not.
+     *
+     * Instructions to an agent (AGENTS.md, CLAUDE.md, AI_NOTES.md, a skill) are
+     * read to be acted on: a command named there gets run, a file named there
+     * gets opened. So beyond what claims() checks, they are held to two more:
+     *
+     *  - a command in backticks without the `semitexa` prefix, `ai:orient` in a
+     *    table cell. Only in namespaces commands use (lint() checks); a pattern
+     *    such as `ai:review-graph:*` is a family, not a name.
+     *  - a file path: in backticks from the project root (`packages/...`,
+     *    `src/...`), or a relative markdown link. A placeholder (an ellipsis,
+     *    `{Name}`, `<id>`, `*`) is a shape, not a file; var/ and vendor/ are not
+     *    the project's own to promise.
+     *
+     * Fenced blocks are left alone: a shell example writes paths as often as
+     * it reads them.
+     *
+     * MEASURED 2026-10-03 on this workspace's root instructions and skills
+     * (18 files): 196 command and 45 path claims, every one live once
+     * placeholders and the wrapper's own commands were told apart. Class names
+     * were considered and dropped: the corpus names none in a checkable form.
+     *
+     * @param list<string> $lines
+     *
+     * @return list<array{kind: string, value: string, line: int}>
+     */
+    private function instructionClaims(array $lines): array
+    {
+        $claims = [];
+        $inFence = false;
+        $pendingIgnore = false;
+        foreach ($lines as $offset => $line) {
+            if (preg_match('/^\s*```/', $line) === 1) {
+                $inFence = !$inFence;
+                continue;
+            }
+            $marked = str_contains($line, self::IGNORE_MARKER);
+            $ignored = $inFence || $marked || $pendingIgnore;
+            $pendingIgnore = $marked;
+            if ($ignored) {
+                continue;
+            }
+            $number = $offset + 1;
+            foreach ($this->matches('/`(?:bin\/semitexa\s+)?([a-z][a-z0-9-]*(?::[a-z0-9-]+)+)(?=[`\s])/', $line) as $value) {
+                $claims[] = ['kind' => 'command', 'value' => $value, 'line' => $number];
+            }
+            foreach ($this->matches('/`((?:packages|src|bin|config|tests|resources|docs|\.claude)\/[^`\s]+)`/', $line) as $value) {
+                $claims[] = ['kind' => 'path', 'value' => $value, 'line' => $number];
+            }
+            foreach ($this->matches('/\]\((?![a-z]+:|#|\/)([^)\s#]+)(?:#[^)]*)?\)/', $line) as $value) {
+                $claims[] = ['kind' => 'path', 'value' => $value, 'line' => $number];
+            }
+        }
+
+        return array_values(array_filter(
+            $claims,
+            static fn (array $claim): bool => $claim['kind'] !== 'path' || preg_match('/\.\.\.|\x{2026}|[{}<>*$]/u', $claim['value']) !== 1,
+        ));
+    }
+
+    /**
+     * A root-anchored path is read from the project root, a link from the file
+     * that holds it. A scaffold doc names a framework file by its workspace
+     * path, `packages/semitexa-docs/...`; a consumer project has the same file
+     * at `vendor/semitexa/docs/...`, and it is not missing there.
+     */
+    private function pathExists(string $value, string $file, string $projectRoot): bool
+    {
+        $value = rtrim($value, '/.,;:');
+        $root = rtrim($projectRoot, '/');
+        $installed = preg_replace('#^packages/semitexa-([a-z0-9-]+)/#', 'vendor/semitexa/$1/', $value) ?? $value;
+
+        return file_exists($root . '/' . $value)
+            || file_exists(dirname($file) . '/' . $value)
+            || ($installed !== $value && file_exists($root . '/' . $installed));
     }
 
     /**
