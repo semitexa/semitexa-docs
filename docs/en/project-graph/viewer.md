@@ -46,9 +46,11 @@ bin/semitexa ai:review-graph:generate
 ## As a file
 
 ```bash
-bin/semitexa ai:review-graph:show --format=html --output=var/tmp/graph.html
-bin/semitexa ai:review-graph:show --format=html --output=var/tmp/orders.html --module=Orders
+bin/semitexa ai:review-graph:show --format=html                      # var/evidence/inbox/graph-whole.html
+bin/semitexa ai:review-graph:show --format=html --module=Orders      # var/evidence/inbox/graph-Orders.html
 bin/semitexa ai:review-graph:show --format=html --output=var/tmp/focus.html --depth=2 'App\Orders\PlaceOrderHandler'
 ```
 
-The file carries the viewer and the data inline and fetches nothing, so it opens from `file://` — attach it to a pull request and a reviewer needs no running stack. The command prints the size: a focus is a few hundred kilobytes, the whole graph of a large project several megabytes, so filter when sharing. Recent traces are not part of a file.
+The file carries the viewer and the data inline and fetches nothing, so it opens from `file://` and a reviewer needs no running stack. The command prints the size: a focus is a few hundred kilobytes, the whole graph of a large project several megabytes. Recent traces are not part of a file.
+
+The file is a map of your codebase — every class, route and wiring edge — so it is written under `var/`, which the web server does not serve. By default it lands in the evidence inbox: the next `bin/semitexa ai:evidence` command records it as private evidence of real data, moves it to `var/evidence/<id>/` and removes it after 14 days. `var/evidence/` is in the project's `.gitignore` (add it to an older project's). An `--output` anywhere else (`public/`, a tracked directory, a path outside the project) is refused unless you add `--allow-anywhere`. Sharing it is your decision: a pull request on a public repository, an issue or a chat upload publishes the map, so filter to the slice the reviewer needs and send it only where the code itself could go — `bin/semitexa ai:evidence publish <id> --to=… --allow-real-data`, run in your own terminal, records that you did.

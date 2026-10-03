@@ -170,4 +170,45 @@ MD,
         self::assertStringContainsString('class="language-semitexa-diagram"', $content);
         self::assertStringNotContainsString('class="sx-docs-diagram"', $content);
     }
+
+    #[Test]
+    public function a_link_to_another_page_points_at_that_page_not_its_file(): void
+    {
+        $document = new ResolvedDocument(
+            id: new DocumentId('di', 'readonly'),
+            metadata: new DocumentMetadata('Readonly', 'Readonly services.', 10),
+            markdown: <<<'MD'
+See [mutable](mutable.md), [protected](../auth/protected.md#roles), [here](./factory.md),
+[the repo](https://github.com/semitexa/semitexa-docs/blob/main/README.md), [anchor](#top),
+[too deep](../../outside.md) and [nested](sub/dir/page.md).
+MD,
+            path: '/docs/di/readonly.md',
+        );
+
+        $content = (new DocumentHtmlRenderer())->renderHtml($document)->content;
+
+        self::assertStringContainsString('href="/docs/di/mutable"', $content);
+        self::assertStringContainsString('href="/docs/auth/protected#roles"', $content);
+        self::assertStringContainsString('href="/docs/di/factory"', $content);
+        self::assertStringContainsString('href="https://github.com/semitexa/semitexa-docs/blob/main/README.md"', $content);
+        self::assertStringContainsString('href="#top"', $content);
+        // Not a <section>/<slug> page: left visibly broken rather than guessed.
+        self::assertStringContainsString('href="../../outside.md"', $content);
+        self::assertStringContainsString('href="sub/dir/page.md"', $content);
+    }
+
+    #[Test]
+    public function a_page_on_another_host_links_to_the_docs_site(): void
+    {
+        $document = new ResolvedDocument(
+            id: new DocumentId('di', 'readonly'),
+            metadata: new DocumentMetadata('Readonly', 'Readonly services.', 10),
+            markdown: 'See [services](services.md).',
+            path: '/docs/di/readonly.md',
+        );
+
+        $content = (new DocumentHtmlRenderer())->renderHtml($document, 'https://semitexa.com/docs')->content;
+
+        self::assertStringContainsString('href="https://semitexa.com/docs/di/services"', $content);
+    }
 }
