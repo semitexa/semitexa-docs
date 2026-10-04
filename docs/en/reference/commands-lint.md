@@ -140,6 +140,7 @@ bin/semitexa lint:test-integrity
 |---|---|
 | `--json` | no |
 | `--path` | yes |
+| `--base` | yes |
 | `--renamed-from` | yes |
 | `--renamed-to` | yes |
 

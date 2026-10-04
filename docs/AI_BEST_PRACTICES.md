@@ -2786,6 +2786,15 @@ reviewer reads it. A marker that was already committed accepts nothing new.
 Run `bin/semitexa lint:test-integrity` on its own to check every uncommitted
 change.
 
+For a branch review, `ai:verify --git-ref=origin/master` compares every
+repository of the project with that ref (in the workspace: every package,
+since the root is none) and passes it on as `lint:test-integrity --base`, so a
+test weakened in an already committed change is found too. A ref that does not
+resolve in one of the repositories fails the run instead of leaving that
+repository out. A skip counts where it takes something away: an existing test
+that now skips, or a new test that skips and checks nothing; a new test
+guarded by "the Swoole extension is required" and full of assertions does not.
+
 Considered and not shipped: flagging a new assertion whose expected literal
 the same change wrote into production code. Measured over two months of this
 workspace it fired in 77 of 856 commits, nearly always on a value a
