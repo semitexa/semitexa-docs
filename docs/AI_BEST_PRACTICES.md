@@ -2672,7 +2672,7 @@ generator is not part of the framework today (would be a follow-up epic)."
 
 `bin/semitexa ai:verify` is the AI-facing entry point that runs the precise
 lint + test + structure + DI subset for a diff/file list and emits an NDJSON
-report. Five guards are active beyond syntax + scoped lints.
+report. Five guards are active beyond syntax + scoped lints, and §23.6 shows which rules still fire.
 
 ### 23.1 Module-structure guard
 
@@ -2816,3 +2816,19 @@ env checks plus two more:
 Project structure itself is not written into any of these files: it is served
 live by `ai:ask project|module|route` and `ai:review-graph:query`, so there is
 no second copy to drift.
+
+### 23.6 Which rules still fire (`ai:verify:rules`)
+
+A rule set that only grows ends up with rules nobody can say are still doing
+anything. Every ai:verify run records which rule families had a chance (their
+target ran to a verdict) and which rules fired, in `var/run/verify-rule-fires.ndjson`.
+Runs a trace kept (`var/ai-traces/`) are read too, so the record reaches back
+before the ledger existed. `bin/semitexa ai:verify:rules` lists every current
+rule with its chances, fires and last firing, the dormant ones first;
+`--dormant=50` keeps only rules that never fired in at least 50 chances, and
+`--json` gives the same as data. A firing under a name no rule has any more is
+listed as renamed or removed.
+
+Read it as evidence, not a verdict. A rule with many chances and no firing is
+either dead weight or a guard on code that rarely changes (migrations, auth);
+that is a decision for a person, and this is what the decision is made from.
