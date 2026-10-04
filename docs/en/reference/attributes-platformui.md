@@ -41,6 +41,14 @@ Applies to: class
     ],
     a11y: ['aria-expanded', 'aria-controls', 'region-roles', 'arrow-nav'],
 )]
+#[AsUiContract(
+    summary: 'Stacked sections that expand one at a time.',
+    examples: [
+        new UiExample('single', 'Single open', [], template: '@platform-ui/examples/accordion.html.twig'),
+        new UiExample('multiple', 'Several open', ['multiple' => true], template: '@platform-ui/examples/accordion.html.twig'),
+    ],
+    previewSafe: true,
+)]
 final class AccordionBehavior {}
 ```
 
@@ -61,23 +69,21 @@ Applies to: class
 
 ```php
 #[AsUiContract(
-    summary: 'Group related content in a themed surface with optional media and actions.',
+    summary: 'Show where the current page sits in the hierarchy.',
     props: [
-        new UiProp('variant', default: 'elevated', values: ['elevated', 'outlined', 'plain']),
-        new UiProp('title', default: '', description: 'Heading used when the header slot is empty.'),
-        new UiProp('subtitle', default: ''),
+        new UiProp('items', UiPropType::Array, default: [], items: new UiProp('item', UiPropType::Object, properties: [new UiProp('label', required: true), new UiProp('href', nullable: true), new UiProp('current', UiPropType::Boolean, default: false)]), description: 'Trail from root; the last item is the current page.'),
+        new UiProp('ariaLabel', default: 'Breadcrumb'),
     ],
     examples: [
-        new UiExample('default', 'Project overview', ['title' => 'Your workspace', 'subtitle' => 'A place for the next idea'], ['body' => 'Build something useful.', 'footer' => 'Updated just now']),
-        new UiExample('outlined', 'Outlined', ['variant' => 'outlined', 'title' => 'A quieter surface'], ['body' => 'The same content, another token-driven treatment.']),
-        new UiExample('empty', 'Empty', ['title' => 'Nothing here yet'], ['body' => 'Create your first item to get started.']),
+        new UiExample('trail', 'Trail', ['items' => [['label' => 'Home', 'href' => '/'], ['label' => 'Customers', 'href' => '/customers'], ['label' => 'Jane Doe']]]),
+        new UiExample('with-action', 'With trailing action', ['items' => [['label' => 'Settings', 'href' => '/settings'], ['label' => 'Billing']]], ['trailing' => 'Last saved 2 minutes ago']),
     ],
     previewSafe: true,
 )]
-final class CardComponent
+final class BreadcrumbComponent
 ```
 
-— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/CardComponent.php`
+— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/BreadcrumbComponent.php`
 
 ## `#[AsUiPrimitive]`
 
@@ -101,7 +107,25 @@ Applies to: class
     template: '@platform-ui/primitives/runtime/alert.html.twig',
     style: 'platform-ui:css:full',
 )]
-final class AlertPrimitive
+#[AsUiContract(
+    summary: 'An inline message about the state of the page or a task.',
+    props: [
+        new UiProp('text', default: ''),
+        new UiProp('title', nullable: true),
+        new UiProp('tone', default: 'info', values: ['neutral', 'info', 'success', 'warning', 'danger'], description: 'warning/danger announce as role=alert.'),
+        new UiProp('variant', default: 'soft', values: ['soft', 'outline', 'solid']),
+        new UiProp('icon', nullable: true, description: 'Overrides the per-tone icon.'),
+        new UiProp('role', nullable: true, values: ['status', 'alert'], description: 'Overrides the tone-derived role.'),
+    ],
+    examples: [
+        new UiExample('info', 'Info', ['title' => 'Heads up', 'text' => 'Your trial ends in 3 days.']),
+        new UiExample('success', 'Success', ['tone' => 'success', 'title' => 'Saved', 'text' => 'Your changes are live.']),
+        new UiExample('warning', 'Warning', ['tone' => 'warning', 'title' => 'Storage almost full', 'text' => 'You have used 92% of your quota.']),
+        new UiExample('danger', 'Danger', ['tone' => 'danger', 'title' => 'Payment failed', 'text' => 'Update your card to keep the workspace active.']),
+        new UiExample('solid', 'Solid', ['tone' => 'success', 'variant' => 'solid', 'text' => 'Deployment finished.']),
+    ],
+    previewSafe: true,
+)]
 ```
 
 — `vendor/semitexa/platform-ui/src/Application/Service/Primitive/Builtin/AlertPrimitive.php`
@@ -222,6 +246,18 @@ Applies to: class. Repeatable.
 
 ```php
 #[UiSlot(name: 'trailing', description: 'Optional inline actions rendered after the trail (e.g. a copy-path button or status badge).')]
+#[AsUiContract(
+    summary: 'Show where the current page sits in the hierarchy.',
+    props: [
+        new UiProp('items', UiPropType::Array, default: [], items: new UiProp('item', UiPropType::Object, properties: [new UiProp('label', required: true), new UiProp('href', nullable: true), new UiProp('current', UiPropType::Boolean, default: false)]), description: 'Trail from root; the last item is the current page.'),
+        new UiProp('ariaLabel', default: 'Breadcrumb'),
+    ],
+    examples: [
+        new UiExample('trail', 'Trail', ['items' => [['label' => 'Home', 'href' => '/'], ['label' => 'Customers', 'href' => '/customers'], ['label' => 'Jane Doe']]]),
+        new UiExample('with-action', 'With trailing action', ['items' => [['label' => 'Settings', 'href' => '/settings'], ['label' => 'Billing']]], ['trailing' => 'Last saved 2 minutes ago']),
+    ],
+    previewSafe: true,
+)]
 final class BreadcrumbComponent
 ```
 

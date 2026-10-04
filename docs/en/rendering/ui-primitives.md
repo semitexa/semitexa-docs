@@ -147,13 +147,15 @@ The rendered output carries stable root markers for future frontend-runtime scan
 | primitive | accepted props |
 |---|---|
 | `button` | `text`, `tone`, `variant`, `size`, `shape` (`square`), `icon`, `iconEnd`, `loading`, `pressed`, `disabled`, `href`, `type` |
-| `input`  | `name`, `id`, `type`, `value`, `placeholder`, `size`, `state` (`invalid`), `required`, `disabled`, `help`, `error` |
+| `input`  | `name`, `id`, `type`, `value`, `placeholder`, `label` (aria-label when no `<label>` wraps it), `size`, `state` (`invalid`), `required`, `disabled`, `help`, `error` |
 | `badge`  | `text`, `tone`, `variant`, `size`, `dot`, `icon` |
 | `alert`  | `text`, `title`, `tone`, `variant`, `icon`, `role` |
 
 `variant`, `tone` and `size` are checked against the vocabulary `platform-ui:css:explain` prints. With `APP_ENV=dev` an unknown value throws and names the allowed ones (`Primitive "platform.button" has no variant "primary". Allowed: solid, soft, outline, ghost, link.`); elsewhere the value is dropped and the primitive renders its default look rather than an unstyled one.
 
 Only `text` (and `href` on button) ever changes the rendered tag; everything else maps to a `ui-*` or ARIA attribute. `error` on an input automatically sets `ui-state="invalid"`, `aria-invalid="true"`, and an inline danger-toned message; `help` renders muted help text with `aria-describedby`. Both wrap the input in a stack — bare inputs (no `help`/`error`) still emit a single `<input>` element so existing usage is preserved. An icon-only button (`shape: 'square'`) keeps `text` as its `aria-label`.
+
+Every primitive also carries an `#[AsUiContract]` with worked examples, rendered live in the [UI Workbench](ui-workbench.md).
 
 ### Foundation tokens
 
