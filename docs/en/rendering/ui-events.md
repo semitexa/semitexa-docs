@@ -193,10 +193,46 @@ Two doors carry every byte between a page and the server, by design:
 | Door | Route | Direction | Carries |
 |---|---|---|---|
 | **KISS** | `GET /__semitexa_kiss` | server → browser | the one SSE stream per page: deferred slots, UI patches, component state, live feeds |
-| **HUG** | `POST /__semitexa_hug` | browser → server | every UI event and action (the envelope below), and `#[AsComponent(event:)]` events as `{"componentEvent": {…}}` |
+| **HUG** | `POST /__semitexa_hug` | browser → server | every UI event and action (the envelope below), `#[AsComponent(event:)]` events as `{"componentEvent": {…}}`, and feed control as `{"stream": {…}}` |
 | **HUG** | `GET /__semitexa_hug` | browser → server | the pull fallback for deferred slots when a page has no stream |
 
-A feature that needs a verb HUG lacks extends HUG — it does not add a route. (`/__ui/event`, `/__ui/dispatch` and `/__semitexa_component_event` were removed in 2026-10 for exactly that reason.)
+A feature that needs a verb HUG lacks extends HUG — it does not add a route. (`/__ui/event`, `/__ui/dispatch`, `/__semitexa_component_event` and `/__ui/form-doc` were removed in 2026-10 for exactly that reason.)
+
+### Live feeds
+
+A feed (a grid's collection, a calendar month, a collaborative document) is a
+route with `transport: TransportType::Sse` and an explicit `name` — discovery
+refuses an SSE route without one, and its OPTIONS contract carries it. A page
+never opens a stream for a feed. The browser asks HUG to attach the feed to the
+page's KISS stream, by name:
+
+```json
+POST /__semitexa_hug
+{"stream": {"op": "subscribe", "feed": "ui-playground.leads.feed",
+            "params": {"sort": "-createdAt"},
+            "session": "sse_<32 hex>", "subscriptionId": "sse_<32 hex>"}}
+```
+
+`op` is `subscribe`, `view` (the complete new view, for example after a sort
+or a filter) or `unsubscribe`. HUG admits a subscribe or view exactly as a
+direct `GET` of the feed with `params` as its query: the same auth gate,
+hydration, validation and AuthCheck, with the caller's own cookies. The answer
+is an acknowledgement, `202 {"ok": true, "accepted": true, "subscription_id": …}`;
+rows only ever arrive on KISS, as the feed's typed frames
+(`ui.collection.data`, `ui.document.data`, …) tagged with the subscription id.
+An unknown name and a route that is not a feed both answer
+`404 {"reason": "unknown_feed"}`, and the worker that owns the KISS stream
+refuses a subscription from a different tenant (`subscribe_tenant_mismatch`).
+
+A page without a KISS session, or whose KISS stream fails before it ever
+connects, falls back to the feed's own plain `GET`. A feed that must not be
+readable that way declares `exposure: RouteExposure::Hug` and no path: it is
+reachable only by name, through HUG. The collaborative-form document feed
+(`platform-ui.form-doc`) is one.
+
+In the browser all of this is `SemitexaUi.core.openFeedChannel({feed, params,
+dataEvent, errorEvent, onData, onError, onPull})`, which returns
+`{mode(), view(params), close()}`.
 
 ## Sending a UI event (HUG)
 
