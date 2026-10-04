@@ -144,6 +144,18 @@ bin/semitexa lint:test-integrity
 | `--renamed-from` | yes |
 | `--renamed-to` | yes |
 
+## `lint:transport-doors`
+
+Fail on a framework-internal /__ route that is not KISS, HUG, a system page or a dev tool.
+
+```bash
+bin/semitexa lint:transport-doors
+```
+
+| option | takes a value |
+|---|---|
+| `--json` | no |
+
 ## `lint:var-artifacts`
 
 Fail when git would commit runtime output (screenshots, traces, exports) from a var/ directory
