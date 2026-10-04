@@ -524,6 +524,8 @@ bin/semitexa ai:verify:receipt ["id"]
 
 | option | takes a value |
 |---|---|
+| `--unread` | no |
+| `--hours` | yes |
 | `--json` | no |
 
 ## `ai:verify:rules`

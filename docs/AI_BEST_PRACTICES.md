@@ -2857,3 +2857,10 @@ verdict was a pass. An agent reporting a pass names the receipt id; a reviewer
 runs the check. The digest catches an edited receipt, not a forged one: whoever
 can write `var/run` can rewrite both. What the receipt buys is that a claim
 points at commands that can be looked at and run again.
+
+A receipt also records who ran it (`run_by`: the agent session and trace) and
+every check remembers that someone looked. `ai:verify:receipt --unread`
+(`--hours=24` by default) lists the runs nobody has checked, failed ones
+first, and `ai:orient` shows the red ones of the last day. That is the trace a
+subagent leaves when it saw red and reported green: its run is there, failed,
+and nobody read it.
