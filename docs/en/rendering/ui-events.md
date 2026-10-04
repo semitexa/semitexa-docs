@@ -210,7 +210,7 @@ Bridges captured frontend events to declared `#[UiOn]` / `#[HandlesUiEvent]` han
 {
   "schemaVersion": 1,
   "eventId": "ui_evt_<32 hex>",
-  "correlationId": "corr_<hex>",
+  "correlationId": "ui_cor_<32 hex>",
   "semanticEvent": "platform.field.change",
   "signedContext": "sc1.<base64url-claims>.<base64url-hmac>",
   "timestamp": "2026-10-04T10:00:00.000Z",
@@ -223,50 +223,46 @@ Bridges captured frontend events to declared `#[UiOn]` / `#[HandlesUiEvent]` han
 - `payload` is optional and defaults to `{}`.
 - `payload` **must not** carry any routing-flavored field. The `UiPayloadFieldGuard` walks the whole payload tree and rejects (400) on any key (normalized across camelCase/snake_case/kebab-case) matching: `handler`, `handlerId`, `handlerClass`, `handlerMethod`, `method`, `methodName`, `class`, `className`, `component`, `componentName`, `instance`, `instanceId`, `part`, `partName`, `event`, `eventName`, `updates`, `updatesPath`, `endpoint`, `url`, `route`, `action`, `controller`, `callback`, `dispatcher`, `payloadClass`, `authzScope`, `backendHandler`, plus `dispatchId`/`requestId`/`eventId` (those identifiers belong at the top level, not inside `payload`).
 
-**Replay guard.** The dispatcher keys an entry by `sha256(signedContext) + ':' + eventId`. The TTL is bounded by both the signed ctx's remaining lifetime and a server-side ceiling (currently 600s). A second request with the *same* `(signedContext, eventId)` pair returns `409 duplicate_dispatch`. Crucially, the same context with a *different* `eventId` still works — the signed ctx is intentionally reusable inside its TTL so legitimate repeated user actions (e.g. successive `change` events on the same field) are not blocked. The replay guard claim is taken **after** ctx verification (so an invalid ctx never poisons the store) and **before** authorization (so a denied attempt still consumes its `dispatchId` — clients must mint a fresh id to retry).
+**Replay guard.** The dispatcher keys an entry by `sha256(signedContext) + ':' + eventId`. The TTL is bounded by both the signed ctx's remaining lifetime and a server-side ceiling (currently 600s). A second request with the *same* `(signedContext, eventId)` pair returns `409 duplicate_dispatch`. Crucially, the same context with a *different* `eventId` still works — the signed ctx is intentionally reusable inside its TTL so legitimate repeated user actions (e.g. successive `change` events on the same field) are not blocked. The replay guard claim is taken **after** ctx verification (so an invalid ctx never poisons the store) and **before** authorization (so a denied attempt still consumes its `eventId` — clients must mint a fresh id to retry).
 
 **Authorization hook.** A pluggable `UiInteractionAuthorizerInterface` runs *after* the replay claim and *before* the `#[UiOn]` handler. The default `AllowAllUiInteractionAuthorizer` is wired by the package and allows every verified dispatch; apps swap it via `withServices(authorizer: …)` or a future container binding. A `false` return maps to `403 interaction_forbidden`; the handler is never invoked and no patches are returned.
 
-**Success response (200):**
+**Success response (200):** the canonical HUG envelope plus the dispatcher's result.
 
 ```json
 {
-  "ok": true,
-  "handled": true,
+  "status": "accepted",
+  "phase": "dispatch",
+  "reason": null,
+  "message": null,
+  "eventId": "ui_evt_<32 hex>",
+  "correlationId": "ui_cor_<32 hex>",
+  "semanticEvent": "platform.field.change",
+  "schemaVersion": 1,
+  "signedContext": { "present": true, "verified": true },
   "kind": "ack",
-  "dispatchId": "ui_evt_<32 hex>",
-  "component": "platform.field",
-  "instance": "uci_<hex>",
-  "part": "input",
-  "event": "change",
-  "updates": "value",
+  "patches": [],
   "debug": { "value": "taras@example.com", "instance": "uci_<hex>" },
-  "patches": []
+  "dispatchId": "ui_evt_<32 hex>"
 }
 ```
 
-The server echoes `dispatchId` on both success and error responses (when it was parseable) so clients can correlate request, lifecycle event, and reply.
+Patches addressed to a component on a page with a live KISS stream are published there instead of returned inline (`streamedPatchCount`).
 
-**Error responses (safe JSON; never leak class/method names or stack traces):**
+**Refused before any dispatcher runs (422, `{error, message, context: {errors}}`):** a body that is not a JSON object, a malformed envelope, a forbidden routing field anywhere in it, or a `signedContext` that does not verify (tampered or expired) — `context.errors.signedContext` names the last.
+
+**Refused by the dispatcher (safe JSON with a `reason` token; never class/method names or stack traces):**
 
 | Status | `reason` token | Trigger |
 |---|---|---|
-| 400 | `empty_body` | Request body is empty |
-| 400 | `malformed_json` | Body is not valid JSON |
-| 400 | `body_not_object` | Body is a list/scalar, not a JSON object |
-| 400 | `missing_ctx` | `ctx` is missing or empty |
-| 400 | `missing_dispatch_id` | `dispatchId` is missing or empty |
-| 400 | `invalid_dispatch_id` | `dispatchId` fails the format check |
-| 400 | `payload_not_object` | `payload` is a list/scalar |
-| 400 | `forbidden_payload_field` | Payload smuggled a routing-flavored key (path included in message) |
-| 403 | `invalid_signed_ctx` | Signature verify failed OR ctx expired |
+| 400 | `forbidden_payload_field` | Payload smuggled a routing-flavored key the envelope check did not cover (path included in message) |
 | 403 | `updates_path_mismatch` | Signed `u` claim doesn't equal the registered `#[UiOn]` updates path |
 | 403 | `interaction_forbidden` | `UiInteractionAuthorizerInterface::authorize()` returned `false` |
 | 503 | `ui_replay_store_not_shared` | Production-like env + the bound replay store reports `isShared() === false`. Operator must set `CACHE_DRIVER` to a shared driver (e.g. `redis`). |
 | 404 | `unknown_component` | Signed component doesn't exist in `UiComponentRegistry` |
 | 404 | `unknown_part` | Signed part doesn't exist on the component |
 | 404 | `unknown_event` | Signed (part, event) pair has no `#[UiOn]` |
-| 409 | `duplicate_dispatch` | `(ctx, dispatchId)` already processed (replay guard) |
+| 409 | `duplicate_dispatch` | `(signedContext, eventId)` already processed (replay guard) |
 | 422 | `missing_claim_<key>` | Signed context missing required claim |
 | 422 | `cannot_instantiate_component` | Component constructor requires DI args |
 | 422 | `handler_error` | Handler threw a non-`UiInteractionException` |
@@ -305,16 +301,16 @@ Trust boundary:
 | `UiInteractionAuthorizerInterface` | `AllowAllUiInteractionAuthorizer` | semitexa-platform-ui |
 | `UiFieldRuleRegistryInterface` | `DefaultUiFieldRuleRegistry` | semitexa-platform-ui |
 
-The Semitexa container resolves both contracts at boot via `ServiceContractRegistry`. `UiDispatchHandler` declares them as `#[InjectAsReadonly]` protected properties — the container fills them, the handler never news them up in production. The dispatcher is constructed inside the handler with the injected dependencies; there is no longer any `withServices()` plumbing on the production path.
+The Semitexa container resolves both contracts at boot via `ServiceContractRegistry`. `PlatformUiResponseDispatcher` (behind HUG) declares them as `#[InjectAsReadonly]` protected properties — the container fills them; nothing news them up in production.
 
 **Override seam.** An application registers its own implementation by declaring a class with `#[SatisfiesServiceContract(of: UiInteractionAuthorizerInterface::class)]` (or `UiReplayStoreInterface::class`) inside a module that "extends" `semitexa-platform-ui`. The contract registry picks the descendant-module winner, so the app's class replaces the default automatically — no per-handler wiring required.
 
 **Replay store implementations.**
 
 - `CacheBackedUiReplayStore` — **production default**. Backed by `Semitexa\Cache\Domain\Contract\CacheManagerInterface` under the `ui-dispatch-replay` namespace; inherits the cache's process-shared semantics. `isShared()` reports `true` when the bound cache driver is `redis`, `valkey`, or `memcached`. With `CACHE_DRIVER=array` (the framework default), each Swoole worker has its own in-memory cache → `isShared()` reports `false` → the dispatcher refuses to invoke handlers in production-like environments.
-- `InMemoryUiReplayStore` — test/dev fallback. Always reports `isShared() === false`. Used only by tests that construct `UiDispatchHandler` directly without a container. Apps and modules MUST NOT wire this with `#[SatisfiesServiceContract]`; it carries no such attribute on purpose.
+- `InMemoryUiReplayStore` — test/dev fallback. Always reports `isShared() === false`. Used only by tests that dispatch without a container (`tests/Support/HugDispatch`). Apps and modules MUST NOT wire this with `#[SatisfiesServiceContract]`; it carries no such attribute on purpose.
 
-**Runtime guard.** Before claiming a replay key, `UiInteractionDispatcher` calls `$replayStore->isShared()`. In production-like environments (`APP_ENV` is `prod` or `production`), a `false` return aborts the dispatch with `503 ui_replay_store_not_shared`. The handler is never invoked. In other environments (`dev`, `staging`, `test`, …) the guard is a no-op so local development with the in-memory store continues to work. The check runs *after* ctx verification (so a tampered ctx still surfaces the documented `403 invalid_signed_ctx`) and *before* the replay claim (so an unsafe store never accumulates orphan keys).
+**Runtime guard.** Before claiming a replay key, `UiInteractionDispatcher` calls `$replayStore->isShared()`. In production-like environments (`APP_ENV` is `prod` or `production`), a `false` return aborts the dispatch with `503 ui_replay_store_not_shared`. The handler is never invoked. In other environments (`dev`, `staging`, `test`, …) the guard is a no-op so local development with the in-memory store continues to work. The check runs *after* ctx verification (a tampered context never gets this far: HUG refuses it with 422) and *before* the replay claim (so an unsafe store never accumulates orphan keys).
 
 Why signed `ctx` is reusable but `dispatchId` is single-use: the signed `ctx` carries identity (`c, i, p, e, u, iat, exp`) so the dispatcher can resolve handlers — re-issuing it on every keystroke would force a server round-trip per character. The `dispatchId` is the *attempt* identifier and exists exclusively for replay deduplication: each captured event mints a fresh `crypto.getRandomValues`-derived id, so a network race or double-click produces two distinct ids and both succeed, but an exact replay (`ctx, dispatchId` pair) is rejected at the replay claim.
 
@@ -443,7 +439,7 @@ const detach = window.SemitexaUi.transport.attach();   // posts to /__semitexa_h
 // later: detach();
 ```
 
-Wire body sent on every capture: **exactly** the envelope above, with `payload: { value }` (plus `payload.form.values` inside a form). The `dispatchId` is freshly minted per captured event with `crypto.getRandomValues` (format: `ui_evt_<32 hex>`), so a network race or double-click produces two distinct ids and both go through; only an *exact* `(signedContext, eventId)` replay is rejected with `409`. Never component, instance, part, event, handler, method, class, endpoint, url, action, dispatcher fields.
+Wire body sent on every capture: **exactly** the envelope above, with `payload: { value }` (plus `payload.form.values` inside a form). The `eventId` is freshly minted per captured event with `crypto.getRandomValues` (format: `ui_evt_<32 hex>`), so a network race or double-click produces two distinct ids and both go through; only an *exact* `(signedContext, eventId)` replay is rejected with `409`. Never component, instance, part, event, handler, method, class, endpoint, url, action, dispatcher fields.
 
 Lifecycle CustomEvents on `document` (every detail carries `dispatchId` for correlation):
 - `semitexa:ui-event:dispatching`  (before fetch; `detail = {captured, dispatchId, endpoint}`)
