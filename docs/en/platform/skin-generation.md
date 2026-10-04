@@ -94,7 +94,7 @@ Text on the brand fill (`--ui-text-on-accent`) is white when white clears WCAG A
 
 Dark mode inverts surface/text lightness in OKLCH, shifts state colors brighter for legibility, triples shadow alpha (so drop shadows remain perceptible against near-black surfaces), and flips the brutalist neutral shadow from matte-black to near-white. `skin:refine` preserves the mode of the source skin.
 
-## Token contract (41 tokens)
+## Token contract (45 tokens)
 
 ### Color (24) — unchanged since v1
 
@@ -105,6 +105,7 @@ Dark mode inverts surface/text lightness in OKLCH, shifts state colors brighter 
 | Border | `--ui-border-subtle`, `--ui-border-strong` |
 | Accent | `--ui-accent-brand`, `--ui-accent-brand-contrast` |
 | State | `--ui-state-success`, `--ui-state-warning`, `--ui-state-danger`, `--ui-state-info` |
+| Text on a state fill | `--ui-text-on-success`, `--ui-text-on-warning`, `--ui-text-on-danger`, `--ui-text-on-info` — derived from the state colour with the on-accent rule when a palette does not carry them, so older `skin.json` files still load |
 | Interactive | `--ui-focus-ring` |
 | Chart | `--ui-chart-1` … `--ui-chart-8` |
 
