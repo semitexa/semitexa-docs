@@ -2672,7 +2672,7 @@ generator is not part of the framework today (would be a follow-up epic)."
 
 `bin/semitexa ai:verify` is the AI-facing entry point that runs the precise
 lint + test + structure + DI subset for a diff/file list and emits an NDJSON
-report. Five guards are active beyond syntax + scoped lints.
+report. Five guards are active beyond syntax + scoped lints, and §23.6 shows which rules still fire.
 
 ### 23.1 Module-structure guard
 
@@ -2786,6 +2786,15 @@ reviewer reads it. A marker that was already committed accepts nothing new.
 Run `bin/semitexa lint:test-integrity` on its own to check every uncommitted
 change.
 
+For a branch review, `ai:verify --git-ref=origin/master` compares every
+repository of the project with that ref (in the workspace: every package,
+since the root is none) and passes it on as `lint:test-integrity --base`, so a
+test weakened in an already committed change is found too. A ref that does not
+resolve in one of the repositories fails the run instead of leaving that
+repository out. A skip counts where it takes something away: an existing test
+that now skips, or a new test that skips and checks nothing; a new test
+guarded by "the Swoole extension is required" and full of assertions does not.
+
 Considered and not shipped: flagging a new assertion whose expected literal
 the same change wrote into production code. Measured over two months of this
 workspace it fired in 77 of 856 commits, nearly always on a value a
@@ -2816,3 +2825,42 @@ env checks plus two more:
 Project structure itself is not written into any of these files: it is served
 live by `ai:ask project|module|route` and `ai:review-graph:query`, so there is
 no second copy to drift.
+
+### 23.6 Which rules still fire (`ai:verify:rules`)
+
+A rule set that only grows ends up with rules nobody can say are still doing
+anything. Every ai:verify run records which rule families had a chance (their
+target ran to a verdict) and which rules fired, in `var/run/verify-rule-fires.ndjson`.
+Runs with retained traces in `var/ai-traces/` are also read, so the record
+reaches back before the ledger existed. `bin/semitexa ai:verify:rules` lists every current
+rule with its chances, fires and last firing, the dormant ones first;
+`--dormant=50` keeps only rules that never fired in at least 50 chances, and
+`--json` gives the same as data. A firing under a name that no current rule
+uses is listed as renamed or removed.
+
+Read it as evidence, not a verdict. A rule with many chances and no firing is
+either dead weight or a guard on code that rarely changes (migrations, auth);
+that is a decision for a person, and this is what the decision is made from.
+
+### 23.7 Receipts (`ai:verify:receipt`)
+
+"All tests pass" is a claim; a receipt makes it checkable. Every ai:verify run
+writes `var/run/verify-receipts/<id>.json` and names it in the `--json`
+envelope as `receipt` (`id`, `path`, `digest`). The receipt holds the
+ai:verify argv, each target's verdict and exit code, every process the run
+started (argv, cwd, exit code, sha256 and size of its output) and a sha256 of
+every file the run checked.
+
+`bin/semitexa ai:verify:receipt <id>` (no id: the latest run) exits 0 only when
+the receipt is intact, every file it checked is unchanged since, and its
+verdict was a pass. An agent reporting a pass names the receipt id; a reviewer
+runs the check. The digest catches an edited receipt, not a forged one: whoever
+can write `var/run` can rewrite both. What the receipt buys is that a claim
+points at commands that can be looked at and run again.
+
+A receipt also records who ran it (`run_by`: the agent session and trace) and
+every check remembers that someone looked. `ai:verify:receipt --unread`
+(`--hours=24` by default) lists the runs nobody has checked, failed ones
+first, and `ai:orient` shows the red ones of the last day. That is the trace a
+subagent leaves when it saw red and reported green: its run is there, failed,
+and nobody read it.
