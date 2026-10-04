@@ -2822,13 +2822,29 @@ no second copy to drift.
 A rule set that only grows ends up with rules nobody can say are still doing
 anything. Every ai:verify run records which rule families had a chance (their
 target ran to a verdict) and which rules fired, in `var/run/verify-rule-fires.ndjson`.
-Runs a trace kept (`var/ai-traces/`) are read too, so the record reaches back
-before the ledger existed. `bin/semitexa ai:verify:rules` lists every current
+Runs with retained traces in `var/ai-traces/` are also read, so the record
+reaches back before the ledger existed. `bin/semitexa ai:verify:rules` lists every current
 rule with its chances, fires and last firing, the dormant ones first;
 `--dormant=50` keeps only rules that never fired in at least 50 chances, and
-`--json` gives the same as data. A firing under a name no rule has any more is
-listed as renamed or removed.
+`--json` gives the same as data. A firing under a name that no current rule
+uses is listed as renamed or removed.
 
 Read it as evidence, not a verdict. A rule with many chances and no firing is
 either dead weight or a guard on code that rarely changes (migrations, auth);
 that is a decision for a person, and this is what the decision is made from.
+
+### 23.7 Receipts (`ai:verify:receipt`)
+
+"All tests pass" is a claim; a receipt makes it checkable. Every ai:verify run
+writes `var/run/verify-receipts/<id>.json` and names it in the `--json`
+envelope as `receipt` (`id`, `path`, `digest`). The receipt holds the
+ai:verify argv, each target's verdict and exit code, every process the run
+started (argv, cwd, exit code, sha256 and size of its output) and a sha256 of
+every file the run checked.
+
+`bin/semitexa ai:verify:receipt <id>` (no id: the latest run) exits 0 only when
+the receipt is intact, every file it checked is unchanged since, and its
+verdict was a pass. An agent reporting a pass names the receipt id; a reviewer
+runs the check. The digest catches an edited receipt, not a forged one: whoever
+can write `var/run` can rewrite both. What the receipt buys is that a claim
+points at commands that can be looked at and run again.

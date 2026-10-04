@@ -514,6 +514,18 @@ bin/semitexa ai:verify
 | `--json` | no |
 | `--impact` | no |
 
+## `ai:verify:receipt`
+
+Check an ai:verify receipt: intact, tree unchanged since the run, verdict pass
+
+```bash
+bin/semitexa ai:verify:receipt ["id"]
+```
+
+| option | takes a value |
+|---|---|
+| `--json` | no |
+
 ## `ai:verify:rules`
 
 Show how often each ai:verify rule had a chance and fired; dormant rules first
