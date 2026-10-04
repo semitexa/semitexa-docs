@@ -838,7 +838,7 @@ Smuggling attempts (`payload.rules`, `payload.cfg`, `payload.form.rules`, `paylo
 
 - The native `submit` event on an element matching `data-ui-part="form"` is captured (capture phase), and `ev.preventDefault()` is called **exactly there** — no other native event has its default suppressed. The single guarded `preventDefault` callsite is pinned by `EventRuntimeAssetTest`.
 - `collectFormValuesSnapshot` now handles both cases: captured instance IS the form root (submit dispatch), or captured instance is a field inside a form root (input-change dispatch). Walks the same `[data-ui-form-aggregate="1"][data-ui-component-instance-id]` ancestor query in both directions.
-- The wire body for submit is the same `{ctx, dispatchId, payload}` envelope every other dispatch uses; `payload.value` is `null` (the form element has no `.value`), `payload.form.values` carries the snapshot.
+- The wire body for submit is the same HUG envelope (`POST /__semitexa_hug`) every other event uses; `payload.value` is `null` (the form element has no `.value`), `payload.form.values` carries the snapshot.
 
 **Security / trust boundary**:
 

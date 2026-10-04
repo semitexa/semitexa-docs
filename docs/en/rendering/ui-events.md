@@ -186,30 +186,44 @@ window.SemitexaUi.onCapture(fn)    // register listener; returns unsubscribe()
 
 **Part-element lookup**: the runtime first looks for `[data-ui-part="<part-name>"]` inside the component root (canonical — emitted by the server-side `ui_part()` Twig helper), then falls back to `[ui="<part-name>"]` for legacy templates that render the primitive directly via `primitive()` + `ui_part_props()`. The canonical path decouples the UiPart name from the primitive's `ui` alias, so a part can be named freely (e.g. `UiPart(name: 'main', uses: InputPrimitive::class)`) without breaking the runtime.
 
-## HTTP dispatch endpoint (ack + response patches)
+## KISS and HUG: the whole transport
 
-Bridges captured frontend events to declared `#[UiOn]` handlers through a unified HTTP endpoint. The handler can return either a plain ack or a small list of safe DOM-patch instructions the frontend applies after dispatch.
+Two doors carry every byte between a page and the server, by design:
 
-**Endpoint:** `POST /__ui/dispatch`
+| Door | Route | Direction | Carries |
+|---|---|---|---|
+| **KISS** | `GET /__semitexa_kiss` | server → browser | the one SSE stream per page: deferred slots, UI patches, component state, live feeds |
+| **HUG** | `POST /__semitexa_hug` | browser → server | every UI event and action (the envelope below), and `#[AsComponent(event:)]` events as `{"componentEvent": {…}}` |
+| **HUG** | `GET /__semitexa_hug` | browser → server | the pull fallback for deferred slots when a page has no stream |
 
-Why not `/__ui/event`: SSR ships a foundation-layer placeholder at `/__ui/event` that accepts the framework-layer `UiEventEnvelope` shape (`schemaVersion`, `eventId`, `correlationId`, `semanticEvent`, `signedContext`, `timestamp`, …). Platform UI's dispatcher uses a *minimal* `{ctx, dispatchId, payload}` body — a layered concern that does not need the full framework-layer envelope. The two endpoints will be unified in a future framework-layer slice that introduces a `UiInteractionDispatcherInterface` contract.
+A feature that needs a verb HUG lacks extends HUG — it does not add a route. (`/__ui/event`, `/__ui/dispatch` and `/__semitexa_component_event` were removed in 2026-10 for exactly that reason.)
 
-**Request shape:**
+## Sending a UI event (HUG)
+
+Bridges captured frontend events to declared `#[UiOn]` / `#[HandlesUiEvent]` handlers. The handler can return a plain ack or a small list of safe DOM-patch instructions; patches addressed to a live component are published on KISS instead of returned inline.
+
+**Endpoint:** `POST /__semitexa_hug` (`HugEventPayload` → `HugEventHandler` → `UiResponseDispatcherInterface`)
+
+**Request shape** — the canonical envelope:
 
 ```json
 {
-  "ctx": "sc1.<base64url-claims>.<base64url-hmac>",
-  "dispatchId": "ui_evt_<32 hex>",
+  "schemaVersion": 1,
+  "eventId": "ui_evt_<32 hex>",
+  "correlationId": "corr_<hex>",
+  "semanticEvent": "platform.field.change",
+  "signedContext": "sc1.<base64url-claims>.<base64url-hmac>",
+  "timestamp": "2026-10-04T10:00:00.000Z",
   "payload": { "value": "taras@example.com" }
 }
 ```
 
-- `ctx` is required.
-- `dispatchId` is required. Must match `[A-Za-z0-9][A-Za-z0-9_-]{4,127}`. The frontend transport mints one fresh value per captured event with `crypto.getRandomValues` (format: `ui_evt_<32 hex>`).
+- `signedContext` is required and is verified before anything else; an unverifiable one is refused with `422` and never reaches a dispatcher.
+- `eventId` is required. Must match `[A-Za-z0-9][A-Za-z0-9_-]{4,127}`. The frontend transport mints one fresh value per captured event with `crypto.getRandomValues` (format: `ui_evt_<32 hex>`); it is the replay key's per-attempt half.
 - `payload` is optional and defaults to `{}`.
 - `payload` **must not** carry any routing-flavored field. The `UiPayloadFieldGuard` walks the whole payload tree and rejects (400) on any key (normalized across camelCase/snake_case/kebab-case) matching: `handler`, `handlerId`, `handlerClass`, `handlerMethod`, `method`, `methodName`, `class`, `className`, `component`, `componentName`, `instance`, `instanceId`, `part`, `partName`, `event`, `eventName`, `updates`, `updatesPath`, `endpoint`, `url`, `route`, `action`, `controller`, `callback`, `dispatcher`, `payloadClass`, `authzScope`, `backendHandler`, plus `dispatchId`/`requestId`/`eventId` (those identifiers belong at the top level, not inside `payload`).
 
-**Replay guard.** The dispatcher keys an entry by `sha256(ctx) + ':' + dispatchId`. The TTL is bounded by both the signed ctx's remaining lifetime and a server-side ceiling (currently 600s). A second request with the *same* `(ctx, dispatchId)` pair returns `409 duplicate_dispatch`. Crucially, the same `ctx` with a *different* `dispatchId` still works — the signed ctx is intentionally reusable inside its TTL so legitimate repeated user actions (e.g. successive `change` events on the same field) are not blocked. The replay guard claim is taken **after** ctx verification (so an invalid ctx never poisons the store) and **before** authorization (so a denied attempt still consumes its `dispatchId` — clients must mint a fresh id to retry).
+**Replay guard.** The dispatcher keys an entry by `sha256(signedContext) + ':' + eventId`. The TTL is bounded by both the signed ctx's remaining lifetime and a server-side ceiling (currently 600s). A second request with the *same* `(signedContext, eventId)` pair returns `409 duplicate_dispatch`. Crucially, the same context with a *different* `eventId` still works — the signed ctx is intentionally reusable inside its TTL so legitimate repeated user actions (e.g. successive `change` events on the same field) are not blocked. The replay guard claim is taken **after** ctx verification (so an invalid ctx never poisons the store) and **before** authorization (so a denied attempt still consumes its `dispatchId` — clients must mint a fresh id to retry).
 
 **Authorization hook.** A pluggable `UiInteractionAuthorizerInterface` runs *after* the replay claim and *before* the `#[UiOn]` handler. The default `AllowAllUiInteractionAuthorizer` is wired by the package and allows every verified dispatch; apps swap it via `withServices(authorizer: …)` or a future container binding. A `false` return maps to `403 interaction_forbidden`; the handler is never invoked and no patches are returned.
 
@@ -422,15 +436,14 @@ For ack-only responses the `patches` field is `[]` and `kind` stays `"ack"`.
 
 ## Frontend transport bridge (opt-in)
 
-`window.SemitexaUi.transport.attach({ endpoint })` subscribes the capture pipeline to an HTTP endpoint. Until `attach` is called, the runtime makes **zero** network requests — `fetch(` lives only inside `transport.attach`'s closure body.
+`window.SemitexaUi.transport.attach()` subscribes the capture pipeline to HUG. Pages with a parsed manifest attach automatically; until then the runtime makes **zero** network requests — `fetch(` lives only inside `transport.attach`'s closure body.
 
 ```js
-// Opt-in transport hookup (per page).
-const detach = window.SemitexaUi.transport.attach({ endpoint: '/__ui/dispatch' });
+const detach = window.SemitexaUi.transport.attach();   // posts to /__semitexa_hug
 // later: detach();
 ```
 
-Wire body sent on every capture: **exactly** `{ ctx, dispatchId, payload: { value } }`. The `dispatchId` is freshly minted per captured event with `crypto.getRandomValues` (format: `ui_evt_<32 hex>`), so a network race or double-click produces two distinct ids and both go through; only an *exact* `(ctx, dispatchId)` replay is rejected with `409`. Never component, instance, part, event, handler, method, class, endpoint, url, action, dispatcher fields.
+Wire body sent on every capture: **exactly** the envelope above, with `payload: { value }` (plus `payload.form.values` inside a form). The `dispatchId` is freshly minted per captured event with `crypto.getRandomValues` (format: `ui_evt_<32 hex>`), so a network race or double-click produces two distinct ids and both go through; only an *exact* `(signedContext, eventId)` replay is rejected with `409`. Never component, instance, part, event, handler, method, class, endpoint, url, action, dispatcher fields.
 
 Lifecycle CustomEvents on `document` (every detail carries `dispatchId` for correlation):
 - `semitexa:ui-event:dispatching`  (before fetch; `detail = {captured, dispatchId, endpoint}`)
