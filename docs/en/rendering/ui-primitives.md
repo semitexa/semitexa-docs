@@ -3,7 +3,7 @@ id: rendering/ui-primitives
 section: rendering
 slug: ui-primitives
 title: UI Primitives
-summary: The atomic ui="..." vocabulary -- button, input, label, field-shell, surface, badge -- and the attribute-driven runtime behind it.
+summary: The atomic ui="..." vocabulary -- button, input, label, field-shell, surface, badge, alert, avatar, spinner -- the foundation tokens and skins behind it, and the attribute-driven runtime.
 order: 160
 locale: en
 status: canonical
@@ -17,22 +17,27 @@ keywords:
 
 # UI Primitives
 
-Six primitives ship in v1. All are semantic HTML with CSS styling via `ui="<id>"` + modifiers. CSS is the stable contract; Twig macros in `resources/twig/primitives/` are optional DX.
+Nine primitives ship today: `button`, `input`, `label`, `field-shell`, `surface`, `badge`, `alert`, `avatar`, `spinner`. All are semantic HTML styled by `ui="<id>"` plus modifiers. CSS is the stable contract; Twig macros in `resources/twig/primitives/` are optional DX.
+
+**Tone and variant are independent.** A tone names a colour; a variant decides how the colour is used. Every pair works, and a tone works on its own: `<button ui="button" ui-tone="danger">` is a red solid button.
 
 ## `ui="button"`
 
 | Attribute | Values | Default |
 |---|---|---|
-| `ui-variant` | `solid` · `soft` · `ghost` | `solid` |
-| `ui-tone` | `neutral` · `brand` · `success` · `warning` · `danger` | `brand` (solid) |
+| `ui-variant` | `solid` · `soft` · `outline` · `ghost` · `link` | `solid` |
+| `ui-tone` | `brand` · `neutral` · `info` · `success` · `warning` · `danger` | `brand` |
 | `ui-size` | `sm` · `md` · `lg` | `md` |
+| `ui-shape` | `square` (icon-only) | — |
+| `ui-state` | `loading` | — |
 
-States: `:hover`, `:active`, `:disabled` handled automatically.
+States: `:hover`, `:active`, `:focus-visible`, `:disabled`, `aria-disabled="true"` (links), `aria-pressed="true"` (toggle buttons) and `ui-state="loading"` (keeps the width, shows a ring). Heights come from `--ui-control-height-*`, so buttons, inputs and selects line up at every size.
 
 ```html
 <button ui="button" ui-tone="danger">Delete</button>
-<button ui="button" ui-variant="ghost">Cancel</button>
-<a ui="button" href="/export" ui-variant="soft">Export</a>
+<button ui="button" ui-variant="soft">Cancel</button>
+<button ui="button" ui-variant="outline" ui-tone="success">Approve</button>
+<a ui="button" href="/export" ui-variant="ghost">Export</a>
 ```
 
 ## `ui="input"`
@@ -42,17 +47,17 @@ States: `:hover`, `:active`, `:disabled` handled automatically.
 | `ui-size` | `sm` · `md` · `lg` | `md` |
 | `ui-state` | `default` · `invalid` | `default` |
 
-Uses `color-mix(in oklab, ...)` for focus ring tinting against `--ui-accent-brand`.
+`aria-invalid="true"` is styled the same as `ui-state="invalid"`. Hover strengthens the border; focus draws a ring from `--ui-focus-ring`. `textarea[ui="input"]` gets a taller minimum height.
 
 ## `ui="label"`
 
-Form label with role-appropriate typography. `ui-size`: `sm`/`md`/`lg`.
+Form label. `ui-size`: `sm`/`md`/`lg`. `ui-required` appends a danger-toned `*`.
 
 ## `ui="field-shell"`
 
-Wraps label + input + optional `ui="error-text"`. When parent has `ui-state="invalid"`:
-- Descendant `[ui="label"]` turns `--ui-state-danger`
-- Descendant `[ui="input"]` border turns danger
+Wraps label + input + optional `ui="error-text"`. When it has `ui-state="invalid"`:
+- descendant `[ui="label"]` turns `--ui-state-danger`
+- descendant `[ui="input"]` border turns danger
 - `[ui="error-text"]` becomes visible (hidden by default)
 
 ```html
@@ -65,18 +70,33 @@ Wraps label + input + optional `ui="error-text"`. When parent has `ui-state="inv
 
 ## `ui="surface"`
 
-Opinionated panel container. Defaults to panel background + subtle border + 1rem padding. Compose with `sx-padding`, `sx-radius`, `sx-surface` for variants.
+Opinionated panel container: panel background, subtle border, large radius, `--ui-space-4` padding. Compose with `sx-padding`, `sx-radius`, `sx-surface` for variants.
 
 ## `ui="badge"`
 
 | Attribute | Values | Default |
 |---|---|---|
-| `ui-variant` | `solid` · `soft` | `solid` |
-| `ui-tone` | `neutral` · `brand` · `success` · `warning` · `danger` | `brand` |
+| `ui-variant` | `soft` · `solid` · `outline` | `soft` |
+| `ui-tone` | `neutral` · `brand` · `info` · `success` · `warning` · `danger` | `neutral` |
+| `ui-size` | `sm` · `md` | `md` |
+| `ui-dot` | (boolean) leading status dot | — |
 
-## Deferred to v1.1+
+## `ui="alert"`
 
-`textarea`, `select`, `checkbox`, `radio`, `switch`, `hint`, `tag`, `divider`, `icon`, `toolbar`.
+| Attribute | Values | Default |
+|---|---|---|
+| `ui-variant` | `soft` · `outline` · `solid` | `soft` |
+| `ui-tone` | `neutral` · `info` · `success` · `warning` · `danger` | `info` |
+
+The tone tints the surface and border and colours the icon; body text stays at full contrast. The runtime template picks an icon per tone and `role="alert"` for `warning`/`danger`, `role="status"` otherwise.
+
+## `ui="avatar"` and `ui="spinner"`
+
+`avatar`: image or initials on a brand-tinted circle, `ui-size` `sm`/`md`/`lg`/`xl`. `spinner`: CSS ring, `ui-tone` `brand`/`neutral`, `ui-size` `sm`/`md`/`lg`, slowed under `prefers-reduced-motion`.
+
+## Not yet shipped
+
+`select`, `checkbox`, `radio`, `switch`, `hint`, `tag`, `divider`, `toolbar` — tracked in `ep-platform-breadth`. Icons ship as the `icon(name, {size, label, class})` Twig function over a Lucide-shaped registry, not as a primitive.
 
 ## Introspection
 
@@ -124,19 +144,40 @@ The rendered output carries stable root markers for future frontend-runtime scan
 
 ### Primitive prop vocabulary
 
-The current attribute-driven primitives accept this small vocabulary:
-
 | primitive | accepted props |
 |---|---|
-| `button` | `text`, `tone` (`brand`/`neutral`/`success`/`warning`/`danger`), `variant` (`solid`/`soft`/`ghost`), `size` (`sm`/`md`/`lg`), `disabled`, `href`, `type` |
+| `button` | `text`, `tone`, `variant`, `size`, `shape` (`square`), `icon`, `iconEnd`, `loading`, `pressed`, `disabled`, `href`, `type` |
 | `input`  | `name`, `id`, `type`, `value`, `placeholder`, `size`, `state` (`invalid`), `required`, `disabled`, `help`, `error` |
-| `badge`  | `text`, `tone`, `variant` (`solid`/`soft`) |
+| `badge`  | `text`, `tone`, `variant`, `size`, `dot`, `icon` |
+| `alert`  | `text`, `title`, `tone`, `variant`, `icon`, `role` |
 
-Only `text` (and `href` on button) ever changes the rendered tag; everything else maps to a `ui-*` attribute that the active skin's `tokens.css` resolves. `error` on an input automatically sets `ui-state="invalid"`, `aria-invalid="true"`, and an inline danger-toned message; `help` renders muted help text with `aria-describedby`. Both wrap the input in a stack — bare inputs (no `help`/`error`) still emit a single `<input>` element so existing usage is preserved.
+`variant`, `tone` and `size` are checked against the vocabulary `platform-ui:css:explain` prints. With `APP_ENV=dev` an unknown value throws and names the allowed ones (`Primitive "platform.button" has no variant "primary". Allowed: solid, soft, outline, ghost, link.`); elsewhere the value is dropped and the primitive renders its default look rather than an unstyled one.
+
+Only `text` (and `href` on button) ever changes the rendered tag; everything else maps to a `ui-*` or ARIA attribute. `error` on an input automatically sets `ui-state="invalid"`, `aria-invalid="true"`, and an inline danger-toned message; `help` renders muted help text with `aria-describedby`. Both wrap the input in a stack — bare inputs (no `help`/`error`) still emit a single `<input>` element so existing usage is preserved. An icon-only button (`shape: 'square'`) keeps `text` as its `aria-label`.
+
+### Foundation tokens
+
+The skin owns colour, radius, shadow and motion. Rhythm is the same under every skin and ships with platform-ui in `@layer platform-ui.tokens` (`resources/baseline/foundation.css`):
+
+| Family | Tokens |
+|---|---|
+| Spacing (4px grid) | `--ui-space-0` … `--ui-space-24` |
+| Type scale | `--ui-text-xs` … `--ui-text-6xl` with matching `-leading`, `--ui-tracking-*`, `--ui-font-weight-*` |
+| Controls | `--ui-control-height-{sm,md,lg}`, `--ui-control-padding-{sm,md,lg}` |
+| Layout | `--ui-container-{sm,md,lg,xl,max}`, `--ui-grid-min` |
+| Derived from the skin | `--ui-elevation-0..3`, `--ui-hairline`, `--ui-overlay-scrim`, `--ui-surface-inverse`, `--ui-text-on-inverse`, `--ui-motion-duration-base`, `--ui-text-body` |
+
+A skin that defines one of these names wins (its `:root` is unlayered). Headings `h1`–`h6` take the type scale at zero specificity.
+
+**Density.** `ui-density="compact"` or `"comfortable"` on any container rescales control heights, card padding and table cells for that subtree.
+
+**Grid.** `sx-layout="grid"` wraps once a column would be narrower than `--ui-grid-min` (16rem); set it inline to tune. `sx-layout="container"` centres content at `--ui-container-max`.
+
+A unit test (`TokenCoverageTest`) fails when any platform-ui stylesheet reads a `--ui-*` token that neither the skin contract nor the foundation defines, when component or behavior CSS carries a literal colour, or when `color-mix()` interpolates hue (`in oklch` drifts neutrals pink; use `in oklab`).
 
 ### Active skin/theme assumption
 
-Platform-ui CSS reads every visual decision (color, radius, spacing, motion) from CSS custom properties prefixed `--ui-*`. Those properties are defined by the active **skin** at runtime (`/assets/skins/<slug>/tokens.css`). The active skin is determined by `semitexa/theme` from the (tenant, domain, locale) tuple. The project's `app` layout includes both `platform-ui:css:full` (auto-required via `requireGlobals()`) and the skin tokens link via `theme_skin_css()`, with tokens loaded **last** so they win the cascade.
+Platform-ui CSS reads every colour, radius, shadow and motion decision from CSS custom properties prefixed `--ui-*`. Those properties are defined by the active **skin** at runtime (`/assets/skins/<slug>/tokens.css`). The active skin is determined by `semitexa/theme` from the (tenant, domain, locale) tuple. The project's `app` layout includes both `platform-ui:css:full` (auto-required via `requireGlobals()`) and the skin tokens link via `theme_skin_css()`, with tokens loaded **last** so they win the cascade.
 
 ### Local playground
 
