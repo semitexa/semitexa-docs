@@ -3,7 +3,7 @@ id: platform/tenancy-isolation
 section: platform
 slug: tenancy-isolation
 title: Data Isolation
-summary: Product listing scoped by tenant -- switch tenant, list changes. Zero manual WHERE clauses.
+summary: Product listing scoped by tenant: switch the tenant and the list changes. Zero manual WHERE clauses.
 order: 40
 locale: en
 status: canonical

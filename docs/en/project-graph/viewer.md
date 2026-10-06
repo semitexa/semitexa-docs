@@ -3,7 +3,7 @@ id: project-graph/viewer
 section: project-graph
 slug: viewer
 title: Browsing the Graph
-summary: The Graph view inside the Observatory, and the same view exported as one HTML file — a lazy tree per entry point, a layered DAG where fan-in is visible, findings, coverage gaps and links to recorded traces.
+summary: The Graph view in the Observatory, also exported as one HTML file: a lazy tree per entry point, a layered DAG, findings, coverage gaps and trace links.
 order: 25
 locale: en
 status: canonical

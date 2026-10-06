@@ -3,7 +3,7 @@ id: di/factory
 section: di
 slug: factory
 title: Factory Injection
-summary: "#[InjectAsFactory] injects a factory that selects among a contract's implementations by backed-enum key — not a closure; execution-scoped implementations come back as a fresh per-execution instance."
+summary: #[InjectAsFactory] injects a factory that picks a contract implementation by backed-enum key. Execution-scoped implementations come back fresh each time.
 order: 50
 locale: en
 status: canonical

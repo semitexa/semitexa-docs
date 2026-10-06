@@ -3,7 +3,7 @@ id: auth/google
 section: auth
 slug: google
 title: Google Authorization
-summary: Authorization is required for demo SSE blocks that keep a long-lived backend connection open.
+summary: Sign in with Google in Semitexa PHP: the OAuth flow, CSRF state, a typed session identity, and why long-lived SSE streams require an authenticated user.
 order: 30
 locale: en
 status: published

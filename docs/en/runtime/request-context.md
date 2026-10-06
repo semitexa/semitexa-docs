@@ -3,7 +3,7 @@ id: runtime/request-context
 section: runtime
 slug: request-context
 title: Request Context: Tenant, Auth, Locale
-summary: Reaching the per-request tenant, auth and locale -- through the request-scoped container or statically -- and when each is still at its default.
+summary: Reaching the per-request tenant, auth and locale, through the request-scoped container or statically, and when each is still at its default.
 order: 30
 locale: en
 status: canonical

@@ -3,7 +3,7 @@ id: platform/tenancy-config
 section: platform
 slug: tenancy-config
 title: Per-Tenant Configuration
-summary: Three demo tenants with distinct branding -- switch tenant, everything changes without if/else.
+summary: Three demo tenants with distinct branding. Switch the tenant and everything changes, without a single if/else.
 order: 20
 locale: en
 status: canonical

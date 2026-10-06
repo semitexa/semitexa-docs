@@ -3,7 +3,7 @@ id: cli/ai-tooling
 section: cli
 slug: ai-tooling
 title: Semitexa Dev
-summary: Use Semitexa Dev as the project-aware operating layer for orientation, planning, structural inspection, runtime debugging, durable work memory, and precise verification.
+summary: Semitexa Dev is the project-aware layer for orientation, planning, structural inspection, runtime debugging, durable work memory and precise verification.
 order: 50
 locale: en
 status: canonical

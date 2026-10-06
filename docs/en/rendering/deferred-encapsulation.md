@@ -3,7 +3,7 @@ id: rendering/deferred-encapsulation
 section: rendering
 slug: deferred-encapsulation
 title: Block Isolation
-summary: Two identical blocks on the same page run independently — scoped DOM, scoped JS, no conflicts.
+summary: Two identical blocks on the same page run independently: scoped DOM, scoped JS, no conflicts.
 order: 100
 locale: en
 status: published
