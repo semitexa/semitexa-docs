@@ -3,7 +3,7 @@ id: rendering/seo
 section: rendering
 slug: seo
 title: SEO
-summary: Set title, description, and Open Graph tags from your handler — no template hacks needed.
+summary: Set the title, description and Open Graph tags from your PHP handler. No template hacks needed.
 order: 50
 locale: en
 status: published

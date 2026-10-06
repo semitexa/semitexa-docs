@@ -3,7 +3,7 @@ id: validation/core-validators
 section: validation
 slug: core-validators
 title: Core Validators
-summary: Trait-based validation primitives covering presence, type, string, format, numeric, datetime, choice, collection, comparison, conditional, composite, and domain rules — composed into payload `validate()` methods that the framework runs automatically before handlers.
+summary: Trait-based validators for presence, type, format, numbers, dates, choices, collections and domain rules, run automatically before handlers.
 order: 10
 locale: en
 status: published

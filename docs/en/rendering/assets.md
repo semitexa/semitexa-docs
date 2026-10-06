@@ -3,7 +3,7 @@ id: rendering/assets
 section: rendering
 slug: assets
 title: Asset Pipeline
-summary: Declare assets with glob patterns in assets.json — served, versioned, and injected automatically.
+summary: Declare assets with glob patterns in assets.json. They are served, versioned and injected automatically.
 order: 60
 locale: en
 status: published

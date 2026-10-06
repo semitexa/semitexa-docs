@@ -3,7 +3,7 @@ id: di/readonly
 section: di
 slug: readonly
 title: Readonly Injection
-summary: The default tier — one instance per worker, injected into a protected property, with optional injection for dependencies that may not be installed.
+summary: The default tier: one instance per worker, injected into a protected property, with optional injection for dependencies that may not be installed.
 order: 30
 locale: en
 status: canonical

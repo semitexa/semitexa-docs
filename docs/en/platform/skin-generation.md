@@ -36,7 +36,7 @@ Full knob enums + defaults: run `bin/semitexa skins:generate --describe`, or see
 ```bash
 bin/semitexa skins:generate balanced "#2f6fed" --name=enterprise --write
 bin/semitexa skins:generate glass "#6b7bff" --name=frosted --knob=blur_amount:heavy --write
-bin/semitexa skins:generate brutalist "#d93025" --name=manifesto --knob=shadow_color_mode:brand --mode=dark --write
+bin/semitexa skins:generate brutalist "#d93025" --name=manifesto --knob=shadow_color_mode:brand --write
 ```
 
 Omit `--write` for a dry-run CSS preview to stdout.
@@ -46,8 +46,23 @@ Produces under the project's `src/skins/<name>/` directory:
 - `skin.json` — v2 manifest (algorithm, seed, mode, resolved knobs, history, tokens)
 
 `SkinDiscovery` in `semitexa/theme` scans two sources:
-1. `vendor/semitexa/skins-base/src/Application/Static/skins/` — framework default (ships only the single `default` reference skin)
+1. `vendor/semitexa/theme/src/Application/Static/css/skins/` — framework skins
 2. `src/skins/` — project-local (project slugs override same-named framework slugs)
+
+Framework skins shipped with `semitexa/theme`, each light + dark:
+
+| Slug | Algorithm | Seed | Character |
+|---|---|---|---|
+| `default` | balanced | `#4f5bd5` | calm indigo accent on cool neutrals |
+| `graphite` | balanced | `#3f3f46` | monochrome, product-focused |
+| `ocean` | balanced | `#0369a1` | trustworthy blue |
+| `forest` | balanced | `#15803d` | grounded green |
+| `ember` | balanced | `#ea580c` | warm orange |
+| `rose` | balanced | `#e11d48` | bold, expressive |
+| `aurora` | glass | `#7c3aed` | translucent violet surfaces |
+| `ink` | brutalist | `#1d4ed8` | high-contrast neo-brutalist |
+
+Regenerate any of them with `bin/semitexa skins:generate <algorithm> "<seed>" --name=<slug> --write`; the command writes to `src/skins/<slug>/`, from where a framework skin is copied into the theme package.
 
 Both served under the unified URL prefix `/assets/skins/<slug>/tokens.css` (registered at worker boot by `Semitexa\Theme\Runtime\BootProjectSkinsAssetAliasListener`). Theme authors reference a skin by slug — they don't care where it physically lives.
 
@@ -67,15 +82,19 @@ See [llm-prompt.md](llm-prompt.md) for the system prompt and output contract.
 
 ## Light & dark mode
 
-Every algorithm emits both. Default is light; pass `--mode=dark` for a dark palette built from the same brand hue.
+Every skin carries both modes in one `tokens.css`: the generator runs the algorithm twice and the emitter writes each mode-varying token once.
 
-```bash
-bin/semitexa skins:generate balanced "#3c7fbf" --name=ocean-dark --mode=dark --write
-```
+- A colour becomes `light-dark(<light>, <dark>)`.
+- A shadow switches only its colours — `0 4px 6px -1px light-dark(rgba(0,0,0,.1), rgba(0,0,0,.3))`. `light-dark()` accepts colours only; wrapping a whole shadow in it is invalid at computed-value time, and every `box-shadow: var(--ui-shadow-*)` silently drew nothing (fixed 2026-10).
+- Any other value whose non-colour parts differ between modes gets its own block: `@media (prefers-color-scheme: dark) { :root:not([data-skin-mode="light"]) { … } }` plus `:root[data-skin-mode="dark"] { … }`.
+
+`data-skin-mode="light|dark"` on `<html>` pins a mode; otherwise the browser follows `prefers-color-scheme`.
+
+Text on the brand fill (`--ui-text-on-accent`) is white when white clears WCAG AA (4.5:1), near-black when only near-black does, and white when neither does — WCAG 2 under-rates light text on saturated mid-tones, so a near-tie is settled by legibility.
 
 Dark mode inverts surface/text lightness in OKLCH, shifts state colors brighter for legibility, triples shadow alpha (so drop shadows remain perceptible against near-black surfaces), and flips the brutalist neutral shadow from matte-black to near-white. `skin:refine` preserves the mode of the source skin.
 
-## Token contract (41 tokens)
+## Token contract (45 tokens)
 
 ### Color (24) — unchanged since v1
 
@@ -86,6 +105,7 @@ Dark mode inverts surface/text lightness in OKLCH, shifts state colors brighter 
 | Border | `--ui-border-subtle`, `--ui-border-strong` |
 | Accent | `--ui-accent-brand`, `--ui-accent-brand-contrast` |
 | State | `--ui-state-success`, `--ui-state-warning`, `--ui-state-danger`, `--ui-state-info` |
+| Text on a state fill | `--ui-text-on-success`, `--ui-text-on-warning`, `--ui-text-on-danger`, `--ui-text-on-info` — derived from the state colour with the on-accent rule when a palette does not carry them, so older `skin.json` files still load |
 | Interactive | `--ui-focus-ring` |
 | Chart | `--ui-chart-1` … `--ui-chart-8` |
 

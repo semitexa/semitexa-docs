@@ -3,7 +3,7 @@ id: prompt/overrides
 section: prompt
 slug: overrides
 title: Per-Tenant Overrides
-summary: A DB-backed override layer lets each tenant edit a prompt on top of the code catalog, with version history and restore — plus an additive guidance layer for feedback that must not rewrite the body.
+summary: A DB-backed layer lets each tenant edit a prompt on top of the code catalog, with version history and restore, plus additive guidance for feedback.
 order: 40
 locale: en
 status: canonical

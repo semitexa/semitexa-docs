@@ -3,7 +3,7 @@ id: rendering/deferred-live
 section: rendering
 slug: deferred-live
 title: Live Widgets
-summary: The server re-renders a live slot on a cadence and pushes it down the page's own SSE connection — SSR-first, no SPA runtime, and no polling anywhere.
+summary: The server re-renders a live slot on a cadence and pushes it down the page's own SSE connection. SSR first, no SPA runtime, no polling.
 order: 110
 locale: en
 status: published

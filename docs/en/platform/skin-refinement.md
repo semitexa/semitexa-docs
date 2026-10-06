@@ -34,7 +34,7 @@ Default is dry-run preview; pass `--write` to persist. Dry-run shows proposed de
 
 ## Refining the framework default
 
-If the target slug is the framework-shipped default (in `vendor/semitexa/skins-base/…/default/`), the refine always writes the output to the project's `src/skins/<slug>/` instead of mutating the vendor dir. This keeps the framework default pristine across refinement chains and makes the override project-local. On the next resolution, `SkinDiscovery` returns the project override automatically (project source takes priority over framework).
+If the target slug is the framework-shipped default (in `vendor/semitexa/theme/src/Application/Static/css/skins/`), the refine always writes the output to the project's `src/skins/<slug>/` instead of mutating the vendor dir. This keeps the framework default pristine across refinement chains and makes the override project-local. On the next resolution, `SkinDiscovery` returns the project override automatically (project source takes priority over framework).
 
 ```bash
 bin/semitexa skins:refine default --set=radius_scale:rounded --write
@@ -91,7 +91,7 @@ Refinement then proceeds normally against the migrated state. The on-disk file o
 ## What `skin:refine` won't do
 
 - **Switch algorithm.** Brutalist skins refine into brutalist skins. v1.1+ will expose `--algorithm=X` explicitly; never LLM-decided.
-- **Switch mode.** Dark skins refine into dark skins. Change the mode by generating a new skin from the same seed with `--mode=dark`.
+- **Switch mode.** Every skin carries both modes; pin one per page with `data-skin-mode="light"` or `"dark"` on `<html>`.
 - **Change the seed.** Seed is the anchor of reproducibility; altering it would produce a different skin entirely.
 - **Add knobs outside the algorithm's schema.** Unknown keys fail fast with the list of valid ones.
 

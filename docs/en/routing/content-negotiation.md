@@ -3,7 +3,7 @@ id: routing/content-negotiation
 section: routing
 slug: content-negotiation
 title: Content Negotiation
-summary: One endpoint, multiple response formats — automatically.
+summary: One endpoint, many formats: the same Semitexa route answers HTML, JSON and more, picked automatically from the request's Accept header.
 order: 70
 locale: en
 status: canonical

@@ -3,7 +3,7 @@ id: rendering/slots
 section: rendering
 slug: slots
 title: Slot Resources
-summary: Each page region is its own resource pipeline with the same template system as the main page — no scattered partial glue, no mystery wiring.
+summary: Each page region is its own resource pipeline with the same template system as the main page. No scattered partial glue, no mystery wiring.
 order: 30
 locale: en
 status: published

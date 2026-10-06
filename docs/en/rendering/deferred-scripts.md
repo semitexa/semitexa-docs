@@ -3,7 +3,7 @@ id: rendering/deferred-scripts
 section: rendering
 slug: deferred-scripts
 title: Script Injection
-summary: Deferred blocks carry their own JS — injected once when the block arrives, never duplicated.
+summary: Deferred blocks carry their own JS, injected once when the block arrives and never duplicated.
 order: 80
 locale: en
 status: published

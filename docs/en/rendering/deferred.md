@@ -3,7 +3,7 @@ id: rendering/deferred
 section: rendering
 slug: deferred
 title: Deferred Blocks
-summary: SSR renders the shell first, then expensive regions stream in as real HTML over SSE — no SPA handoff and no client-side page rebuild.
+summary: SSR renders the shell first, then expensive regions stream in as real HTML over SSE. No SPA handoff and no client-side page rebuild.
 order: 90
 locale: en
 status: published

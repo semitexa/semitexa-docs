@@ -3,7 +3,7 @@ id: llm/prompt-reference
 section: llm
 slug: prompt-reference
 title: LLM Prompt Reference
-summary: The prompt surface the platform exposes to language models.
+summary: The prompt surface the Semitexa platform exposes to language models: every prompt, its inputs and where it is used in a PHP application.
 order: 60
 locale: en
 status: canonical

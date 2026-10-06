@@ -3,7 +3,7 @@ id: testing/payload-contracts
 section: testing
 slug: payload-contracts
 title: Payload Contract Testing
-summary: Run one project-level contract suite through the canonical test runner and let strategy profiles verify payload boundaries without hand-writing repetitive negative cases.
+summary: Run one project-level contract suite through the test runner and let strategy profiles check payload boundaries without hand-written negative cases.
 order: 10
 locale: en
 status: canonical

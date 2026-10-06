@@ -2,8 +2,8 @@
 id: events/sse
 section: events
 slug: sse
-title: SSE Stream
-summary: Real-time server push without WebSockets — connect once and receive real backend events over plain HTTP.
+title: Server-Sent Events (SSE)
+summary: Live Server-Sent Events demo: one long-lived HTTP connection streams real backend events to the browser via EventSource. No WebSockets, plain PHP.
 order: 50
 locale: en
 status: published

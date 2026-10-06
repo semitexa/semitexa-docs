@@ -3,7 +3,7 @@ id: auth/machine
 section: auth
 slug: machine
 title: Machine Auth
-summary: Service-to-service authentication via Bearer tokens — scoped, revocable, and audited.
+summary: Service-to-service authentication via Bearer tokens: scoped, revocable and audited.
 order: 40
 locale: en
 status: published

@@ -3,7 +3,7 @@ id: di/overview
 section: di
 slug: overview
 title: DI Canon
-summary: One canonical DI path for container-managed classes — protected property attributes, no constructor arguments, validated at boot and enforced by lint:di.
+summary: One canonical DI path for container-managed classes: protected property attributes, no constructor arguments, validated at boot and enforced by lint:di.
 order: 10
 locale: en
 status: canonical

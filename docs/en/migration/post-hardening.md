@@ -3,7 +3,7 @@ id: migration/post-hardening
 section: migration
 slug: post-hardening
 title: Post-Hardening Migration Guide
-summary: Migrate from the legacy access model and webhook flow to Semitexa's current architecture — explicit access attributes, tenant-aware webhooks, atomic replay protection, and the unified quality gate.
+summary: Move from the legacy access model and webhook flow to the current architecture: explicit access attributes, tenant-aware webhooks and replay protection.
 order: 10
 locale: en
 status: canonical

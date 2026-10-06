@@ -3,7 +3,7 @@ id: project-graph/findings
 section: project-graph
 slug: findings
 title: Unused Classes and Dependency Loops
-summary: ai:review-graph:findings lists classes nothing depends on, graded by how sure that is, and the class dependency loops in the project — each row with the reason.
+summary: ai:review-graph:findings lists classes nothing depends on, graded by certainty, and the class dependency loops in the project, each with its reason.
 order: 37
 locale: en
 status: canonical

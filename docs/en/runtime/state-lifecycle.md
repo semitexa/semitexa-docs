@@ -3,7 +3,7 @@ id: runtime/state-lifecycle
 section: runtime
 slug: state-lifecycle
 title: Runtime State Lifecycle
-summary: Per-request, per-worker, persistent, and test-only state — the Swoole-aware taxonomy that decides which caches reset between requests, which survive across requests, and which only reset when a test explicitly asks.
+summary: Per-request, per-worker, persistent and test-only state: the Swoole-aware rules for which caches reset between requests and which survive.
 order: 10
 locale: en
 status: published

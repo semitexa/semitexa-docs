@@ -3,7 +3,7 @@ id: di/configuration
 section: di
 slug: configuration
 title: Configuration Injection
-summary: "#[Config] reads a scalar from the environment into a typed property, with a default in code — the only supported way a container-managed class reads env."
+summary: #[Config] reads a scalar from the environment into a typed property, with a default in code. It is the only supported way a service reads env.
 order: 60
 locale: en
 status: canonical

@@ -3,7 +3,7 @@ id: data/pagination
 section: data
 slug: pagination
 title: Pagination
-summary: Offset and cursor pagination out of the box — switch modes with a single query parameter.
+summary: Offset and cursor pagination out of the box. Switch modes with a single query parameter.
 order: 60
 locale: en
 status: canonical
