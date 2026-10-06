@@ -3,7 +3,7 @@ id: rendering/app-shell
 section: rendering
 slug: app-shell
 title: App Shell
-summary: A multi-page admin feels like one application by marking which regions change per page — the framework derives the chrome-less variant and ships the client that asks for it.
+summary: A multi-page admin feels like one application: mark which regions change per page, and the framework derives the chrome-less variant and its client.
 order: 120
 locale: en
 status: published

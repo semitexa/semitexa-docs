@@ -3,7 +3,7 @@ id: rendering/components
 section: rendering
 slug: components
 title: Components
-summary: Reusable, attribute-registered UI components — discovered automatically from the classmap.
+summary: Reusable, attribute-registered UI components, discovered automatically from the classmap.
 order: 40
 locale: en
 status: published
