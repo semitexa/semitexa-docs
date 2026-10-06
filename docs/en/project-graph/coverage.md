@@ -3,7 +3,7 @@ id: project-graph/coverage
 section: project-graph
 slug: coverage
 title: What the Graph Could Not See
-summary: Every impact and usage answer carries a coverage block, so "nothing uses this" is stated as proof only when nothing that could hide the missing edge was left unread.
+summary: Every impact and usage answer carries a coverage block, so "nothing uses this" counts as proof only when nothing that could hide an edge went unread.
 order: 35
 locale: en
 status: canonical
