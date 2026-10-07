@@ -477,10 +477,10 @@ Takes no arguments.
 
 ```php
     #[LiveFilterParam]
-    private ?string $from = null;
+    protected ?string $q = null;
 ```
 
-— `vendor/semitexa/platform-ui/src/Application/Payload/Request/CalendarEventsFeedPayload.php`
+— `vendor/semitexa/crud/src/Application/Payload/Request/CollectionFeed.php`
 
 ## `#[PathParam]`
 

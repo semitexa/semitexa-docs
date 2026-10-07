@@ -16,6 +16,18 @@ verified_against: 2026.10.03.1952
 
 Every `lint` command, with the arguments and options the console actually defines.
 
+## `lint:components`
+
+Check that every component('…') a template calls names a registered #[AsComponent].
+
+```bash
+bin/semitexa lint:components
+```
+
+| option | takes a value |
+|---|---|
+| `--json` | no |
+
 ## `lint:deferred-slots`
 
 Report slots whose deferred declaration and page template disagree.
