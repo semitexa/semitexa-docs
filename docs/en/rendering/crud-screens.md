@@ -91,8 +91,9 @@ The Playground's Categories screen is this command's output, unedited.
 It is **one route**. The page and the collection are its two render profiles (HTML first, so a
 browser's `*/*` gets the page). The grid subscribes to the route by its name through HUG.
 
-The dialogs live in the address, so a create or an edit can be linked to, reloaded, and closed
-with back. See [Modal in the address](ui-behaviors.md#modal-in-the-address).
+The dialogs live in the address, so a create or an edit can be linked to and reloaded. Opening
+one rewrites the current history entry instead of adding one, so Back goes to the previous entry
+rather than closing the dialog. See [Modal in the address](ui-behaviors.md#modal-in-the-address).
 
 ## Permissions
 

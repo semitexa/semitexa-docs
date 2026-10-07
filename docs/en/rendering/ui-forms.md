@@ -19,7 +19,7 @@ keywords:
 
 ## Form composition (`platform.form`)
 
-A minimal composition container for grouping fields and surfacing a *client-local* aggregate of their server-validated state. **Not a form engine** — no real submit, no persistence, no CSRF, no server-side form-state store, no cross-field rules, no async validation. Field rules continue to run server-side through `FieldComponent`'s existing pipeline; the form layer never re-evaluates rules.
+A composition container for grouping fields and surfacing a *client-local* aggregate of their server-validated state while the user types. Field rules run server-side through `FieldComponent`'s pipeline; the aggregate never re-evaluates them. **Not a form engine** — no persistence, no server-side form-state store, no async validation. Submitting is opt-in: a form rendered with signed `fields` and/or a `submitAction` submits through HUG to `FormComponent::onSubmit`, which revalidates every signed field and then runs the action (see [Form submit pipeline](#form-submit-pipeline-authoritative-final-validation)). Without either, a submit only answers `Form has no fields.`
 
 ```twig
 {% set _fields %}
@@ -56,7 +56,7 @@ A minimal composition container for grouping fields and surfacing a *client-loca
 | `description` | string | `null` | Muted paragraph beneath the title. |
 | `showStatus` | bool | `true` | Renders the `data-ui-patch-target="form-status"` target. |
 | `statusInitialMessage` | string | `'No fields validated yet.'` | Text shown before any field has validated. |
-| `showSubmit` | bool | `false` | Renders a `platform.button` shell — **visual only**, no submit pipeline. |
+| `showSubmit` | bool | `false` | Renders the submit button. It submits through the [submit pipeline](#form-submit-pipeline-authoritative-final-validation); without `fields` or a `submitAction` the answer is `Form has no fields.` |
 | `submitText` | string | `'Submit'` | Button label. |
 | `submitTone` | string | `'brand'` | The button's tone; `'danger'` for a form that deletes. |
 | `ariaLabel` | string | `null` | Accessible name when the visual title is absent. |
@@ -117,14 +117,14 @@ After every successful dispatch response, the transport bridge calls `updateForm
 
 **What this slice does NOT introduce**:
 
-- No real form submit, no persistence, no session-backed form state, no server-side form state store.
-- No CSRF / submit pipeline / file uploads / multi-step navigation.
+- No persistence, no session-backed form state, no server-side form state store. Submitting is the [submit pipeline](#form-submit-pipeline-authoritative-final-validation); persisting is the action's job.
+- No multi-step navigation.
 - No cross-field rules, no field dependency rules, no schema validation.
 - No client-side rule mirror. `UiFieldValidator` stays server-only.
 - No async validation, no WebSockets, no new SSE semantics.
 - No HTML patches, no `innerHTML`, no `eval`, no arbitrary selectors. Same allow-list as before.
 - No new `UiResponsePatch` op. Aggregation reuses `setText` + `setAttribute`.
-- No `disabled` attribute mutation — `disabled` remains off the patch allow-list on purpose. The submit button is visual only in this slice.
+- No `disabled` attribute mutation — `disabled` remains off the patch allow-list on purpose.
 - No persistent server-side form snapshot. State is per-page-load, per-tab. A reload resets the aggregate; broadcasting (e.g. via SSE) is future work.
 
 ## Control kinds (`platform.field` `control:`)

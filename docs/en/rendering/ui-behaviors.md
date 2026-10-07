@@ -63,7 +63,7 @@ Built in: `menu`, `dropdown`, `modal`, `offcanvas`, `tabs`, `accordion`, `toggle
 
 - it opens on load when the address has `?edit`;
 - opening it adds the parameter, and closing it removes the parameter (the history entry is rewritten, not pushed);
-- back and forward open or close it to match.
+- back and forward open or close it to match the entry they land on. Opening adds no entry, so Back after opening goes to the previous entry; it does not just close the dialog.
 
 A trigger can then be a real link, so the dialog can be bookmarked, opened in a new tab, or reached without JavaScript:
 

@@ -17,9 +17,11 @@ keywords:
 ---
 # CSRF
 
-A signed-in browser sends its session cookie with every request, including one that another
-site started. Semitexa therefore refuses an unsafe request (POST, PUT, PATCH, DELETE) from a
-signed-in session unless it proves it came from your own page.
+The session cookie is `SameSite=Lax`, so a browser leaves it off most requests that another
+site starts. Lax is not a guarantee: a page on a sibling subdomain is the same site and still
+gets the cookie sent. Semitexa therefore checks every unsafe request (POST, PUT, PATCH, DELETE)
+that carries the session cookie of a signed-in visitor, and refuses it unless it proves it came
+from your own page. A request without the session cookie is not checked.
 
 ## How it works
 

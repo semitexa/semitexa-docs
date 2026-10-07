@@ -30,8 +30,9 @@ A page has one KISS stream (`/__semitexa_kiss`). Everything the page sends goes 
 (`/__semitexa_hug`), and everything the server pushes comes back on KISS. There is no
 per-feed connection and no WebSocket server. See [SSE Stream](../events/sse.md).
 
-- **Resumable.** Every frame carries an id. A reconnect names the last one it got and is given
-  what it missed, or told to reset.
+- **Resumable.** Every data frame carries an id. A reconnect names the last one it got and is
+  given what it missed, or told to reset. The lifecycle frames (`connected`, `close`) carry no
+  id, and deferred blocks keep their own numeric ids, which the replay ring does not hold.
 - **Prompt.** A frame queued for a stream on the same worker is written at once. Deferred content
   measured 26 ms after DOMContentLoaded; it was about 380 ms while the stream loop slept out its
   tick.

@@ -21,7 +21,7 @@ keywords:
 ---
 # Components
 
-Attribute-registered SSR components with ONE interaction model: a part's event reaches the component's own `#[UiOn]` method through HUG, and the method answers with effects.
+Attribute-registered SSR components with ONE interaction model: a part's event reaches its handler through HUG — the component's own `#[UiOn]` method, or a `#[HandlesUiEvent]` service bound to that (component, part, event) — and the handler answers with effects.
 
 ## How it works
 

@@ -126,7 +126,7 @@ Native elements first, drawn from tokens in light and dark; motion stops under `
 | `segmented` | a real radio group drawn as one button bar (arrow keys, form value); also `platform.field` `control: 'segmented'` | `name`, `options`, `value`, `label`, `size` |
 | `kbd` | `<kbd>` keys joined by `+` | `keys: ['Ctrl', 'K']` |
 
-The `removable` behavior dispatches a cancelable `ui-removable:remove` event before removing, then moves focus to the next removable sibling (or the previous one), so a keyboard user is never dropped on `<body>`.
+The `removable` behavior dispatches a cancelable `ui-removable:remove` event first. Unless a listener calls `preventDefault()`, the element is removed with any hidden form value it carried, its form gets an `input` event, and focus moves to the remove button of the next removable sibling (or the previous one), so a keyboard user is never dropped on `<body>`. A cancelled event leaves the element, its value and focus as they were.
 
 ## Not yet shipped
 
