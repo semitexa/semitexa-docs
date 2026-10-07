@@ -193,10 +193,10 @@ Two doors carry every byte between a page and the server, by design:
 | Door | Route | Direction | Carries |
 |---|---|---|---|
 | **KISS** | `GET /__semitexa_kiss` | server → browser | the one SSE stream per page: deferred slots, UI patches, component state, live feeds |
-| **HUG** | `POST /__semitexa_hug` | browser → server | every UI event and action (the envelope below), `#[AsComponent(event:)]` events as `{"componentEvent": {…}}`, and feed control as `{"stream": {…}}` |
+| **HUG** | `POST /__semitexa_hug` | browser → server | every UI event and action (the envelope below), feed control as `{"stream": {…}}`, and file uploads as multipart `{upload, file}` (see UI Forms → Uploads) |
 | **HUG** | `GET /__semitexa_hug` | browser → server | the pull fallback for deferred slots when a page has no stream |
 
-A feature that needs a verb HUG lacks extends HUG — it does not add a route. (`/__ui/event`, `/__ui/dispatch`, `/__semitexa_component_event` and `/__ui/form-doc` were removed in 2026-10 for exactly that reason.)
+A feature that needs a verb HUG lacks extends HUG — it does not add a route. (`/__ui/event`, `/__ui/dispatch`, `/__semitexa_component_event` and `/__ui/form-doc` were removed in 2026-10 for exactly that reason, and the `{"componentEvent"}` body with them: a component's events are its `#[UiOn]` methods.)
 
 ### Live feeds
 
@@ -233,6 +233,65 @@ reachable only by name, through HUG. The collaborative-form document feed
 In the browser all of this is `SemitexaUi.core.openFeedChannel({feed, params,
 dataEvent, errorEvent, onData, onError, onPull})`, which returns
 `{mode(), view(params), close()}`.
+
+## Input timing
+
+`#[UiOn]` decides *when* the browser sends, never what the server accepts:
+
+```php
+#[UiOn(part: 'query', event: 'input', debounce: 300)]   // once the user pauses 300 ms, with the last value
+#[UiOn(part: 'canvas', event: 'pointermove', throttle: 100)] // at most every 100 ms (first and last always sent)
+```
+
+Both take 1–10000 ms and cannot be combined. A form submit first sends every debounced event still waiting inside it, so the server validates what was actually typed. A morph never overwrites the value of the field that has focus.
+
+## Loading states
+
+While an action is in flight, the runtime marks it — no markup needed:
+
+- the component root gets `aria-busy="true"`;
+- the part that fired it (and a submit's own button) gets `data-loading` — a `platform.button` shows its spinner after a 150 ms grace period, so a fast answer never flickers;
+- a submitting form turns its inputs readonly and its buttons disabled, and a second submit (double click, Enter) is dropped.
+
+Everything else is declared with `ui-loading` (after Symfony UX):
+
+| `ui-loading="…"` | While loading |
+|---|---|
+| `show` | the element is hidden until then |
+| `hide` | hidden |
+| `addClass(is-dim muted)` / `removeClass(x)` | classes added / removed |
+| `addAttribute(disabled)` / `removeAttribute(x)` | attribute added / removed (never `on*`) |
+| `action(save)\|…` / `action(form.submit)\|…` | only for that part (and event) |
+| `delay\|…` / `delay(500)\|…` | only if it takes longer than 200 ms / 500 ms |
+
+Several directives sit in one attribute, separated by spaces; `action()` and `delay()` bind the directive they lead. The action's own answer undoes all of it.
+
+## Optimistic updates
+
+The answer an action expects can be drawn the moment it fires, with the same grammar:
+
+| `ui-optimistic="…"` | When the action fires |
+|---|---|
+| `hide` | hidden |
+| `text(Saved)` | its text set |
+| `increment` / `increment(-1)` | its number moved by one (or by the step) |
+| `addClass(is-on)` / `removeClass(…)` | classes added or removed |
+| `addAttribute(a)` / `removeAttribute(a)` / `toggleAttribute(aria-pressed)` | attribute changes |
+| `action(part)` / `action(part.event)` | scope the effect that follows to one part's action |
+
+```twig
+<output data-ui-patch-target="count" ui-optimistic="action(increment)|increment action(reset)|text(0)">{{ count }}</output>
+```
+
+- **Accepted.** The prediction stands, and the server's answer (a morph, a patch) puts the truth
+  in place.
+- **Refused or unreachable.** Every effect is undone, a toast says nothing was changed, and
+  `semitexa:ui-optimistic:rolled-back` is dispatched on `document`.
+- **Grids.** A delete is optimistic by default (`UiGridAction::$removesRows`, set by
+  `CrudAction::delete()`): the rows go the moment it is confirmed. They come back if the server
+  refuses, or if the next frame still has them.
+
+Nothing optimistic decides anything: it only draws early what the server is expected to say.
 
 ## Sending a UI event (HUG)
 
@@ -439,7 +498,7 @@ public function onInputChanged(UiInteractionEvent $event): UiInteractionResult
 }
 ```
 
-The `server-ack` `<span data-ui-patch-target="server-ack">` is **opt-in** per render — only emitted when the caller passes `showServerAckTarget: true` to `component('platform.field', ...)`. When the target is absent, the frontend applier emits a `semitexa:ui-patch:failed` lifecycle event for that patch and does nothing — the DOM stays unchanged.
+The `server-ack` `<span data-ui-patch-target="server-ack">` is **opt-in** per render — only emitted when the caller passes `showServerAckTarget: true` to `component('platform.field', ...)`, which also signs `cfg.ack` into the field's context. The handler echoes the value only for such a field: a field without the target never gets the patch, so the typed value does not travel back for nothing.
 
 **Response JSON (success with patches):**
 
