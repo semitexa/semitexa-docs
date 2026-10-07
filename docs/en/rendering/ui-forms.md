@@ -58,6 +58,7 @@ A minimal composition container for grouping fields and surfacing a *client-loca
 | `statusInitialMessage` | string | `'No fields validated yet.'` | Text shown before any field has validated. |
 | `showSubmit` | bool | `false` | Renders a `platform.button` shell — **visual only**, no submit pipeline. |
 | `submitText` | string | `'Submit'` | Button label. |
+| `submitTone` | string | `'brand'` | The button's tone; `'danger'` for a form that deletes. |
 | `ariaLabel` | string | `null` | Accessible name when the visual title is absent. |
 
 **Slot**: `content` — caller-provided markup, typically one or more `FieldComponent`s. Passed as the third argument of `component('platform.form', props, { content: … })`.
@@ -125,6 +126,77 @@ After every successful dispatch response, the transport bridge calls `updateForm
 - No new `UiResponsePatch` op. Aggregation reuses `setText` + `setAttribute`.
 - No `disabled` attribute mutation — `disabled` remains off the patch allow-list on purpose. The submit button is visual only in this slice.
 - No persistent server-side form snapshot. State is per-page-load, per-tab. A reload resets the aggregate; broadcasting (e.g. via SSE) is future work.
+
+## Control kinds (`platform.field` `control:`)
+
+| `control:` | Renders | Value sent |
+|---|---|---|
+| `input` (default) | the `platform.input` primitive | string |
+| `textarea` | `<textarea>` (`rows`) | string (up to 64 KiB) |
+| `select` | `<select>` from `options: [{value, label}]` (`placeholder` = empty first option) | string |
+| `select` + `multiple: true` | multi-select | list of strings |
+| `checkboxes` | a group of checkboxes from `options` | list of the checked values |
+| `radio` | a group of radios from `options` | the checked value, or null |
+| `segmented` | the same radio group drawn as one button bar (`platform.segmented`) | the checked value, or null |
+| `checkbox` | one checkbox (`checkboxLabel`) | `true` / `false` |
+| `switch` | an on/off switch (`checkboxLabel`; `role="switch"`) | `true` / `false` |
+| `file` | a file chooser (`accept: ['image/*', …]`, `maxBytes`) that uploads as soon as a file is chosen | the signed one-time ticket for the uploaded file |
+
+Every kind renders through a catalog primitive (`select`, `textarea`, `checkbox`, `radio`, `switch`, `segmented`) and carries `data-ui-part="input"`, so field validation, error patches and the form snapshot treat them alike. A field with no `rules` is simply valid when it changes. `required` holds for all of them: an unchecked box and an empty list read as missing.
+
+Rather than choosing the control, rules and options by hand, declare the field and let its type
+choose them: `Field::email('contact')` gives the email input, the `email` rule and the stored
+value. See [Field Types](field-types.md).
+
+### Uploads (`control: 'file'`)
+
+```twig
+{{ component('platform.field', {
+    label: 'Avatar', name: 'avatar', control: 'file',
+    accept: ['image/png', 'image/jpeg', 'image/webp'], maxBytes: 204800,
+    required: true, rules: ['required'],
+}) }}
+```
+
+```php
+$file = UiUploadTickets::fromForm($context, 'avatar'); // in the form action
+if ($file === null) {
+    return UiFormSubmitActionResult::rejected('Not saved.')
+        ->withFieldErrors(['avatar' => 'Choose the file again.']);
+}
+$path = $file->moveTo($storageDir);   // server-chosen name + extension from the sniffed type
+```
+
+1. The field renders a **signed upload context**: the field, the accepted MIME patterns and the size limit, bound to the visitor's session and tenant.
+2. Choosing a file sends it at once through HUG as multipart `{upload: <context>, file}` (XHR, so the `<progress>` moves; `ui-upload:start|progress|done|error|end` events bubble from the field).
+3. The server checks the size, then the type **the bytes are** (`finfo`). The browser's Content-Type and the file name are claims, not evidence. A file that passes is stored under an id the server chose (`var/tmp/ui-uploads`, one hour TTL, swept as new uploads arrive). The answer is a **signed one-time ticket**, and that ticket — never the file — becomes the field's value, so `required`, validation and the form snapshot work as for any field.
+4. The form action redeems the ticket with `UiUploadTickets::fromForm($context, $field)`. That works only for a field the form signed, only for the field the ticket was issued to, only in the same session, and only once. The result is a `UiUploadedFile` with `size`, `mimeType`, `extension()` (from the sniffed type) and `clientName` (for display only), plus `contents()` and `moveTo($dir, ?$basename)`.
+
+A submit pressed while a file is still uploading waits for it.
+
+#### Size limits
+
+- **Per field:** `maxBytes`, 1 MiB by default. It is signed into the context, and the server
+  checks it. The browser checks it too, before sending (`data-ui-upload-max`), so a file that
+  is too large gets the same "The file is larger than …" message without being uploaded.
+- **Per server:** one upload is one request, and Swoole refuses a request over its
+  `package_max_length` before any handler runs, so nothing reaches the application's log. Set
+  it with `SWOOLE_PACKAGE_MAX_LENGTH` in bytes (default 33554432, 32 MiB; at least 65536) and
+  restart the server. Swoole's own default, 2 MiB, is smaller than one phone photo.
+- **Any form with files:** a page with scripts carries the limit
+  (`<meta name="semitexa-request-max">`, written in the head before the import map). When a visitor chooses files that would not fit, or
+  submits a form whose files would not fit, the file input reports it as a validity message
+  ("The files are larger than …") and the form is not sent. A hand-written
+  `<input type="file">` gets this too; only the server's limit is checked, not a field's own.
+- **The ceiling** for any field is that limit less 16 KiB for the multipart framing, and
+  `ui_upload_ceiling()` returns it. A field whose `maxBytes` is above the ceiling fails to
+  render, with a message that names the variable to raise. It is not quietly lowered.
+
+```twig
+{# as large as this server accepts #}
+{{ component('platform.field', {label: 'Attachment', name: 'attachment', control: 'file',
+    accept: ['application/pdf'], maxBytes: ui_upload_ceiling()}) }}
+```
 
 ## Form submit pipeline (authoritative final validation)
 
@@ -225,6 +297,23 @@ The collector frame opens unconditionally (so a no-op happens whether or not aut
 }, { content: _fields }) }}
 ```
 
+### A form that declares its own fields
+
+`bin/semitexa make:form --module=Shop --name=ContactUs --fields="name:text!,email:email!,message:textarea" --write` writes three files: a submit action, a partial and a test.
+
+The action implements `UiFormFieldsInterface`, so the fields are declared once, in `fields()`:
+- the partial renders them with `ui_form_fields('shop.contact-us')` and `ui_field_props()`;
+- the server checks their rules before `handle()` runs;
+- `handle()` casts the submitted values with the same list, through `UiFieldSet::cast()`.
+
+```twig
+{% for field in ui_form_fields('shop.contact-us') %}{{ component('platform.field', ui_field_props(field)) }}{% endfor %}
+```
+
+A `!` marks a required field. The types a command line can declare are text, textarea, slug, email, url, integer, decimal, boolean, date and datetime. A choice needs options, so write it into `fields()` by hand.
+
+A form with **no fields** and a `submitAction` is a confirmation, for example the delete button of an edit dialog. It has nothing to validate and goes straight to its action, past the same authorizer and CSRF checks. A form with neither fields nor an action still answers `Form has no fields.`
+
 **Action contract** (`Semitexa\PlatformUi\Application\Service\Submit\UiFormSubmitActionInterface`):
 
 ```php
@@ -243,13 +332,63 @@ interface UiFormSubmitActionInterface
 - `fields` (signed `UiFormSubmitFieldDefinition` list);
 - `submitResult` (authoritative validation summary — always `valid` by the time `handle()` is called).
 
+- `props` (the props the form was rendered with, from the **signed** context — server-owned values the action can trust, such as which record an edit form edits: `component('platform.form', {submitAction: 'blog.article.update', articleId: article.id}, …)` → `$context->props['articleId']`. Unlike `values`, the browser cannot change them).
+
 The context never includes the raw `SignedContext` token, the `Request` object, container services, or secrets.
 
-**Action result** — `{accepted: bool, message: string, debug?: array, extraPatches?: list<UiResponsePatch>}`. Two factories:
-- `UiFormSubmitActionResult::accepted($message)` → `accepted=true`;
-- `UiFormSubmitActionResult::rejected($message)` → `accepted=false`.
+**Action result** — `{accepted, message, debug?, extraPatches?, fieldErrors?, reset?, redirectTo?}`. Two factories and three fluent additions:
 
-The message becomes `setText form-status`; `accepted` maps to `setAttribute ui-state = valid|invalid`. Extra patches are validated through the same `UiPatchValidator` the rest of the pipeline uses — actions cannot target unsigned instances or use unallow-listed ops.
+```php
+UiFormSubmitActionResult::accepted('Saved.')->resettingForm();
+UiFormSubmitActionResult::accepted('Saved.')->redirectingTo('/articles/42');
+UiFormSubmitActionResult::accepted('Invitation sent.')->closingModal()->resettingForm();
+UiFormSubmitActionResult::rejected('Fix the highlighted field.')
+    ->withFieldErrors(['slug' => 'This slug is taken.']);
+```
+
+The message becomes `setText form-status`; `accepted` maps to `setAttribute ui-state = valid|invalid`. Extra patches are validated through the same `UiPatchValidator` the rest of the pipeline uses — actions cannot target unsigned instances or use unallow-listed ops. See [Form lifecycle](#form-lifecycle) for what the other three do.
+
+### Registering an action — `#[AsFormSubmitAction]`
+
+The attribute is the whole registration step. The class comes from the container, so it injects what it needs:
+
+```php
+#[AsService]
+#[AsFormSubmitAction('blog.article.create')]
+final class CreateArticleAction implements UiFormSubmitActionInterface
+{
+    #[InjectAsReadonly]
+    protected ArticleRepository $articles;
+
+    public function name(): string { return 'blog.article.create'; }
+
+    public function handle(UiFormSubmitActionContext $context): UiFormSubmitActionResult { … }
+}
+```
+
+A submit reaches the action through HUG, not through a route, so a route's `#[RequiresPermission]` does not apply: check the permission in the action. Each submit resolves the action anew from the request's scope — mark it `#[ExecutionScoped]` when it injects request state (`#[InjectAsMutable] AuthContextInterface`), and that state is the submitting visitor's. At boot the declaration is checked by reflection only, since there is no visitor then.
+
+Discovered actions are resolved before the active registry, so a registry replacement (below) is no longer needed to add one. The boot fails — not the first submit — on a name outside `[a-z][a-z0-9_.-]*`, a name declared twice, a class that does not implement the interface, or a `name()` that disagrees with the attribute. 
+
+### Form lifecycle
+
+After the action answers, the form does the rest as effects on the same reply:
+
+| Outcome | What the page sees |
+|---|---|
+| `withFieldErrors([name => message])` | each named field turns invalid with that message, exactly like a failed rule. A name the form did not sign is refused (`422 invalid_action_field_error`) rather than dropped. |
+| `resettingForm()` | the `<form>` is reset (`reset` effect) and every field's verdict is cleared. |
+| `redirectingTo('/path')` | a same-origin `redirect`; nothing else is done. |
+| `closingModal()` | the modal (or offcanvas, or `<dialog>`) the form sits in closes — a `close` effect aimed at the form itself. Combine with `resettingForm()` so it opens clean next time. |
+| any outcome that spent the token | the form is **re-armed**: a fresh one-time CSRF token, signed into a fresh manifest, replaces the old one — the same form submits again without a reload. |
+
+The form root also announces its lifecycle as bubbling DOM events: `ui-form:submit` when the browser sends it, then `ui-form:accepted`, `ui-form:rejected` (action rejected or a gate denied it) or `ui-form:invalid` (validation stopped it). `detail.action` names the action.
+
+```js
+document.addEventListener('ui-form:accepted', (e) => console.log('saved by', e.detail.action));
+```
+
+A submit is answered after its fields: a field change still in flight when the user presses submit is sent first, and the submit waits for its answer, so a late field verdict can never overwrite the submit's.
 
 **Registry contract** (`UiFormSubmitActionRegistryInterface`):
 
@@ -261,7 +400,7 @@ interface UiFormSubmitActionRegistryInterface
 }
 ```
 
-Apps register their own implementation with `#[SatisfiesServiceContract(of: UiFormSubmitActionRegistryInterface::class)]` in a module that "extends" `semitexa-platform-ui`. Compose with `DefaultUiFormSubmitActionRegistry` to inherit `platform.demo.accept`:
+To *replace* the lookup itself (rarely needed now — see `#[AsFormSubmitAction]` above), apps register their own implementation with `#[SatisfiesServiceContract(of: UiFormSubmitActionRegistryInterface::class)]` in a module that "extends" `semitexa-platform-ui`. Compose with `DefaultUiFormSubmitActionRegistry` to inherit `platform.demo.accept`:
 
 ```php
 #[SatisfiesServiceContract(of: UiFormSubmitActionRegistryInterface::class)]
@@ -352,10 +491,11 @@ The registry MUST resolve through a fixed `match` — NEVER `new $name(...)` or 
   > section describes the v1 grid apparatus — `GridComponent`,
   > `grid.html.twig`, `grid-runtime.js`, `UiGridDataResponse`,
   > `GridRuntimeStaticAssertTest` — which was DELETED in the One Way Phase 6
-  > sweep. The replacement is the contract-driven `platform.grid-v2` shell
-  > (`resources/twig/components/runtime/grid-v2.html.twig`) +
-  > `grid-runtime-v2.js`: grids boot from the route's OPTIONS contract and
-  > render the canonical `{data, meta}` collection envelope (pull or SSE).
+  > sweep. The replacement is the contract-driven `platform.grid` component
+  > (a new `GridComponent`, 2026-10: `{{ component('platform.grid', {endpoint,
+  > gridId, actions, emptyMessage}) }}`) + `grid-runtime-v2.js`: grids boot
+  > from the route's OPTIONS contract and render the canonical `{data, meta}`
+  > collection envelope — live over the page's KISS stream, or pulled.
   > The description below is retained as historical design context only.
 
   **`platform.grid` — reusable interactive grid shell**. A minimal package-level component. **Two consumers** now drive it through identical client-side code: the lead admin listing (`/ui-playground/admin/leads`) and the demo-submissions diagnostic listing (`/ui-playground/admin/demo-submissions`). Each consumer owns its own data endpoint, criteria, cursor, authorizer, and (for leads) SSE topic + publisher — the grid component owns only the shell + the runtime contract.
@@ -689,7 +829,7 @@ The default security policy is **`CacheBackedUiFormSubmitSecurityPolicy`**. It b
    - **invalid submits** never reach `consume()` → the token survives → the user can fix the form and resubmit;
    - **authorizer-denied submits** never reach `consume()` → token survives;
    - **valid + authorized submits** consume the token regardless of whether the action itself rejects (acceptable — the user already saw a server response, which is enough to invalidate the bearer secret).
-   - A second submit attempt with the same `cfg.s` after a successful first one fails CSRF — the user reloads the form to mint a fresh token. The playground demo exercises this end-to-end.
+   - A replay of the same `cfg.s` after it was spent fails CSRF. The form itself does not need a reload: the reply that spent the token re-arms the form with a fresh one ([Form lifecycle](#form-lifecycle)).
 
 **Token store**: `UiFormSubmitCsrfTokenStoreInterface` (`issue($ttl) → UiFormSubmitCsrfTokenHandle{id, raw}` + `consume($id, $rawToken): bool` + `isShared(): bool` + `diagnosticName(): string`). Default impl is `CacheBackedUiFormSubmitCsrfTokenStore` (`#[SatisfiesServiceContract]`, namespaced through `CacheManagerInterface`, observable across all workers sharing the cache backend). Lazy-default fallback is `InMemoryUiFormSubmitCsrfTokenStore` for tests / single-worker dev (NOT safe across Swoole workers).
 
@@ -848,6 +988,10 @@ Smuggling attempts (`payload.rules`, `payload.cfg`, `payload.form.rules`, `paylo
 - Submit response **never echoes submitted values** — only counts + per-field state/message + the snapshot field-key set.
 - The signed `cfg.f` shape, the parser, the result projection, and the patch allow-list are all the same trust perimeter the rest of the validation stack uses.
 
+A submit praises no field. A valid field's message is set to empty, which clears an earlier error,
+and "Looks good." stays the change event's, under the field the visitor changed. The debug
+summary keeps the validator's message.
+
 **Limitations of this slice**:
 
 - No persistence. No business action. No redirect. No real account creation / email send.
@@ -958,7 +1102,7 @@ Old submit ctxs (rendered before this slice) keep working: when `cfg.f[*].i` is 
     // access_code (valid)
     {"op":"setAttribute","target":{"instance":"uci_submit_access_code","part":"input"},"attribute":"aria-invalid","value":null},
     {"op":"setAttribute","target":{"instance":"uci_submit_access_code","part":"input"},"attribute":"ui-state","value":"valid"},
-    {"op":"setText","target":{"instance":"uci_submit_access_code","name":"validation-message"},"value":"Looks good."},
+    {"op":"setText","target":{"instance":"uci_submit_access_code","name":"validation-message"},"value":""},
     // confirm_access_code (invalid — sameAsField mismatch)
     {"op":"setAttribute","target":{"instance":"uci_submit_confirm_access_code","part":"input"},"attribute":"aria-invalid","value":"true"},
     {"op":"setAttribute","target":{"instance":"uci_submit_confirm_access_code","part":"input"},"attribute":"ui-state","value":"invalid"},
