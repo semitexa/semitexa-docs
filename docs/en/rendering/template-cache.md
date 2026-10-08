@@ -7,7 +7,7 @@ summary: How the Twig cache behaves under long-running workers and when you need
 order: 220
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.10.03.1952
 keywords:
   - Twig
   - cache
@@ -16,23 +16,23 @@ keywords:
 
 # Twig Template Cache
 
-The **only supported way** to run a Semitexa application is via **Docker**.
+The **only supported way** to run a Semitexa application is via **Docker**, driven by `bin/semitexa` from the project root on the host.
 
-- **Start:** `bin/semitexa server:start` (runs `docker compose up -d`; with **EVENTS_ASYNC=1** in `.env` it uses `docker-compose.nats.yml` as well)
-- **Stop:** `bin/semitexa server:stop` (runs `docker compose down`; if `docker-compose.nats.yml` exists, stops both app and NATS)
-- **Logs:** `docker compose logs -f` (if you started with EVENTS_ASYNC=1, use: `docker compose -f docker-compose.yml -f docker-compose.nats.yml logs -f`)
+- **Start:** `bin/semitexa server:start` runs `docker compose up` with `docker-compose.yml` plus the overlays your `.env` asks for: `docker-compose.mysql.yml` when `DB_DRIVER` is set, `docker-compose.redis.yml` when `REDIS_HOST` is set, `docker-compose.nats.yml` when `EVENTS_ASYNC=1`, `docker-compose.ollama.yml` when `LLM_PROVIDER=ollama`, and `docker-compose.override.yml` if it exists.
+- **Stop:** `bin/semitexa server:stop` stops every service from all of those files.
+- **Restart the app only:** `bin/semitexa server:restart app`.
+- **Logs:** `bin/semitexa logs:app` for the application log; `docker compose logs -f app` for the container output.
 
-The application runs `php server.php` inside the container; the Swoole server listens on port 9502 by default (configurable via `.env` `SWOOLE_PORT`). Do not run `php server.php` on the host as the primary way to run the app.
+`docker-compose.yml` defines four services: `app` (the Swoole server, `php server.php`, listening on `SWOOLE_PORT`, default 9502), `setup` (runs Composer before the app starts), and `scheduler` and `cli`, which only start when their Compose profile (`demo`, `cli`) is enabled. Do not run `php server.php` on the host as the primary way to run the app.
 
-After `semitexa init`, the project includes a minimal `docker-compose.yml` (app only) and an optional `docker-compose.nats.yml`. By default only the **app** container runs. When **EVENTS_ASYNC=1** in `.env`, `server:start` automatically uses both compose files so NATS JetStream is started and the app connects to it via `NATS_PRIMARY_URL`.
-
-If you see "docker-compose.yml not found", run `semitexa init` to generate the project structure including `docker-compose.yml`, or add it manually.
+`bin/semitexa` exists only on the host. Inside a container the same console is `php vendor/bin/semitexa`, for example `docker compose exec app php vendor/bin/semitexa cache:clear`. Any command `bin/semitexa` does not handle itself is forwarded to that console in the `app` container.
 
 ## Twig template cache
 
-Twig compiles templates into `var/cache/twig/`. When the app runs in Docker, that directory may be created with root ownership, so clearing it from the host can fail with "Permission denied". Options:
+Twig compiles templates into `var/cache/twig/`, and every Swoole worker also keeps the compiled templates it has loaded in memory for its whole life. So an edited template can stay invisible, or show up in some responses and not others, until the workers are cycled.
 
-- **CLI (recommended):** `bin/semitexa cache:clear` — clears Twig and other framework caches. From inside the container: `docker compose exec app bin/semitexa cache:clear`.
-- **From the host:** `sudo rm -rf var/cache/twig/*` (if the directory is root-owned).
+- **CLI (recommended):** `bin/semitexa cache:clear` clears Twig and the other framework caches and cycles the running workers. Add `--twig` to clear only the Twig cache, or `--no-reload` to leave the workers alone.
+- **Permission denied:** the cache directory is created by the container, often as root, so a clear that runs as your host user can fail. `bin/semitexa cache:clear --via-docker` runs the clear inside the app container, which can delete the files.
+- **Simplest reset:** `bin/semitexa server:restart app` starts fresh workers.
 
 The framework also uses a writable fallback (system temp) when `var/cache/twig` is not writable, so the app keeps working; clearing the cache is only needed when you change templates or template paths and want to avoid stale compiled files.

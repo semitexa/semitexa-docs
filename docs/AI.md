@@ -12,10 +12,10 @@ This is not a side benefit. It is part of the framework design.
 - [AI Best Practices](AI_BEST_PRACTICES.md)  
   The practical playbook: structure, patterns, and anti-patterns.
 
-- [AI Entry Points](ai/)  
-  Short task-oriented jump points.
+- [Get Started](GET_STARTED.md) · [A minimal working page](MINIMAL_PAGE.md)  
+  The install path and the first module, each ending in an "AI Quick Brief".
 
-- [Project Graph](../../../packages/semitexa-project-graph/docs/AI_INTEGRATION.md)  
+- [Project Graph](en/project-graph/ai-integration.md)  
   **Use this first.** The project graph gives AI agents a structural map of the codebase — modules, classes, dependencies, event flows, execution paths, and risk analysis. Reduces exploration time from hours to minutes.
 
 ## Core Promise

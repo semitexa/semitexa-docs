@@ -6,9 +6,13 @@ Shared framework documentation: guides, architecture references, and AI-optimize
 
 Central documentation hub for the Semitexa ecosystem. Contains the framework philosophy, getting started guides, build patterns, AI best practices, and the canonical reference for all architectural decisions.
 
+## Install
+
+Included in every project created by the installer (https://semitexa.com/install.sh).
+
 ## Role in Semitexa
 
-Dependency of Core. Referenced by all packages for framework-wide documentation. Provides the AI-Optimized Guide that ensures LLM agents can navigate the codebase correctly.
+Ships with semitexa/ultimate, so every new project has the documentation under `vendor/semitexa/docs/`. Referenced by all packages for framework-wide documentation. Provides the AI-Optimized Guide that ensures LLM agents can navigate the codebase correctly.
 
 ## Key Features
 
@@ -21,3 +25,5 @@ Dependency of Core. Referenced by all packages for framework-wide documentation.
 ## Notes
 
 Documentation follows five guiding questions: Why does this exist? How do I start? What is the Semitexa way? What should I never do? Where do I go next?
+
+Published at https://semitexa.com/docs

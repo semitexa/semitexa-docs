@@ -48,9 +48,10 @@ Framework-level, cross-cutting material that does not belong to any one package 
 
 ## Cross-links to package docs
 
-For anything owned by a specific package, follow the link into that package:
+Package documentation now lives in this hub: the public guides are under `packages/semitexa-docs/docs/en/` (served at https://semitexa.com/docs), with one page per subject. A package's own `docs/` folder keeps only what is specific to that repository:
 
-- `packages/semitexa-core/docs/` — request lifecycle, attributes, routing, DI runtime.
-- `packages/semitexa-testing/docs/` — payload testing toolkit.
-- `packages/semitexa-ledger/docs/` — NATS event ledger and command bus.
+- `packages/semitexa-core/docs/` — `README.md` (which hub page covers which core subject) and `RELEASE_NOTES.md`.
+- `packages/semitexa-ledger/docs/adr/` — architecture decision records for the NATS event ledger.
 - `packages/semitexa-docs/docs/` — the public/product-facing guides (one level up from here).
+
+`semitexa-testing` has no `docs/` folder; its payload testing toolkit is documented on the hub page `testing/payload-contracts`.

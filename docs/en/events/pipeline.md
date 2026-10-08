@@ -59,5 +59,5 @@ Rules:
 
 Recommended placement:
 
-- framework packages: `src/Server/Lifecycle/`
-- project modules: `Application/Server/`
+- framework packages: `src/Application/Service/Server/Lifecycle/` (`semitexa-core` alone keeps `src/Server/Lifecycle/`)
+- project modules: `src/modules/<Module>/src/Application/Service/Server/Lifecycle/` (`Application/Server/` is not an allowed module folder)

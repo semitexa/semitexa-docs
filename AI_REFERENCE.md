@@ -1,6 +1,6 @@
 # Semitexa: Philosophy for AI Agents
 
-> 👤 **For humans:** This is the philosophy document adapted for LLMs. The same ideas, in human language and with more context, live in the [About Semitexa](./README.md) manifesto.
+> 👤 **For humans:** This is the philosophy document adapted for LLMs. The human-facing introduction, with the quickstart, is the [Semitexa README](https://github.com/semitexa/semitexa-ultimate#readme).
 
 This document states **why** Semitexa exists and **what problems** it tries to solve. Technical reference (lifecycle, modules, commands, APIs) lives in project and package documentation; here we only state the spirit and the pain that shaped the design.
 
