@@ -15,8 +15,8 @@ Semitexa is a high-performance PHP framework built on **Swoole**. It differs sig
 ### 2. Modular Design
 Everything in Semitexa is a **Module**.
 - **Discovery**: Modules are discovered via `composer.json` (`type: semitexa-module`).
-- **Autoloading**: The framework uses an `IntelligentAutoloader` to map namespaces to paths dynamically.
-- **No "App" Namespace**: The `src/` directory is just another location for modules. There is no monolithic `App\` namespace for business logic; logic lives in Domain Modules.
+- **Autoloading**: Packages use Composer's PSR-4 autoloader. Local modules under `src/modules/<Name>/src/` are mapped at boot by `LocalModuleAutoloadRegistrar` to `App\Modules\<Name>\`, so adding one needs no `composer dump-autoload`.
+- **Modules, not a monolithic `App\`**: business logic lives in modules (`App\Modules\<Name>\` for a project's own modules), not in loose classes under `src/`.
 
 ### 3. Request Lifecycle
 
