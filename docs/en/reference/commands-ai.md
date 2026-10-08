@@ -146,7 +146,7 @@ bin/semitexa ai:invoke
 
 ## `ai:observe`
 
-Observatory for agents: ps (live snapshot) | tail (journal rows, --follow streams) | show --id (one process + its trace)
+Observatory for agents: ps (live snapshot) | tail (journal rows, --follow streams) | show --id (one process + its trace) | timeline [--id] (a page: its UI events, stream frames, re-runs)
 
 ```bash
 bin/semitexa ai:observe "<action>"

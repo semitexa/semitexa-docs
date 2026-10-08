@@ -16,6 +16,18 @@ verified_against: 2026.10.03.1952
 
 Every `lint` command, with the arguments and options the console actually defines.
 
+## `lint:components`
+
+Check that every component('…') a template calls names a registered #[AsComponent].
+
+```bash
+bin/semitexa lint:components
+```
+
+| option | takes a value |
+|---|---|
+| `--json` | no |
+
 ## `lint:deferred-slots`
 
 Report slots whose deferred declaration and page template disagree.
@@ -143,6 +155,18 @@ bin/semitexa lint:test-integrity
 | `--base` | yes |
 | `--renamed-from` | yes |
 | `--renamed-to` | yes |
+
+## `lint:transport-doors`
+
+Fail on a framework-internal /__ route that is not KISS, HUG, a system page or a dev tool.
+
+```bash
+bin/semitexa lint:transport-doors
+```
+
+| option | takes a value |
+|---|---|
+| `--json` | no |
 
 ## `lint:var-artifacts`
 

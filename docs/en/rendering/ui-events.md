@@ -141,7 +141,7 @@ Every Platform UI component render emits a per-instance **signed event manifest*
 
 ## Frontend event runtime (capture-only)
 
-Shipped in this slice. The runtime is a tiny IIFE (`packages/semitexa-platform-ui/src/Application/Static/js/event-runtime.js`) loaded globally via the asset manifest with `defer`. It scans the DOM for `<script type="application/json" data-ui-event-manifest>` blocks emitted by the server, attaches one document-level capture-phase delegated listener per distinct native event name across all manifests, and **captures matches locally**. It does not send anything anywhere.
+Shipped in this slice. The runtime is a tiny IIFE (`packages/semitexa-platform-ui/src/Application/Static/js/event-runtime.js`) loaded globally via the asset manifest with `defer`. It scans the DOM for `<script type="application/json" data-ui-event-manifest>` blocks emitted by the server, attaches one document-level capture-phase delegated listener per distinct native event name across all manifests, and **captures matches locally**. Capturing on its own sends nothing; the [transport bridge](#frontend-transport-bridge) is what posts a captured event to HUG.
 
 **What the runtime does on every captured event:**
 
@@ -186,73 +186,178 @@ window.SemitexaUi.onCapture(fn)    // register listener; returns unsubscribe()
 
 **Part-element lookup**: the runtime first looks for `[data-ui-part="<part-name>"]` inside the component root (canonical — emitted by the server-side `ui_part()` Twig helper), then falls back to `[ui="<part-name>"]` for legacy templates that render the primitive directly via `primitive()` + `ui_part_props()`. The canonical path decouples the UiPart name from the primitive's `ui` alias, so a part can be named freely (e.g. `UiPart(name: 'main', uses: InputPrimitive::class)`) without breaking the runtime.
 
-## HTTP dispatch endpoint (ack + response patches)
+## KISS and HUG: the whole transport
 
-Bridges captured frontend events to declared `#[UiOn]` handlers through a unified HTTP endpoint. The handler can return either a plain ack or a small list of safe DOM-patch instructions the frontend applies after dispatch.
+Two doors carry every byte between a page and the server, by design:
 
-**Endpoint:** `POST /__ui/dispatch`
+| Door | Route | Direction | Carries |
+|---|---|---|---|
+| **KISS** | `GET /__semitexa_kiss` | server → browser | the one SSE stream per page: deferred slots, UI patches, component state, live feeds |
+| **HUG** | `POST /__semitexa_hug` | browser → server | every UI event and action (the envelope below), feed control as `{"stream": {…}}`, and file uploads as multipart `{upload, file}` (see UI Forms → Uploads) |
+| **HUG** | `GET /__semitexa_hug` | browser → server | the pull fallback for deferred slots when a page has no stream |
 
-Why not `/__ui/event`: SSR ships a foundation-layer placeholder at `/__ui/event` that accepts the framework-layer `UiEventEnvelope` shape (`schemaVersion`, `eventId`, `correlationId`, `semanticEvent`, `signedContext`, `timestamp`, …). Platform UI's dispatcher uses a *minimal* `{ctx, dispatchId, payload}` body — a layered concern that does not need the full framework-layer envelope. The two endpoints will be unified in a future framework-layer slice that introduces a `UiInteractionDispatcherInterface` contract.
+A feature that needs a verb HUG lacks extends HUG — it does not add a route. (`/__ui/event`, `/__ui/dispatch`, `/__semitexa_component_event` and `/__ui/form-doc` were removed in 2026-10 for exactly that reason, and the `{"componentEvent"}` body with them: a component's events are its `#[UiOn]` methods.)
 
-**Request shape:**
+### Live feeds
+
+A feed (a grid's collection, a calendar month, a collaborative document) is a
+route with `transport: TransportType::Sse` and an explicit `name` — discovery
+refuses an SSE route without one, and its OPTIONS contract carries it. A page
+never opens a stream for a feed. The browser asks HUG to attach the feed to the
+page's KISS stream, by name:
+
+```json
+POST /__semitexa_hug
+{"stream": {"op": "subscribe", "feed": "ui-playground.leads.feed",
+            "params": {"sort": "-createdAt"},
+            "session": "sse_<32 hex>", "subscriptionId": "sse_<32 hex>"}}
+```
+
+`op` is `subscribe`, `view` (the complete new view, for example after a sort
+or a filter) or `unsubscribe`. HUG admits a subscribe or view exactly as a
+direct `GET` of the feed with `params` as its query: the same auth gate,
+hydration, validation and AuthCheck, with the caller's own cookies. The answer
+is an acknowledgement, `202 {"ok": true, "accepted": true, "subscription_id": …}`;
+rows only ever arrive on KISS, as the feed's typed frames
+(`ui.collection.data`, `ui.document.data`, …) tagged with the subscription id.
+An unknown name and a route that is not a feed both answer
+`404 {"reason": "unknown_feed"}`, and the worker that owns the KISS stream
+refuses a subscription from a different tenant (`subscribe_tenant_mismatch`).
+
+A page without a KISS session, or whose KISS stream fails before it ever
+connects, falls back to the feed's own plain `GET`. A feed that must not be
+readable that way declares `exposure: RouteExposure::Hug` and no path: it is
+reachable only by name, through HUG. The collaborative-form document feed
+(`platform-ui.form-doc`) is one.
+
+In the browser all of this is `SemitexaUi.core.openFeedChannel({feed, params,
+dataEvent, errorEvent, onData, onError, onPull})`, which returns
+`{mode(), view(params), close()}`.
+
+## Input timing
+
+`#[UiOn]` decides *when* the browser sends, never what the server accepts:
+
+```php
+#[UiOn(part: 'query', event: 'input', debounce: 300)]   // once the user pauses 300 ms, with the last value
+#[UiOn(part: 'canvas', event: 'pointermove', throttle: 100)] // at most every 100 ms (first and last always sent)
+```
+
+Both take 1–10000 ms and cannot be combined. A form submit first sends every debounced event still waiting inside it, so the server validates what was actually typed. A morph never overwrites the value of the field that has focus.
+
+## Loading states
+
+While an action is in flight, the runtime marks it — no markup needed:
+
+- the component root gets `aria-busy="true"`;
+- the part that fired it (and a submit's own button) gets `data-loading` — a `platform.button` shows its spinner after a 150 ms grace period, so a fast answer never flickers;
+- a submitting form turns its inputs readonly and its buttons disabled, and a second submit (double click, Enter) is dropped.
+
+Everything else is declared with `ui-loading` (after Symfony UX):
+
+| `ui-loading="…"` | While loading |
+|---|---|
+| `show` | the element is hidden until then |
+| `hide` | hidden |
+| `addClass(is-dim muted)` / `removeClass(x)` | classes added / removed |
+| `addAttribute(disabled)` / `removeAttribute(x)` | attribute added / removed (never `on*`) |
+| `action(save)\|…` / `action(form.submit)\|…` | only for that part (and event) |
+| `delay\|…` / `delay(500)\|…` | only if it takes longer than 200 ms / 500 ms |
+
+Several directives sit in one attribute, separated by spaces; `action()` and `delay()` bind the directive they lead. The action's own answer undoes all of it.
+
+## Optimistic updates
+
+The answer an action expects can be drawn the moment it fires, with the same grammar:
+
+| `ui-optimistic="…"` | When the action fires |
+|---|---|
+| `hide` | hidden |
+| `text(Saved)` | its text set |
+| `increment` / `increment(-1)` | its number moved by one (or by the step) |
+| `addClass(is-on)` / `removeClass(…)` | classes added or removed |
+| `addAttribute(a)` / `removeAttribute(a)` / `toggleAttribute(aria-pressed)` | attribute changes |
+| `action(part)` / `action(part.event)` | scope the effect that follows to one part's action |
+
+```twig
+<output data-ui-patch-target="count" ui-optimistic="action(increment)|increment action(reset)|text(0)">{{ count }}</output>
+```
+
+- **Accepted.** The prediction stands, and the server's answer (a morph, a patch) puts the truth
+  in place.
+- **Refused or unreachable.** Every effect is undone, a toast says nothing was changed, and
+  `semitexa:ui-optimistic:rolled-back` is dispatched on `document`.
+- **Grids.** A delete is optimistic by default (`UiGridAction::$removesRows`, set by
+  `CrudAction::delete()`): the rows go the moment it is confirmed. They come back if the server
+  refuses, or if the next frame still has them.
+
+Nothing optimistic decides anything: it only draws early what the server is expected to say.
+
+## Sending a UI event (HUG)
+
+Bridges captured frontend events to declared `#[UiOn]` / `#[HandlesUiEvent]` handlers. The handler can return a plain ack or a small list of safe DOM-patch instructions; patches addressed to a live component are published on KISS instead of returned inline.
+
+**Endpoint:** `POST /__semitexa_hug` (`HugEventPayload` → `HugEventHandler` → `UiResponseDispatcherInterface`)
+
+**Request shape** — the canonical envelope:
 
 ```json
 {
-  "ctx": "sc1.<base64url-claims>.<base64url-hmac>",
-  "dispatchId": "ui_evt_<32 hex>",
+  "schemaVersion": 1,
+  "eventId": "ui_evt_<32 hex>",
+  "correlationId": "ui_cor_<32 hex>",
+  "semanticEvent": "platform.field.change",
+  "signedContext": "sc1.<base64url-claims>.<base64url-hmac>",
+  "timestamp": "2026-10-04T10:00:00.000Z",
   "payload": { "value": "taras@example.com" }
 }
 ```
 
-- `ctx` is required.
-- `dispatchId` is required. Must match `[A-Za-z0-9][A-Za-z0-9_-]{4,127}`. The frontend transport mints one fresh value per captured event with `crypto.getRandomValues` (format: `ui_evt_<32 hex>`).
+- `signedContext` is required and is verified before anything else; an unverifiable one is refused with `422` and never reaches a dispatcher.
+- `eventId` is required. Must match `[A-Za-z0-9][A-Za-z0-9_-]{4,127}`. The frontend transport mints one fresh value per captured event with `crypto.getRandomValues` (format: `ui_evt_<32 hex>`); it is the replay key's per-attempt half.
 - `payload` is optional and defaults to `{}`.
 - `payload` **must not** carry any routing-flavored field. The `UiPayloadFieldGuard` walks the whole payload tree and rejects (400) on any key (normalized across camelCase/snake_case/kebab-case) matching: `handler`, `handlerId`, `handlerClass`, `handlerMethod`, `method`, `methodName`, `class`, `className`, `component`, `componentName`, `instance`, `instanceId`, `part`, `partName`, `event`, `eventName`, `updates`, `updatesPath`, `endpoint`, `url`, `route`, `action`, `controller`, `callback`, `dispatcher`, `payloadClass`, `authzScope`, `backendHandler`, plus `dispatchId`/`requestId`/`eventId` (those identifiers belong at the top level, not inside `payload`).
 
-**Replay guard.** The dispatcher keys an entry by `sha256(ctx) + ':' + dispatchId`. The TTL is bounded by both the signed ctx's remaining lifetime and a server-side ceiling (currently 600s). A second request with the *same* `(ctx, dispatchId)` pair returns `409 duplicate_dispatch`. Crucially, the same `ctx` with a *different* `dispatchId` still works — the signed ctx is intentionally reusable inside its TTL so legitimate repeated user actions (e.g. successive `change` events on the same field) are not blocked. The replay guard claim is taken **after** ctx verification (so an invalid ctx never poisons the store) and **before** authorization (so a denied attempt still consumes its `dispatchId` — clients must mint a fresh id to retry).
+**Replay guard.** The dispatcher keys an entry by `sha256(signedContext) + ':' + eventId`. The TTL is bounded by both the signed ctx's remaining lifetime and a server-side ceiling (currently 600s). A second request with the *same* `(signedContext, eventId)` pair returns `409 duplicate_dispatch`. Crucially, the same context with a *different* `eventId` still works — the signed ctx is intentionally reusable inside its TTL so legitimate repeated user actions (e.g. successive `change` events on the same field) are not blocked. The replay guard claim is taken **after** ctx verification (so an invalid ctx never poisons the store) and **before** authorization (so a denied attempt still consumes its `eventId` — clients must mint a fresh id to retry).
 
 **Authorization hook.** A pluggable `UiInteractionAuthorizerInterface` runs *after* the replay claim and *before* the `#[UiOn]` handler. The default `AllowAllUiInteractionAuthorizer` is wired by the package and allows every verified dispatch; apps swap it via `withServices(authorizer: …)` or a future container binding. A `false` return maps to `403 interaction_forbidden`; the handler is never invoked and no patches are returned.
 
-**Success response (200):**
+**Success response (200):** the canonical HUG envelope plus the dispatcher's result.
 
 ```json
 {
-  "ok": true,
-  "handled": true,
+  "status": "accepted",
+  "phase": "dispatch",
+  "reason": null,
+  "message": null,
+  "eventId": "ui_evt_<32 hex>",
+  "correlationId": "ui_cor_<32 hex>",
+  "semanticEvent": "platform.field.change",
+  "schemaVersion": 1,
+  "signedContext": { "present": true, "verified": true },
   "kind": "ack",
-  "dispatchId": "ui_evt_<32 hex>",
-  "component": "platform.field",
-  "instance": "uci_<hex>",
-  "part": "input",
-  "event": "change",
-  "updates": "value",
+  "patches": [],
   "debug": { "value": "taras@example.com", "instance": "uci_<hex>" },
-  "patches": []
+  "dispatchId": "ui_evt_<32 hex>"
 }
 ```
 
-The server echoes `dispatchId` on both success and error responses (when it was parseable) so clients can correlate request, lifecycle event, and reply.
+Patches addressed to a component on a page with a live KISS stream are published there instead of returned inline (`streamedPatchCount`).
 
-**Error responses (safe JSON; never leak class/method names or stack traces):**
+**Refused before any dispatcher runs (422, `{error, message, context: {errors}}`):** a body that is not a JSON object, a malformed envelope, a forbidden routing field anywhere in it, or a `signedContext` that does not verify (tampered or expired) — `context.errors.signedContext` names the last.
+
+**Refused by the dispatcher (safe JSON with a `reason` token; never class/method names or stack traces):**
 
 | Status | `reason` token | Trigger |
 |---|---|---|
-| 400 | `empty_body` | Request body is empty |
-| 400 | `malformed_json` | Body is not valid JSON |
-| 400 | `body_not_object` | Body is a list/scalar, not a JSON object |
-| 400 | `missing_ctx` | `ctx` is missing or empty |
-| 400 | `missing_dispatch_id` | `dispatchId` is missing or empty |
-| 400 | `invalid_dispatch_id` | `dispatchId` fails the format check |
-| 400 | `payload_not_object` | `payload` is a list/scalar |
-| 400 | `forbidden_payload_field` | Payload smuggled a routing-flavored key (path included in message) |
-| 403 | `invalid_signed_ctx` | Signature verify failed OR ctx expired |
+| 400 | `forbidden_payload_field` | Payload smuggled a routing-flavored key the envelope check did not cover (path included in message) |
 | 403 | `updates_path_mismatch` | Signed `u` claim doesn't equal the registered `#[UiOn]` updates path |
 | 403 | `interaction_forbidden` | `UiInteractionAuthorizerInterface::authorize()` returned `false` |
 | 503 | `ui_replay_store_not_shared` | Production-like env + the bound replay store reports `isShared() === false`. Operator must set `CACHE_DRIVER` to a shared driver (e.g. `redis`). |
 | 404 | `unknown_component` | Signed component doesn't exist in `UiComponentRegistry` |
 | 404 | `unknown_part` | Signed part doesn't exist on the component |
 | 404 | `unknown_event` | Signed (part, event) pair has no `#[UiOn]` |
-| 409 | `duplicate_dispatch` | `(ctx, dispatchId)` already processed (replay guard) |
+| 409 | `duplicate_dispatch` | `(signedContext, eventId)` already processed (replay guard) |
 | 422 | `missing_claim_<key>` | Signed context missing required claim |
 | 422 | `cannot_instantiate_component` | Component constructor requires DI args |
 | 422 | `handler_error` | Handler threw a non-`UiInteractionException` |
@@ -291,16 +396,16 @@ Trust boundary:
 | `UiInteractionAuthorizerInterface` | `AllowAllUiInteractionAuthorizer` | semitexa-platform-ui |
 | `UiFieldRuleRegistryInterface` | `DefaultUiFieldRuleRegistry` | semitexa-platform-ui |
 
-The Semitexa container resolves both contracts at boot via `ServiceContractRegistry`. `UiDispatchHandler` declares them as `#[InjectAsReadonly]` protected properties — the container fills them, the handler never news them up in production. The dispatcher is constructed inside the handler with the injected dependencies; there is no longer any `withServices()` plumbing on the production path.
+The Semitexa container resolves both contracts at boot via `ServiceContractRegistry`. `PlatformUiResponseDispatcher` (behind HUG) declares them as `#[InjectAsReadonly]` protected properties — the container fills them; nothing news them up in production.
 
 **Override seam.** An application registers its own implementation by declaring a class with `#[SatisfiesServiceContract(of: UiInteractionAuthorizerInterface::class)]` (or `UiReplayStoreInterface::class`) inside a module that "extends" `semitexa-platform-ui`. The contract registry picks the descendant-module winner, so the app's class replaces the default automatically — no per-handler wiring required.
 
 **Replay store implementations.**
 
 - `CacheBackedUiReplayStore` — **production default**. Backed by `Semitexa\Cache\Domain\Contract\CacheManagerInterface` under the `ui-dispatch-replay` namespace; inherits the cache's process-shared semantics. `isShared()` reports `true` when the bound cache driver is `redis`, `valkey`, or `memcached`. With `CACHE_DRIVER=array` (the framework default), each Swoole worker has its own in-memory cache → `isShared()` reports `false` → the dispatcher refuses to invoke handlers in production-like environments.
-- `InMemoryUiReplayStore` — test/dev fallback. Always reports `isShared() === false`. Used only by tests that construct `UiDispatchHandler` directly without a container. Apps and modules MUST NOT wire this with `#[SatisfiesServiceContract]`; it carries no such attribute on purpose.
+- `InMemoryUiReplayStore` — test/dev fallback. Always reports `isShared() === false`. Used only by tests that dispatch without a container (`tests/Support/HugDispatch`). Apps and modules MUST NOT wire this with `#[SatisfiesServiceContract]`; it carries no such attribute on purpose.
 
-**Runtime guard.** Before claiming a replay key, `UiInteractionDispatcher` calls `$replayStore->isShared()`. In production-like environments (`APP_ENV` is `prod` or `production`), a `false` return aborts the dispatch with `503 ui_replay_store_not_shared`. The handler is never invoked. In other environments (`dev`, `staging`, `test`, …) the guard is a no-op so local development with the in-memory store continues to work. The check runs *after* ctx verification (so a tampered ctx still surfaces the documented `403 invalid_signed_ctx`) and *before* the replay claim (so an unsafe store never accumulates orphan keys).
+**Runtime guard.** Before claiming a replay key, `UiInteractionDispatcher` calls `$replayStore->isShared()`. In production-like environments (`APP_ENV` is `prod` or `production`), a `false` return aborts the dispatch with `503 ui_replay_store_not_shared`. The handler is never invoked. In other environments (`dev`, `staging`, `test`, …) the guard is a no-op so local development with the in-memory store continues to work. The check runs *after* ctx verification (a tampered context never gets this far: HUG refuses it with 422) and *before* the replay claim (so an unsafe store never accumulates orphan keys).
 
 Why signed `ctx` is reusable but `dispatchId` is single-use: the signed `ctx` carries identity (`c, i, p, e, u, iat, exp`) so the dispatcher can resolve handlers — re-issuing it on every keystroke would force a server round-trip per character. The `dispatchId` is the *attempt* identifier and exists exclusively for replay deduplication: each captured event mints a fresh `crypto.getRandomValues`-derived id, so a network race or double-click produces two distinct ids and both succeed, but an exact replay (`ctx, dispatchId` pair) is rejected at the replay claim.
 
@@ -393,7 +498,7 @@ public function onInputChanged(UiInteractionEvent $event): UiInteractionResult
 }
 ```
 
-The `server-ack` `<span data-ui-patch-target="server-ack">` is **opt-in** per render — only emitted when the caller passes `showServerAckTarget: true` to `component('platform.field', ...)`. When the target is absent, the frontend applier emits a `semitexa:ui-patch:failed` lifecycle event for that patch and does nothing — the DOM stays unchanged.
+The `server-ack` `<span data-ui-patch-target="server-ack">` is **opt-in** per render — only emitted when the caller passes `showServerAckTarget: true` to `component('platform.field', ...)`, which also signs `cfg.ack` into the field's context. The handler echoes the value only for such a field: a field without the target never gets the patch, so the typed value does not travel back for nothing.
 
 **Response JSON (success with patches):**
 
@@ -420,17 +525,16 @@ The `server-ack` `<span data-ui-patch-target="server-ack">` is **opt-in** per re
 
 For ack-only responses the `patches` field is `[]` and `kind` stays `"ack"`.
 
-## Frontend transport bridge (opt-in)
+## Frontend transport bridge
 
-`window.SemitexaUi.transport.attach({ endpoint })` subscribes the capture pipeline to an HTTP endpoint. Until `attach` is called, the runtime makes **zero** network requests — `fetch(` lives only inside `transport.attach`'s closure body.
+`window.SemitexaUi.transport.attach()` subscribes the capture pipeline to HUG. The runtime calls it for you as soon as it has parsed at least one event manifest — at page load, or later when a manifest arrives with a deferred component, a navigation swap or a morph — so a captured event on such a page is posted to `/__semitexa_hug`. A page with no manifest never attaches and makes **zero** network requests: `fetch(` lives only inside `transport.attach`'s closure body. Calling `attach()` again for the same endpoint is a no-op that returns the existing `detach`, so a page that also attaches by hand does not send each event twice. To keep a page from attaching automatically, set `window.SEMITEXA_UI_DISABLE_AUTOATTACH = true` before the runtime script loads.
 
 ```js
-// Opt-in transport hookup (per page).
-const detach = window.SemitexaUi.transport.attach({ endpoint: '/__ui/dispatch' });
+const detach = window.SemitexaUi.transport.attach();   // posts to /__semitexa_hug
 // later: detach();
 ```
 
-Wire body sent on every capture: **exactly** `{ ctx, dispatchId, payload: { value } }`. The `dispatchId` is freshly minted per captured event with `crypto.getRandomValues` (format: `ui_evt_<32 hex>`), so a network race or double-click produces two distinct ids and both go through; only an *exact* `(ctx, dispatchId)` replay is rejected with `409`. Never component, instance, part, event, handler, method, class, endpoint, url, action, dispatcher fields.
+Wire body sent on every capture: **exactly** the envelope above, with `payload: { value }` (plus `payload.form.values` inside a form). The `eventId` is freshly minted per captured event with `crypto.getRandomValues` (format: `ui_evt_<32 hex>`), so a network race or double-click produces two distinct ids and both go through; only an *exact* `(signedContext, eventId)` replay is rejected with `409`. Never component, instance, part, event, handler, method, class, endpoint, url, action, dispatcher fields.
 
 Lifecycle CustomEvents on `document` (every detail carries `dispatchId` for correlation):
 - `semitexa:ui-event:dispatching`  (before fetch; `detail = {captured, dispatchId, endpoint}`)
