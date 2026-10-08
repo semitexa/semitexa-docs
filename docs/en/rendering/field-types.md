@@ -59,8 +59,8 @@ the same list to tools and agents. The demo is `/ui-playground/components/fields
 | `boolean` | switch | ✓ / – | yes/no filter |
 | `choice` | segmented (≤ 4) or select | badge | `in` rule; an option's `tone` colours its badge; `control` overrides |
 | `multiChoice` | checkboxes (or multi-select over 8) | — | `in` rule on every value |
-| `date` | input:date | date | stored as `Y-m-d` |
-| `datetime` | input:datetime-local | date and time | **UTC end to end** (see below) |
+| `date` | input:date | date | `date` rule (a real calendar day); stored as `Y-m-d` |
+| `datetime` | input:datetime-local | date and time | `datetime` rule; **UTC end to end** (see below) |
 | `belongsTo` | select | text | the records are data: the caller supplies them as `options()` |
 | `belongsToMany` | checkboxes (or multi-select) | — | as above |
 | `file`, `image` | upload | — | the value is the one-time upload ticket; `accept`, `maxBytes` |
@@ -101,7 +101,8 @@ The grid renders the `ui` block instead of guessing columns from field names.
 ## Rules
 
 The types use the built-in rules `required`, `minLength`, `maxLength`, `sameAsField`, `email`,
-`url`, `integer`, `number` (an optional scale), `min`, `max`, `slug` and `in`.
+`url`, `integer`, `number` (an optional scale), `min`, `max`, `slug`, `date`, `datetime` and `in`.
+`date` and `datetime` refuse a day that does not exist (`2026-02-30`) and words such as `tomorrow`.
 - **Empty values pass.** Every rule lets an empty value through, so emptiness belongs to
   `required` alone.
 - **`in` checks every value.** On a checkbox group or a multi-select it checks each selected
