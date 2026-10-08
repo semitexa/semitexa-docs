@@ -50,7 +50,7 @@ bin/semitexa server:stop
 ### What the installer does outside the project directory
 
 - It registers the app in `~/.semitexa/router/registry/apps/<uuid>.env`, a small port registry that keeps two Semitexa projects on one machine from claiming the same port.
-- It can **optionally** set up a local `.test` domain. That step needs `sudo`, changes your system DNS (systemd-resolved, `/etc/resolv.conf`) or `/etc/hosts`, and starts shared router containers that bind host port 80. The installer asks before doing it — answer `n` to skip. Passing `--start` to the installer skips all prompts and registers the default domain, so leave `--start` out if you do not want that. You can add a domain later; see the hub page `get-started/local-domain`.
+- It can **optionally** set up a local `.test` domain. That step needs `sudo`, changes your system DNS (systemd-resolved, `/etc/resolv.conf`) or `/etc/hosts`, and starts shared router containers that bind host port 80. It is opt-in: the installer asks (default **No**), and a non-interactive or `--start` run never does it unless you pass `--local-domain`. You can add a domain later; see the hub page `get-started/local-domain`.
 
 ---
 

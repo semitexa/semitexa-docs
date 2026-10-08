@@ -51,7 +51,7 @@ bin/semitexa orm:sync
 ## What the installer changes outside the project
 
 - **Port registry.** The app is registered in `~/.semitexa/router/registry/apps/<uuid>.env`, so Semitexa projects on the same machine never claim the same port. `bin/semitexa local-app:list` shows the entries; `local-app:remove` deletes one.
-- **Local domain (optional).** The installer offers to register a `<name>.test` domain. Accepting it needs `sudo`, changes system DNS (systemd-resolved / `/etc/resolv.conf`) or `/etc/hosts`, and starts shared router containers that bind host port 80. Answer `n` at the prompt to skip it. The `--start` flag skips every prompt *and* registers the default domain, so leave it out if you do not want those changes. See [Local Domain](local-domain.md) to add one later.
+- **Local domain (optional).** A `<name>.test` domain is opt-in: the installer asks (default **No**), and a non-interactive or `--start` run never sets one up unless you pass `--local-domain`. Accepting it needs `sudo`, changes system DNS (systemd-resolved / `/etc/resolv.conf`) or `/etc/hosts`, and starts shared router containers that bind host port 80. See [Local Domain](local-domain.md) to add one later.
 
 ## Verify the install
 

@@ -151,7 +151,7 @@ The example above returns JSON through a resource DTO marked `#[AsResource(forma
 2. Store templates in the module under `src/Application/View/templates/`; they are addressed through the Twig namespace `@project-layouts-<Module>`, not a filesystem path.
 3. The handler fills the resource through typed `with*()` methods and returns it; the framework renders the template.
 
-`bin/semitexa make:page --module=Website --name=Minimal --path=/minimal --method=GET --access=public --write` generates all four files in one step. Change one line of the generated template before you open the page: it extends `@layouts/base.html.twig`, which no package ships, so point it at a layout that exists, such as `@project-layouts-theme-base/layouts/one-column.html.twig`, and put the content in `{% block main %}`. The `Hello` module's `HelloResource` is a working example (`template: '@project-layouts-Hello/hello.html.twig'`).
+`bin/semitexa make:page --module=Website --name=Minimal --path=/minimal --method=GET --access=public --write` generates all four files in one step; its template extends the bundled theme's `@project-layouts-theme-base/layouts/one-column.html.twig` and puts the content in `{% block main %}`. The `Hello` module's `HelloResource` is a working example (`template: '@project-layouts-Hello/hello.html.twig'`).
 
 **Detailed docs:** [rendering philosophy](../rendering/philosophy.md), [resource DTOs](../rendering/resource-dtos.md) and [slots](../rendering/slots.md). Do not put raw HTML in the handler and do not create a custom renderer — return a resource DTO.
 

@@ -77,7 +77,7 @@ Options worth knowing:
 
 It creates the four files from the table above plus two tests. The generated classes use the `Semitexa\Modules\Website\` namespace; the registrar maps that prefix to the same directory, so it works, but `App\Modules\Website\` is the canonical name (it is what the `Hello` module uses), and the listings below use it.
 
-**Fix the generated template first.** It extends `@layouts/base.html.twig`, which no package ships, so the page answers 500 until you change it. Step 4 replaces it with a template that extends a layout the bundled theme provides.
+The generated template extends the bundled theme's `one-column` layout, so the page renders as soon as the server restarts. Step 4 shows the same template written by hand.
 
 ---
 
@@ -256,7 +256,7 @@ Then open (use the port `server:start` printed):
 
 1. `bin/semitexa make:module --name=<M> --target=custom --write`
 2. `bin/semitexa make:page --module=<M> --name=<Page> --path=/<path> --method=GET --access=public --write`
-3. Replace the generated template's `{% extends %}` with a layout that exists, e.g. `@project-layouts-theme-base/layouts/one-column.html.twig`, and put content in `{% block main %}`.
+3. To use another layout, change the template's `{% extends %}` (or pass `--layout`) and keep the content in `{% block main %}`.
 4. Namespace `App\Modules\<M>\`, code under `src/modules/<M>/src/Application/`; no `composer dump-autoload`.
 5. Payload: `#[AsPublicPayload(path, methods, responseWith)]`, validation in setters via `ValidationException`.
 6. Resource: extends `HtmlResponse`, implements `ResourceInterface`, `#[AsResource(handle, template)]`, typed `with*()` methods.
