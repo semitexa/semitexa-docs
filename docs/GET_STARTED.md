@@ -1,7 +1,6 @@
 # Get Started — Semitexa
 
-> Entry points: [AI quick brief](ai/GET_STARTED.md) · [Human entry](hm/GET_STARTED.md)  
-> Also: [About Semitexa](../README.md) · [AI Reference](../AI_REFERENCE.md)
+> Also: [AI Reference](../AI_REFERENCE.md) · [A minimal working page](MINIMAL_PAGE.md)
 
 This is the **canonical install and run guide** for Semitexa.
 
@@ -11,80 +10,36 @@ If Semitexa makes sense, it should make sense early.
 
 ---
 
-## Purpose
-
-- Get a Semitexa app from zero to running with minimal ambiguity.
-- Keep one canonical sequence for install, init, environment setup, and startup.
-- Remove friction before architecture even begins.
-
----
-
 ## What You Need
 
-- **Composer**
-- **Docker Compose**
+- **Docker with Compose v2** (`docker compose version` must print v2).
+- A user that can run Docker without `sudo` (on Linux: a member of the `docker` group).
 
-You do not need PHP installed on the host for the standard local install flow.
-
-Semitexa runs on Swoole inside Docker. That is the supported runtime path.
+That is all. You do **not** need PHP or Composer on the host: the runtime (PHP 8.4 + Swoole 6) and Composer both run inside containers.
 
 ---
 
-## When To Use This
+## Quickstart
 
-- Bootstrapping a brand new Semitexa project.
-- Running an existing Semitexa project after clone/install.
-- Verifying that install instructions are still correct.
-
----
-
-## Canonical Steps
-
-### 1. Get the project
-
-- **Existing project:** clone the repository and continue.
-- **New project:** use the official installer:
-
-```bash
-curl -fsSL https://semitexa.com/install.sh | bash
-```
-
-Or choose a project directory explicitly:
+Run this from the **parent** directory of where the project should live:
 
 ```bash
 curl -fsSL https://semitexa.com/install.sh | bash -s my-project
-```
-
-This creates the project locally with the Semitexa scaffold already in place.
-
-### 2. Move into the project directory
-
-Change into the created project folder before starting the app.
-
-```bash
-# If you used the installer:
 cd my-project
-
-# If you cloned an existing repo:
-cd <cloned-repo>
-```
-
-### 3. Prepare the environment
-
-Optional: create `.env` only if you need local overrides such as a different `SWOOLE_PORT`.
-Do not commit `.env` to version control. It is a local override file and can contain machine-specific settings.
-
-```bash
-$EDITOR .env
-```
-
-### 4. Start the application
-
-```bash
 bin/semitexa server:start
 ```
 
-Open **http://localhost:9502** in your browser by default.
+- The first `server:start` takes about a minute: Composer installs the dependencies in the `setup` container.
+- `server:start` prints the URL when the app is up. The default is **http://localhost:9502**. If 9502 is already taken, the installer picks a free port in 9501–9599 and writes it to `.env` as `SWOOLE_PORT`, so trust the printed URL over the default.
+- The page you see is the starter `Hello` module, served at `/` from `src/modules/Hello/`.
+
+Then create the database tables:
+
+```bash
+bin/semitexa orm:sync
+```
+
+The installed stack runs MySQL, Redis and NATS next to the app. `orm:sync` creates the tables from the `#[FromTable]` resources the installed packages declare. (Related commands: `orm:diff`, `orm:status`, `orm:seed`.)
 
 To stop:
 
@@ -92,13 +47,36 @@ To stop:
 bin/semitexa server:stop
 ```
 
+### What the installer does outside the project directory
+
+- It registers the app in `~/.semitexa/router/registry/apps/<uuid>.env`, a small port registry that keeps two Semitexa projects on one machine from claiming the same port.
+- It can **optionally** set up a local `.test` domain. That step needs `sudo`, changes your system DNS (systemd-resolved, `/etc/resolv.conf`) or `/etc/hosts`, and starts shared router containers that bind host port 80. The installer asks before doing it — answer `n` to skip. Passing `--start` to the installer skips all prompts and registers the default domain, so leave `--start` out if you do not want that. You can add a domain later; see the hub page `get-started/local-domain`.
+
+---
+
+## Next Steps
+
+1. **Check the setup:** `bin/semitexa self-test` checks Docker, Compose, the project files and the CPU architecture.
+2. **See the routes:** `bin/semitexa routes:list`.
+3. **Build your first page:** [MINIMAL_PAGE.md](MINIMAL_PAGE.md) — a module with a payload, handler, resource and Twig template, starting from `bin/semitexa make:page`.
+4. **Read the logs:** `bin/semitexa logs:app`.
+5. **Add a package** that is not part of `semitexa/ultimate` (for example `semitexa/graphql`): Composer runs inside the app image, so run `docker compose run --rm --no-deps --user "$(id -u):$(id -g)" app composer require semitexa/graphql`, then `bin/semitexa server:restart`.
+
+---
+
+## Existing project
+
+Clone the repository, `cd` into it and run `bin/semitexa server:start`. If the project has no `vendor/` yet, `bin/semitexa install` runs `composer install` inside the app container first.
+
+Create `.env` only for local overrides (for example a different `SWOOLE_PORT`); `.env.default` is the committed baseline. Do not commit `.env`.
+
 ---
 
 ## Rules And Constraints
 
-- Run Semitexa via Docker, not `php server.php` on the host.
-- The canonical local install path is `curl -fsSL https://semitexa.com/install.sh | bash`.
-- Treat project-level docs and package docs as canonical sources; avoid inventing alternate install flows.
+- Run Semitexa through `bin/semitexa` and Docker, not `php server.php` on the host.
+- The canonical install path is `curl -fsSL https://semitexa.com/install.sh | bash -s my-project`.
+- New code goes into modules under `src/modules/` — see [MINIMAL_PAGE.md](MINIMAL_PAGE.md).
 
 The point of these constraints is simple: fewer unofficial paths means fewer confusing failures later.
 
@@ -106,11 +84,10 @@ The point of these constraints is simple: fewer unofficial paths means fewer con
 
 ## If Something Goes Wrong
 
-- **Project files were not created correctly**: re-run the official installer from a clean parent directory.
-- **Port or runtime confusion**: read the hub page `get-started/installation`.
-- **Need the first page after install**: continue with [MINIMAL_PAGE.md](MINIMAL_PAGE.md).
-
-If you reached a running app, move on quickly. The next page is where Semitexa usually stops sounding abstract and starts feeling mechanical in the best possible way.
+- **`docker` needs `sudo`**: add your user to the `docker` group (`sudo usermod -aG docker $USER`), then log out and back in.
+- **The project directory already exists**: the installer refuses to overwrite it. Pick another name or remove the directory.
+- **Nothing answers on the port**: use the URL `server:start` printed, or read `SWOOLE_PORT` in `.env`.
+- **Errors in the browser**: `bin/semitexa logs:app` shows the application log.
 
 ---
 
@@ -118,19 +95,20 @@ If you reached a running app, move on quickly. The next page is where Semitexa u
 
 | Goal | Document or command |
 |------|----------------------|
-| Why Semitexa | [README.md](../README.md) · [AI_REFERENCE.md](../AI_REFERENCE.md) |
+| Why Semitexa | [AI_REFERENCE.md](../AI_REFERENCE.md) |
 | First HTML page with Twig | [MINIMAL_PAGE.md](MINIMAL_PAGE.md) |
 | Add routes | the hub page `routing/adding-routes` |
-| Run / Docker / ports / logs | the hub page `get-started/installation` |
+| Install details, verification | the hub page `get-started/installation` |
+| Local `.test` domain | the hub page `get-started/local-domain` |
+| Database schema | `bin/semitexa orm:sync` · the hub page `data/schema-sync` |
 | Service contracts / DI | the hub page `di/contract-resolution` · `bin/semitexa contracts:list --json` |
 
 ---
 
 ## AI Quick Brief
 
-1. Get project.
-2. `curl -fsSL https://semitexa.com/install.sh | bash -s my-project`
-3. `cd my-project`
-4. `bin/semitexa server:start`
-
-For the first route with Twig, use [MINIMAL_PAGE.md](MINIMAL_PAGE.md).
+1. `curl -fsSL https://semitexa.com/install.sh | bash -s my-project`
+2. `cd my-project`
+3. `bin/semitexa server:start` — prints the URL (default `http://localhost:9502`).
+4. `bin/semitexa orm:sync`
+5. First page: [MINIMAL_PAGE.md](MINIMAL_PAGE.md).
