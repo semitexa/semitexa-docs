@@ -7,7 +7,7 @@ summary: Creating a module and its first route end to end: JSON and HTML respons
 order: 20
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.10.03.1952
 keywords:
   - discovery
   - error.404
@@ -17,7 +17,7 @@ keywords:
 
 # Adding Pages and Routes
 
-**Put new routes in modules** — `src/modules/`, `packages/`, or an installed package under `vendor/semitexa/`.
+**Put new routes in modules** — `src/modules/<Module>/` in a project, or a package under `packages/` or `vendor/semitexa/`.
 
 This is a convention, not a mechanical limit. `ClassDiscovery` merges every PSR-4 directory under `src/`, `tests/`, `packages/` and `vendor/semitexa/`, so a payload dropped straight into `src/` with an access attribute *will* be discovered and *will* answer requests. The reason to use a module anyway is that everything defining a route then lives in one predictable layout with a clear namespace, which is what the graph, the generators and the structure validator all read. A route class sitting loose in `src/` works and is invisible to all of them.
 
@@ -25,103 +25,133 @@ If you are looking for where the boundary actually is: it is the discovery roots
 
 ---
 
-## Step-by-step: create a new module and add a route
+## Step-by-step: create a module and add a route
 
-1. **Create the module directory**  
-   Example: `src/modules/Website/` (or `Api`, `Blog`, etc.).
+The starter `Hello` module (`src/modules/Hello/`) in a new project is a complete working example to compare against.
 
-2. **Add `composer.json` inside the module**  
-   So the framework recognises it as a Semitexa module and registers its autoload:
+1. **Create the module**
+
+   ```bash
+   bin/semitexa make:module --name=Website --target=custom --write
+   ```
+
+   This creates `src/modules/Website/src/Application/...`, `src/modules/Website/src/Domain/...` and `src/modules/Website/tests/`. You can also create the directories by hand.
+
+2. **Know how it is loaded**
+
+   At boot, `LocalModuleAutoloadRegistrar` maps `App\Modules\Website\` to `src/modules/Website/src/` for every directory under `src/modules/`. There is no `composer dump-autoload` step and no root `composer.json` change. A module `composer.json` is optional; if you add one, use the same mapping:
 
    ```json
    {
-     "name": "semitexa/module-website",
-     "type": "semitexa-module",
-     "autoload": {
-       "psr-4": {
-         "Semitexa\\Modules\\Website\\": "."
+       "name": "app/module-website",
+       "type": "semitexa-module",
+       "autoload": {
+           "psr-4": {
+               "App\\Modules\\Website\\": "src/"
+           }
        }
-     }
    }
    ```
-   (Project root `composer.json` uses a single mapping `"Semitexa\\Modules\\": "src/modules/"` for all modules.)
 
-   Run `composer dump-autoload` in the **project root** after adding or changing module `composer.json`.
+3. **Create the Payload, Resource and Handler**
 
-3. **Create Request (Payload) and Handler in the module**  
-   Put **HTTP request DTOs** in **`Application/Payload/Request/`** (namespace `Semitexa\Modules\{ModuleName}\Application\Payload\Request\`). Put **HTTP handlers** in **`Application/Handler/PayloadHandler/`**. See [module structure](../get-started/module-structure.md) for the full layout.
+   HTTP request DTOs go in `src/Application/Payload/Request/`, response DTOs in `src/Application/Resource/Response/`, handlers in `src/Application/Handler/PayloadHandler/`. See [module structure](../get-started/module-structure.md) for the full layout.
 
-   **Example Request** — e.g. `src/modules/Website/Application/Payload/Request/HomePayload.php`:
+   This example is a JSON endpoint, `GET /status`.
+
+   `src/modules/Website/src/Application/Payload/Request/StatusPayload.php`:
 
    ```php
    <?php
 
    declare(strict_types=1);
 
-   namespace Semitexa\Modules\Website\Application\Payload\Request;
+   namespace App\Modules\Website\Application\Payload\Request;
 
+   use App\Modules\Website\Application\Resource\Response\StatusResource;
    use Semitexa\Core\Attribute\AsPublicPayload;
-   use Semitexa\Core\Contract\PayloadInterface;
-   use Semitexa\Modules\Website\Application\Resource\HomeResource;
 
-   #[AsPublicPayload(path: '/', methods: ['GET'], responseWith: HomeResource::class)]
-   class HomePayload implements PayloadInterface
+   #[AsPublicPayload(path: '/status', methods: ['GET'], responseWith: StatusResource::class)]
+   final class StatusPayload
    {
    }
    ```
 
-   **Example Handler** — e.g. `src/modules/Website/Application/Handler/PayloadHandler/HomeHandler.php`:
+   `src/modules/Website/src/Application/Resource/Response/StatusResource.php`:
 
    ```php
    <?php
 
    declare(strict_types=1);
 
-   namespace Semitexa\Modules\Website\Application\Handler\PayloadHandler;
+   namespace App\Modules\Website\Application\Resource\Response;
 
-   use Semitexa\Core\Attribute\AsPayloadHandler;
-   use Semitexa\Core\Contract\PayloadInterface;
+   use Semitexa\Core\Attribute\AsResource;
    use Semitexa\Core\Contract\ResourceInterface;
-   use Semitexa\Core\Response;
-   use Semitexa\Modules\Website\Application\Payload\Request\HomePayload;
-   use Semitexa\Modules\Website\Application\Resource\HomeResource;
+   use Semitexa\Core\Http\Response\ResourceResponse;
+   use Semitexa\Core\Http\Response\ResponseFormat;
 
-   #[AsPayloadHandler(payload: HomePayload::class, resource: HomeResource::class)]
-   class HomeHandler
+   #[AsResource(format: ResponseFormat::Json)]
+   final class StatusResource extends ResourceResponse implements ResourceInterface
    {
-       public function handle(PayloadInterface $request, ResourceInterface $response): ResourceInterface
+       public function withMessage(string $message): self
        {
-           return Response::json(['message' => 'Hello from Website module']);
+           $this->setRenderContext(['message' => $message]);
+
+           return $this;
        }
    }
    ```
 
-   Use the **recommended** layout: **`Application/Payload/Request/`** for HTTP request DTOs, **`Application/Resource/`** for response DTOs, **`Application/Handler/PayloadHandler/`** for HTTP handlers, **`Application/View/templates/`** for Twig. See [module structure](../get-started/module-structure.md) for the canonical layout (payloads, event handlers, pipeline). The class must live under the **module namespace** (`Semitexa\Modules\Website\...`) and the module must have a valid `composer.json` with `"type": "semitexa-module"` and PSR-4 autoload.
+   `src/modules/Website/src/Application/Handler/PayloadHandler/StatusHandler.php`:
 
-   The example above returns JSON. **For HTML pages** use a Response DTO with a Twig template — see the section **"Responses: JSON and HTML pages"** below (or AI_REFERENCE / guides in semitexa/docs).
+   ```php
+   <?php
 
-4. **Reload / clear stale runtime state if needed**  
-   After adding or changing Request (Payload) classes, treat this as ordinary code changes: reload the app or restart the container if your runtime has not picked them up yet. Do **not** treat `bin/semitexa registry:sync` as a required manual step for ordinary payload changes.
+   declare(strict_types=1);
 
-5. **Reload**  
-   Restart the app (e.g. `bin/semitexa server:stop` then `bin/semitexa server:start`) or ensure your runtime picks up the new classes; the framework will discover the new Request/Handler from the module.
+   namespace App\Modules\Website\Application\Handler\PayloadHandler;
+
+   use App\Modules\Website\Application\Payload\Request\StatusPayload;
+   use App\Modules\Website\Application\Resource\Response\StatusResource;
+   use Semitexa\Core\Attribute\AsPayloadHandler;
+   use Semitexa\Core\Contract\TypedHandlerInterface;
+
+   #[AsPayloadHandler(payload: StatusPayload::class, resource: StatusResource::class)]
+   final class StatusHandler implements TypedHandlerInterface
+   {
+       public function handle(StatusPayload $payload, StatusResource $resource): StatusResource
+       {
+           return $resource->withMessage('Hello from the Website module');
+       }
+   }
+   ```
+
+   `GET /status` answers `{"message":"Hello from the Website module"}`. The payload is a plain class; the handler implements `TypedHandlerInterface` and takes the concrete payload and resource types.
+
+   `#[AsPublicPayload]` makes a route anonymous. `#[AsProtectedPayload]` (signed-in user) and `#[AsServicePayload]` (machine credential) live in `Semitexa\Authorization\Attribute\`. A payload with none of the three is never routed.
+
+4. **Restart the server**
+
+   ```bash
+   bin/semitexa server:restart
+   ```
+
+   Swoole workers keep discovered classes and compiled templates for their lifetime, so a new route appears only after a restart. `bin/semitexa routes:list` confirms it. Do **not** treat `bin/semitexa registry:sync` as a required manual step for ordinary payload changes.
 
 ---
 
 ## Responses: JSON and HTML pages
 
-The step-by-step example above uses `Response::json([...])` — suitable for API endpoints. For **HTML pages** the renderer is **`semitexa/ssr`**, which ships with the framework. Do not implement your own Twig renderer in the project.
+The example above returns JSON through a resource DTO marked `#[AsResource(format: ResponseFormat::Json)]`; its render context becomes the JSON body. For **HTML pages** the renderer is **`semitexa/ssr`**, which ships with the framework. Do not implement your own Twig renderer in the project.
 
 **Steps for HTML pages:**
 
-1. Create a resource class carrying `#[AsResource(handle: '...', template: '@namespace/pages/thing.html.twig')]`.
-2. Store templates in the module under `Application/View/templates/`; they are addressed through the Twig namespace, not a filesystem path.
-3. The handler fills the resource context and returns it; `LayoutRenderer` renders the template.
+1. Create a resource that extends `Semitexa\Ssr\Application\Service\Http\Response\HtmlResponse` and carries `#[AsResource(handle: '...', template: '@project-layouts-<Module>/pages/thing.html.twig')]`.
+2. Store templates in the module under `src/Application/View/templates/`; they are addressed through the Twig namespace `@project-layouts-<Module>`, not a filesystem path.
+3. The handler fills the resource through typed `with*()` methods and returns it; the framework renders the template.
 
-A working example is `Semitexa\Demo\Application\Resource\Response\DemoFeatureResource`, which declares
-`template: '@project-layouts-semitexa-demo/pages/feature.html.twig'`.
-
-**Recommended stack:** for HTML apps, `semitexa/core` plus `semitexa/ssr`.
+`bin/semitexa make:page --module=Website --name=Minimal --path=/minimal --method=GET --access=public --write` generates all four files in one step. Change one line of the generated template before you open the page: it extends `@layouts/base.html.twig`, which no package ships, so point it at a layout that exists, such as `@project-layouts-theme-base/layouts/one-column.html.twig`, and put the content in `{% block main %}`. The `Hello` module's `HelloResource` is a working example (`template: '@project-layouts-Hello/hello.html.twig'`).
 
 **Detailed docs:** [rendering philosophy](../rendering/philosophy.md), [resource DTOs](../rendering/resource-dtos.md) and [slots](../rendering/slots.md). Do not put raw HTML in the handler and do not create a custom renderer — return a resource DTO.
 
@@ -133,20 +163,20 @@ If you need the public URL shape to be editable per environment without changing
 
 | Location | Discovered for routes? |
 |----------|-------------------------|
-| **Modules:** `src/modules/{ModuleName}/` (with `composer.json` `type: semitexa-module`) | Yes |
+| **Modules:** `src/modules/{ModuleName}/src/` (namespace `App\Modules\{ModuleName}\`) | Yes |
 | **Packages:** project `packages/` (Semitexa packages with `composer.json`) | Yes |
 | **Vendor:** installed packages (e.g. `vendor/semitexa/...`) | Yes |
 | **Project `src/` (namespace `App\`), outside a module** | Yes — discovered, but invisible to the graph, generators and structure validator |
 
-Place **all new routes** in a module (existing or new) under `src/modules/`, in `packages/`, or in an installed package. Loose classes in the project root still route, but they opt out of every tool that reads the module layout, so treat that as a mistake rather than a shortcut.
+Place **all new routes** in a module (existing or new) under `src/modules/`, in `packages/`, or in an installed package. Loose classes still route, but they opt out of every tool that reads the module layout, so treat that as a mistake rather than a shortcut.
 
 ---
 
 ## How discovery works (architecture)
 
-- **ModuleRegistry** finds modules in: `src/modules/`, project `packages/`, and `vendor/` (packages with `type: semitexa-module` or under `vendor/semitexa/`).
-- **IntelligentAutoloader** and **AttributeDiscovery** scan every PSR-4 directory merged by `ClassDiscovery`: `src/` (including the project `App\` namespace), `tests/`, `packages/`, and `vendor/semitexa/`. Module namespaces are the convention, not the filter.
-- So to add new routes you must have a **module** with a proper `composer.json` and PSR-4 (root: `Semitexa\Modules\` → `src/modules/`; per-module e.g. `Semitexa\Modules\Website\` → `.`). Adding `App\Request\*` / `App\Handler\*` in project `src/` is not a supported way to register routes.
+- **ModuleRegistry** finds modules in: `src/modules/` (every directory), project `packages/`, and `vendor/` (packages with `type: semitexa-module`).
+- **LocalModuleAutoloadRegistrar** registers the PSR-4 mapping `App\Modules\<Name>\` → `src/modules/<Name>/src/` for each local module at boot. (`Semitexa\Modules\<Name>\` is mapped to the same directory for older code; new code uses `App\Modules\`.)
+- **AttributeDiscovery** reads the attributes of every class in the PSR-4 directories merged by `ClassDiscovery`: `src/` (including the project `App\` namespace), `tests/`, `packages/`, and `vendor/semitexa/`. Module namespaces are the convention, not the filter.
 
 ---
 
@@ -162,16 +192,17 @@ If no route matches the request, or a handler throws `Semitexa\Core\Http\Excepti
 ## Common mistakes / FAQ
 
 **My payload in `src/` routes, but no tooling sees it.**  
-That is expected. `src/` is scanned, so the route works, but the module-structure validator, the project graph and the generators all key off the module layout. Move the class into `src/modules/{Module}/` with a `composer.json` (`"type": "semitexa-module"` and PSR-4 autoload) and it rejoins them.
+That is expected. `src/` is scanned, so the route works, but the module-structure validator, the project graph and the generators all key off the module layout. Move the class into `src/modules/{Module}/src/Application/...` under the `App\Modules\{Module}\` namespace and it rejoins them.
 
 **I added a new Payload and Handler but the route doesn't exist (404)?**  
-First verify the class lives inside a discovered module, the namespace matches the module PSR-4 mapping, and the app/container was reloaded after the change. `registry:sync` is a maintenance command, not the default fix for ordinary payload changes.
+Check that the class is under `src/modules/<Module>/src/`, that its namespace starts with `App\Modules\<Module>\` and matches the directory, and that you ran `bin/semitexa server:restart`. `registry:sync` is a maintenance command, not the default fix for ordinary payload changes.
 
-**Can I patch `IntelligentAutoloader` or `AttributeDiscovery` to widen discovery?**  
+**Can I patch `AttributeDiscovery` to widen discovery?**  
 Do not patch vendor. The discovery roots (`src/`, `tests/`, `packages/`, `vendor/semitexa/`) already cover every location a Semitexa project is expected to use.
 
 ## Summary
 
 - **New pages and routes belong in modules** (`src/modules/`, `packages/`, or `vendor/semitexa/`) — not because loose classes fail to route, but because they drop out of every tool that reads the module layout.
-- Each module: directory, `composer.json` with `"type": "semitexa-module"` and PSR-4 (e.g. `Semitexa\Modules\Website\` → `.`); root has `Semitexa\Modules\` → `src/modules/`. Then Request/Handler classes with route attributes in that namespace.
-- **After adding or changing Payloads:** reload the running app if needed. Use `registry:sync` only for maintenance flows explicitly documented by a package.
+- A local module is `src/modules/<Module>/src/Application/...` under `App\Modules\<Module>\`, mapped at boot by `LocalModuleAutoloadRegistrar`; no `composer dump-autoload`.
+- Payloads are plain classes with an access attribute; handlers implement `TypedHandlerInterface`; responses are resource DTOs.
+- **After adding or changing Payloads:** `bin/semitexa server:restart`. Use `registry:sync` only for maintenance flows explicitly documented by a package.
