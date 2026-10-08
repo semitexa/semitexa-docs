@@ -92,6 +92,8 @@ Every skin carries both modes in one `tokens.css`: the generator runs the algori
 
 Text on the brand fill (`--ui-text-on-accent`) is white when white clears WCAG AA (4.5:1), near-black when only near-black does, and white when neither does — WCAG 2 under-rates light text on saturated mid-tones, so a near-tie is settled by legibility.
 
+In a dark skin the accent must reach 6:1 against the page, not 4.5. At 4.5 it lands in the luminance band where neither white nor near-black text clears AA on it (the old default: `#5f6eea`, 4.28 and 4.41); at 6:1 it is a light tone with near-black text at about 5.7:1 — the light-primary, dark-on-primary pairing of Material 3 dark schemes. `OnColorContrastTest` checks this for every algorithm across ten seeds.
+
 Dark mode inverts surface/text lightness in OKLCH, shifts state colors brighter for legibility, triples shadow alpha (so drop shadows remain perceptible against near-black surfaces), and flips the brutalist neutral shadow from matte-black to near-white. `skin:refine` preserves the mode of the source skin.
 
 ## Token contract (45 tokens)
