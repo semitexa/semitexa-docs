@@ -38,19 +38,23 @@ It is a development surface: it names classes and files and renders fixture data
 
 ```php
 #[AsUiContract(
-    summary: 'A single key metric with its change over time.',
+    summary: 'A single metric: a label, its value, and optionally a change and a caption.',
     props: [
-        new UiProp('label', default: ''),
-        new UiProp('value', default: ''),
-        new UiProp('delta', nullable: true),
+        new UiProp('label', required: true),
+        new UiProp('value', required: true, description: 'The value as shown, formatted ("1,284", "€42k").'),
+        new UiProp('delta', nullable: true, description: 'The change, as shown ("+12%").'),
         new UiProp('trend', default: 'flat', values: ['up', 'down', 'flat']),
+        new UiProp('caption', nullable: true, description: 'One line of context ("vs last week").'),
     ],
     examples: [
-        new UiExample('up', 'Growing', ['label' => 'Revenue', 'value' => '$48,210', 'delta' => '+12.4%', 'trend' => 'up']),
+        new UiExample('default', 'Revenue', ['label' => 'Revenue', 'value' => '€42,180', 'delta' => '+12%', 'trend' => 'up', 'caption' => 'vs last week']),
+        new UiExample('down', 'Falling', ['label' => 'Churn', 'value' => '2.1%', 'delta' => '-0.4%', 'trend' => 'down', 'caption' => 'vs last month']),
     ],
     previewSafe: true,
 )]
 ```
+
+The same contract is what an [AI-composed screen](ai-ui.md) is checked against, and its first example is the one an agent is shown. A contract is open to agents unless it says `agent: false`; the entries that carry a contract only for their Workbench preview say so.
 
 An example is validated against the props schema when the catalog is built: an unknown prop or a value outside `values:` fails the build, so an example can never teach something the component rejects. Slot values are literal text and are escaped on the stage.
 
