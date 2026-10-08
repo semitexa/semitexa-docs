@@ -3,7 +3,7 @@ id: rendering/philosophy
 section: rendering
 slug: philosophy
 title: SSR Philosophy
-summary: Semitexa SSR is one continuous rendering architecture: page, slots, deferred regions, live refresh, and interactive components stay inside one server-owned story.
+summary: Semitexa SSR is one continuous rendering architecture: page, slots, deferred regions, live refresh and interactive components in one server-owned story.
 order: 10
 locale: en
 status: published

@@ -3,7 +3,7 @@ id: data/n-plus-one
 section: data
 slug: n-plus-one
 title: N+1 Without Magic
-summary: Semitexa avoids N+1 by using resource slices for the exact columns and relations each screen needs, instead of hiding database traffic behind implicit relation loading.
+summary: Semitexa avoids N+1 with resource slices that load the exact columns and relations each screen needs, instead of hiding queries behind implicit loading.
 order: 90
 locale: en
 status: canonical

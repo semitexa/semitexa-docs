@@ -3,7 +3,7 @@ id: prompt/overview
 section: prompt
 slug: overview
 title: Prompt Catalog Overview
-summary: What `semitexa/prompt` adds to the framework — an ORM-style catalog that turns inline prompt strings into addressable, versionable, override-aware records.
+summary: What semitexa/prompt adds: an ORM-style catalog that turns inline prompt strings into addressable, versioned records that tenants can override.
 order: 10
 locale: en
 status: canonical

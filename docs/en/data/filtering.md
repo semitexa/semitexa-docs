@@ -3,7 +3,7 @@ id: data/filtering
 section: data
 slug: filtering
 title: Filtering
-summary: Mark a property #[Filterable] and the ORM handles the rest — no manual WHERE clauses.
+summary: Mark a property #[Filterable] and the ORM handles the rest. No manual WHERE clauses.
 order: 50
 locale: en
 status: canonical

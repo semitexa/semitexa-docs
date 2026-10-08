@@ -3,7 +3,7 @@ id: platform/skin-algorithms
 section: platform
 slug: skin-algorithms
 title: Skin Algorithms and Knobs
-summary: The algorithms behind skin generation and every knob you can turn.
+summary: The algorithms behind Semitexa skin generation and every knob you can turn: palette, contrast, typography and spacing derived from a few inputs.
 order: 70
 locale: en
 status: canonical

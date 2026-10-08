@@ -72,7 +72,7 @@ final class DocsTruthIndexCommand extends BaseCommand
         }
 
         if ((bool) $input->getOption('json') || !$output->isDecorated()) {
-            $output->writeln($encoded);
+            $output->writeln($encoded, OutputInterface::OUTPUT_RAW);
 
             return self::SUCCESS;
         }

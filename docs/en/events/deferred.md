@@ -3,7 +3,7 @@ id: events/deferred
 section: events
 slug: deferred
 title: Deferred Handler
-summary: Heavy work runs after the response is sent — the user gets instant feedback.
+summary: Heavy work runs after the response is sent, so the user gets instant feedback.
 order: 30
 locale: en
 status: published

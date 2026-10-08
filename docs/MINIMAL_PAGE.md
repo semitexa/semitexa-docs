@@ -1,98 +1,105 @@
 # A Minimal Working Page — Semitexa
 
-> Entry points: [AI quick brief](ai/MINIMAL_PAGE.md) · [Human entry](hm/MINIMAL_PAGE.md)  
-> Also: [Get Started](GET_STARTED.md) · [About Semitexa](../README.md)
+> Also: [Get Started](GET_STARTED.md) · [AI Reference](../AI_REFERENCE.md)
 
 This is the **canonical guide** for creating one minimal HTML page in Semitexa: one route, one Payload, one Handler, one Resource, and one Twig template.
 
-The core idea is unchanged: **the Payload is the shield**. Input is accepted, normalized, and validated there. The handler receives only a trusted Payload, and the Resource carries the output shape all the way to Twig.
+The core idea: **the Payload is the shield**. Input is accepted, normalized, and validated there. The handler receives only a trusted Payload, and the Resource carries the output shape all the way to Twig.
 
-This page should be the moment where Semitexa stops sounding like a philosophy and starts feeling obvious.
+The starter `Hello` module in a new project (`src/modules/Hello/`) is a working example of everything on this page.
 
 ---
 
 ## What We Are Building
 
-Route:
+Route: `GET /minimal?name=World`
 
-- `GET /minimal?name=World`
+Flow: `Payload -> Handler -> Resource -> Twig`
 
-Files:
+Files, all inside `src/modules/Website/src/Application/`:
 
-- module `composer.json`
-- request Payload
-- page Resource
-- Twig template
-- handler
-
-Flow:
-
-- `Payload -> Handler -> Resource -> Twig`
-
-That flow is the point. One clear request contract. One clear handler. One clear response path.
+| File | Role |
+|------|------|
+| `Payload/Request/MinimalPayload.php` | route, methods, input validation |
+| `Handler/PayloadHandler/MinimalHandler.php` | the use case |
+| `Resource/Response/MinimalResponse.php` | the data handed to the template |
+| `View/templates/pages/minimal.html.twig` | presentation |
 
 ---
 
 ## Prerequisites
 
-- A Semitexa project already installed and runnable.
-- Read [GET_STARTED.md](GET_STARTED.md) if the app is not running yet.
-- New routes live only in modules: `src/modules/`, `packages/`, or installed packages.
+- A running project — see [GET_STARTED.md](GET_STARTED.md).
+- Run the commands below from the project root. `bin/semitexa` runs them inside the app container.
 
 ---
 
 ## Step 1: Create the module
 
-Example: `src/modules/Website/`
-
-Add `composer.json`:
-
-```json
-{
-  "name": "semitexa/module-website",
-  "type": "semitexa-module",
-  "require": {
-    "php": "^8.4",
-    "semitexa/core": "*",
-    "semitexa/ssr": "*"
-  },
-  "autoload": {
-    "psr-4": {
-      "Semitexa\\Modules\\Website\\": ""
-    }
-  }
-}
-```
-
-Then run:
-
 ```bash
-composer dump-autoload
+bin/semitexa make:module --name=Website --target=custom --write
 ```
+
+This creates `src/modules/Website/` with `src/` (runtime code, under `src/Application/` and `src/Domain/`) and `tests/`. Generators are dry-run by default; `--write` creates the files.
+
+How the module is loaded:
+
+- Every directory under `src/modules/` is a module. At boot, `LocalModuleAutoloadRegistrar` maps `App\Modules\Website\` to `src/modules/Website/src/`. There is no `composer dump-autoload` step and no registry entry to add.
+- The module's templates are addressed as `@project-layouts-Website/...` (the alias is the directory name).
+- A `composer.json` in the module is optional. If you add one (the `Hello` module has one), keep the mapping the registrar uses:
+
+  ```json
+  {
+      "name": "app/module-website",
+      "type": "semitexa-module",
+      "autoload": {
+          "psr-4": {
+              "App\\Modules\\Website\\": "src/"
+          }
+      }
+  }
+  ```
 
 ---
 
-## Step 2: Create the Payload
+## Step 2: Generate the page
 
-Path:
+```bash
+bin/semitexa make:page --module=Website --name=Minimal --path=/minimal --method=GET --access=public --write
+```
 
-- `Application/Payload/Request/MinimalPagePayload.php`
+Options worth knowing:
 
-Example:
+- `--access` is `protected` by default (signed-in users only). Use `public` for a page anyone can open, or `service` for machine callers.
+- `--with-assets` also creates CSS/JS stubs and `assets.json`.
+- `--no-test` skips the two test scaffolds that are otherwise created in `src/modules/Website/tests/`.
+- Leave out `--write` to print the planned files without creating them.
+
+It creates the four files from the table above plus two tests. The generated classes use the `Semitexa\Modules\Website\` namespace; the registrar maps that prefix to the same directory, so it works, but `App\Modules\Website\` is the canonical name (it is what the `Hello` module uses), and the listings below use it.
+
+The generated template extends the bundled theme's `one-column` layout, so the page renders as soon as the server restarts. Step 4 shows the same template written by hand.
+
+---
+
+## Step 3: The Payload
+
+`src/modules/Website/src/Application/Payload/Request/MinimalPayload.php`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace Semitexa\Modules\Website\Application\Payload\Request;
+namespace App\Modules\Website\Application\Payload\Request;
 
-use Semitexa\Core\Attribute\AsPublicPayload;use Semitexa\Core\Exception\ValidationException;use Semitexa\Modules\Website\Application\Resource\Response\MinimalPageResource;
+use App\Modules\Website\Application\Resource\Response\MinimalResponse;
+use Semitexa\Core\Attribute\AsPublicPayload;
+use Semitexa\Core\Exception\ValidationException;
 
-#[AsPublicPayload(path: '/minimal', methods: ['GET'], responseWith: MinimalPageResource::class)]
-final class MinimalPagePayload
+#[AsPublicPayload(path: '/minimal', methods: ['GET'], responseWith: MinimalResponse::class)]
+final class MinimalPayload
 {
-    protected string $name = '';
+    protected string $name = 'World';
 
     public function getName(): string
     {
@@ -113,45 +120,31 @@ final class MinimalPagePayload
 
 What matters:
 
-- Payload defines path, methods, and response type.
-- Framework hydrates via setters.
-- Setters throw `Semitexa\Core\Exception\ValidationException` to reject invalid input. The framework converts the exception into a `422 Unprocessable Entity` response with a `{ errors: { field: [...] } }` envelope before the handler runs.
-- There is no `PayloadInterface` here. Plain class plus setter-time validation is the modern path.
-
-This is one of the strongest Semitexa ideas: the handler should receive data that is already shaped and safe to trust.
+- The attribute declares path, methods and the response type. `#[AsPublicPayload]` makes the route anonymous; `#[AsProtectedPayload]` and `#[AsServicePayload]` (from `Semitexa\Authorization\Attribute\`) require a signed-in user or a machine credential.
+- The framework hydrates the payload through its setters. `?name=Ada` calls `setName('Ada')`.
+- A setter throws `Semitexa\Core\Exception\ValidationException` to reject input. The framework answers `422` with `{"errors":{"name":[...]}}` before the handler runs.
+- The payload is a plain class: no base class and no marker interface.
 
 ---
 
-## Step 3: Create the Resource
+## Step 4: The Resource and the template
 
-Path:
-
-- `Application/Resource/Response/MinimalPageResource.php`
-
-Example:
+`src/modules/Website/src/Application/Resource/Response/MinimalResponse.php`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace Semitexa\Modules\Website\Application\Resource\Response;
+namespace App\Modules\Website\Application\Resource\Response;
 
-use Semitexa\Core\Attributes\AsResource;
+use Semitexa\Core\Attribute\AsResource;
 use Semitexa\Core\Contract\ResourceInterface;
 use Semitexa\Ssr\Application\Service\Http\Response\HtmlResponse;
 
-#[AsResource(
-    handle: 'minimal_page',
-    template: '@project-layouts-Website/pages/minimal.html.twig',
-)]
-final class MinimalPageResource extends HtmlResponse implements ResourceInterface
+#[AsResource(handle: 'minimal', template: '@project-layouts-Website/pages/minimal.html.twig')]
+final class MinimalResponse extends HtmlResponse implements ResourceInterface
 {
-    public function withPageTitle(string $pageTitle): self
-    {
-        return $this->with('pageTitle', $pageTitle);
-    }
-
     public function withHeading(string $heading): self
     {
         return $this->with('heading', $heading);
@@ -161,129 +154,89 @@ final class MinimalPageResource extends HtmlResponse implements ResourceInterfac
     {
         return $this->with('message', $message);
     }
-
-    public function withFooter(string $footer): self
-    {
-        return $this->with('footer', $footer);
-    }
 }
 ```
 
-This is the canonical SSR pattern:
+- `HtmlResponse` is the base for HTML pages.
+- `#[AsResource]` declares the render handle and the template.
+- Typed `with*()` methods set template variables; `with('heading', ...)` makes `{{ heading }}` available.
 
-- `HtmlResponse` for HTML pages
-- `#[AsResource]` for handle + template declaration
-- typed `with*()` methods instead of raw render-context arrays
-
----
-
-## Step 4: Create the Twig template
-
-Path:
-
-- `Application/View/templates/pages/minimal.html.twig`
-
-Example:
+`src/modules/Website/src/Application/View/templates/pages/minimal.html.twig`:
 
 ```twig
-{% extends "@project-layouts-Website/layouts/base.html.twig" %}
-{% block title %}{{ pageTitle|default('Minimal page') }}{% endblock %}
+{% extends '@project-layouts-theme-base/layouts/one-column.html.twig' %}
+
+{% block title %}{{ heading }}{% endblock %}
 
 {% block main %}
   <section class="minimal-page">
-    <h1>{{ heading|default('Minimal page') }}</h1>
-    <p>{{ message|default('') }}</p>
+    <h1>{{ heading }}</h1>
+    <p>{{ message }}</p>
   </section>
 {% endblock %}
-
-{% block footer %}{{ footer|default('') }}{% endblock %}
 ```
 
-The template reads typed render variables directly: `pageTitle`, `heading`, `message`, `footer`.
+`one-column.html.twig` comes with `semitexa/theme` (part of `semitexa/ultimate`) and defines the `title`, `main` and `footer` blocks; `two-columns-left`, `two-columns-right`, `three-columns` and `marketing` sit next to it. A page can also be a complete standalone HTML document, as `Hello`'s `hello.html.twig` is.
 
 ---
 
-## Step 5: Create the Handler
+## Step 5: The Handler
 
-Path:
-
-- `Application/Handler/PayloadHandler/MinimalPageHandler.php`
-
-Example:
+`src/modules/Website/src/Application/Handler/PayloadHandler/MinimalHandler.php`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace Semitexa\Modules\Website\Application\Handler\PayloadHandler;
+namespace App\Modules\Website\Application\Handler\PayloadHandler;
 
-use Semitexa\Core\Attributes\AsPayloadHandler;
+use App\Modules\Website\Application\Payload\Request\MinimalPayload;
+use App\Modules\Website\Application\Resource\Response\MinimalResponse;
+use Semitexa\Core\Attribute\AsPayloadHandler;
 use Semitexa\Core\Contract\TypedHandlerInterface;
-use Semitexa\Modules\Website\Application\Payload\Request\MinimalPagePayload;
-use Semitexa\Modules\Website\Application\Resource\Response\MinimalPageResource;
 
-#[AsPayloadHandler(payload: MinimalPagePayload::class, resource: MinimalPageResource::class)]
-final class MinimalPageHandler implements TypedHandlerInterface
+#[AsPayloadHandler(payload: MinimalPayload::class, resource: MinimalResponse::class)]
+final class MinimalHandler implements TypedHandlerInterface
 {
-    public function handle(MinimalPagePayload $payload, MinimalPageResource $resource): MinimalPageResource
+    public function handle(MinimalPayload $payload, MinimalResponse $resource): MinimalResponse
     {
-        $name = $payload->getName();
-
         return $resource
-            ->pageTitle('Minimal page')
-            ->withPageTitle('Minimal page')
-            ->withHeading('Hello, ' . $name)
-            ->withMessage('This page was rendered through Payload -> Handler -> Resource -> Twig.')
-            ->withFooter('Semitexa keeps the request path explicit on purpose.');
+            ->withHeading('Hello, ' . $payload->getName())
+            ->withMessage('Rendered through Payload -> Handler -> Resource -> Twig.');
     }
 }
 ```
 
-The handler trusts the validated Payload. It does not parse raw request data again.
+The handler trusts the validated Payload and does not parse the raw request again. It does not build response arrays or render the template itself: the template is declared on the Resource, and the framework renders it after `handle()` returns. Services come in through `#[InjectAsReadonly]` properties, never through a constructor (see `HelloHandler` for an example).
 
-It also does not:
-
-- implement deprecated `HandlerInterface`
-- build raw response arrays
-- call `setRenderHandle()` manually
-- call `renderTemplate()` manually when the template is already declared on the Resource
-
-That is where the relief should be felt. You are no longer writing "maybe" code. The contract is already decided upstream.
+If you renamed the generated classes to the `App\Modules\Website\` namespace, update the `namespace` and `use` lines in the two generated tests as well.
 
 ---
 
-## Step 6: Reload and verify
-
-After adding the new classes, reload or restart the app if needed:
+## Step 6: Restart and verify
 
 ```bash
-bin/semitexa server:stop
-bin/semitexa server:start
+bin/semitexa server:restart
 ```
 
-Then open:
+Swoole workers keep discovered classes and compiled templates in memory for their whole life, so a running server does not see new routes or edited templates until it restarts.
 
-- `GET /minimal?name=World`
+Then open (use the port `server:start` printed):
 
-Expected result:
+- `http://localhost:9502/minimal?name=Ada` — the page, with "Hello, Ada".
+- `http://localhost:9502/minimal?name=` — `422` with `{"errors":{"name":["Must be between 1 and 100 characters."]}}`.
 
-- HTML page rendered through Twig
-- `422` if `name` is missing or invalid
-
-Do not treat `bin/semitexa registry:sync` as a required manual step for ordinary payload changes.
-
-If this page feels straightforward, that is the intended effect. The framework should reduce branching in your head, not add more.
+`bin/semitexa routes:list` should list `/minimal`.
 
 ---
 
 ## If Something Goes Wrong
 
-- **404**: verify the class is inside a discovered module and the namespace matches module PSR-4.
-- **Class not found**: run `composer dump-autoload`.
-- **Need broader route reference**: read the hub page `routing/adding-routes`.
-
-If the route still feels harder than it should, the problem is usually one of three things: module discovery, namespace mismatch, or runtime reload.
+- **404**: the class must be under `src/modules/<Module>/src/`, its namespace must start with `App\Modules\<Module>\`, and the server must have been restarted.
+- **500**: `bin/semitexa logs:app` shows the exception. "There are no registered paths for namespace" means the template extends or includes a Twig namespace that does not exist.
+- **401** on a page you meant to be public: the payload uses `#[AsProtectedPayload]` (the `make:page` default). Switch to `#[AsPublicPayload]`.
+- **Template change not visible**: `bin/semitexa server:restart`.
 
 ---
 
@@ -292,7 +245,8 @@ If the route still feels harder than it should, the problem is usually one of th
 | Goal | Document or command |
 |------|----------------------|
 | Install and run app | [GET_STARTED.md](GET_STARTED.md) |
-| Add routes / module layout | the hub page `routing/adding-routes` |
+| JSON routes, discovery, custom 404 | the hub page `routing/adding-routes` |
+| Module layout | the hub page `get-started/module-structure` · [MODULE_STRUCTURE.md](MODULE_STRUCTURE.md) |
 | Payload validation | the hub page `validation/payload-validation` |
 | Practical implementation rules | [AI_BEST_PRACTICES.md](AI_BEST_PRACTICES.md) |
 
@@ -300,10 +254,11 @@ If the route still feels harder than it should, the problem is usually one of th
 
 ## AI Quick Brief
 
-1. Create module and `composer.json`.
-2. Create `Application/Payload/Request/*Payload.php`.
-3. Create `Application/Resource/Response/*Resource.php` extending `HtmlResponse`.
-4. Declare `#[AsResource(handle: '...', template: '...')]` on the page resource.
-5. Create `Application/View/templates/pages/*.html.twig`.
-6. Create `Application/Handler/PayloadHandler/*Handler.php` implementing `TypedHandlerInterface`.
-7. Restart app and verify route.
+1. `bin/semitexa make:module --name=<M> --target=custom --write`
+2. `bin/semitexa make:page --module=<M> --name=<Page> --path=/<path> --method=GET --access=public --write`
+3. To use another layout, change the template's `{% extends %}` (or pass `--layout`) and keep the content in `{% block main %}`.
+4. Namespace `App\Modules\<M>\`, code under `src/modules/<M>/src/Application/`; no `composer dump-autoload`.
+5. Payload: `#[AsPublicPayload(path, methods, responseWith)]`, validation in setters via `ValidationException`.
+6. Resource: extends `HtmlResponse`, implements `ResourceInterface`, `#[AsResource(handle, template)]`, typed `with*()` methods.
+7. Handler: `#[AsPayloadHandler(payload, resource)]`, `final`, implements `TypedHandlerInterface`.
+8. `bin/semitexa server:restart`, then open the route.

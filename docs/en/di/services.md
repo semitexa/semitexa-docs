@@ -3,7 +3,7 @@ id: di/services
 section: di
 slug: services
 title: Declaring a Service
-summary: "#[AsService] makes a plain class a worker-scoped singleton the container will build and inject — and when you do not need it."
+summary: #[AsService] makes a plain class a worker-scoped singleton that the container builds and injects, and this page shows when you do not need it.
 order: 20
 locale: en
 status: canonical

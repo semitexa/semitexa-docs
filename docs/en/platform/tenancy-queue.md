@@ -3,7 +3,7 @@ id: platform/tenancy-queue
 section: platform
 slug: tenancy-queue
 title: Queue Tenant Propagation
-summary: Tenant context travels with queued jobs -- _tenant key injected automatically, restored by worker.
+summary: Tenant context travels with queued jobs: the _tenant key is injected automatically and restored by the worker.
 order: 50
 locale: en
 status: canonical

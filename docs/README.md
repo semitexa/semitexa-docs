@@ -9,7 +9,7 @@ If a topic changes, update the canonical guide first. Do not reintroduce audienc
 
 ## Public Docs Flow
 
-- [Why Semitexa](../README.md)
+- [Why Semitexa](https://github.com/semitexa/semitexa-ultimate#readme) — the project README: what Semitexa is and the quickstart
 - [Get Started](GET_STARTED.md)
 - [Build With Semitexa](BUILD.md)
 - [Reference](REFERENCE.md)

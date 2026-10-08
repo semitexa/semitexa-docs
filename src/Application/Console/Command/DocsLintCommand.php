@@ -100,7 +100,7 @@ final class DocsLintCommand extends BaseCommand
             $output->writeln((string) json_encode(
                 ['artifact' => DocumentationClaimLinter::ARTIFACT] + $report + ['findings' => $findings],
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
-            ));
+            ), OutputInterface::OUTPUT_RAW);
 
             return $findings === [] ? self::SUCCESS : self::FAILURE;
         }

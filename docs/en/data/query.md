@@ -3,7 +3,7 @@ id: data/query
 section: data
 slug: query
 title: Query Builder
-summary: Compose type-safe queries with a fluent API — no raw SQL, no magic strings.
+summary: Compose type-safe queries with a fluent API. No raw SQL, no magic strings.
 order: 40
 locale: en
 status: canonical

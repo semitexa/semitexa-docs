@@ -3,7 +3,7 @@ id: routing/basic
 section: routing
 slug: basic
 title: Basic Route
-summary: Define a route with one access attribute on the payload — no XML, no YAML, no config files.
+summary: Define a route with one access attribute on the payload. No XML, no YAML, no config files.
 order: 10
 locale: en
 status: canonical

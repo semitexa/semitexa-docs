@@ -3,7 +3,7 @@ id: platform/tenancy-layers
 section: platform
 slug: tenancy-layers
 title: Multi-Layer Tenancy
-summary: "Organization, Locale, Theme, Environment -- four independent layers compose into one TenantContext."
+summary: Organization, locale, theme and environment: four independent layers compose into one TenantContext.
 order: 30
 locale: en
 status: canonical

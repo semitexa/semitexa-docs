@@ -3,7 +3,7 @@ id: events/queued
 section: events
 slug: queued
 title: Queued Handler
-summary: Events survive restarts and scale across workers — backed by a durable message queue.
+summary: Events survive restarts and scale across workers, backed by a durable message queue.
 order: 40
 locale: en
 status: published

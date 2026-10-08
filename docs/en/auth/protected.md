@@ -3,7 +3,7 @@ id: auth/protected
 section: auth
 slug: protected
 title: Protected Route
-summary: Add one access attribute and one optional permission attribute and the framework enforces access — 401 for unauthenticated requests, 403 for unauthorized ones.
+summary: Add one access attribute and one optional permission attribute, and the framework enforces access: 401 for unauthenticated requests, 403 for unauthorized ones.
 order: 50
 locale: en
 status: published

@@ -3,7 +3,7 @@ id: cli/ai-tooling
 section: cli
 slug: ai-tooling
 title: Semitexa Dev
-summary: Use Semitexa Dev as the project-aware operating layer for orientation, planning, structural inspection, runtime debugging, durable work memory, and precise verification.
+summary: Semitexa Dev is the project-aware layer for orientation, planning, structural inspection, runtime debugging, durable work memory and precise verification.
 order: 50
 locale: en
 status: canonical
@@ -199,6 +199,27 @@ bin/semitexa ai:invoke \
 ```
 
 The response states which pipeline layers were omitted. Treat it as a handler probe, then use an HTTP or browser check when the complete request pipeline matters.
+
+### A page's live timeline
+
+```bash
+bin/semitexa ai:observe timeline                 # the pages seen lately
+bin/semitexa ai:observe timeline --id=sse_…      # one page, in order
+```
+
+In development, every page with a live stream (its KISS session id) keeps a timeline:
+
+- `event`: a component's UI event, with its effects and how long it took;
+- `frame`: each frame its stream wrote, with id and size;
+- `subscribe` / `unsubscribe`: a feed attached or detached;
+- `rerun`: a feed that re-ran, why (a write or a view change), and what it sent (a keyed patch, a
+  whole page, or nothing);
+- `replay` / `reset`: a reconnect resumed, or could not;
+- `deferred`: a deferred component rendered, and how long it took.
+
+The same timeline is at `/__observatory/timeline` for a human, linked from the Observatory panel.
+It is written one short line at a time under `var/observatory/timeline/`, stops at 1 MB a page,
+and is removed after a day. Outside development nothing is recorded; a record is one null check.
 
 ## Keep review evidence private
 

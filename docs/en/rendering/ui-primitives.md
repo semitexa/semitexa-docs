@@ -3,7 +3,7 @@ id: rendering/ui-primitives
 section: rendering
 slug: ui-primitives
 title: UI Primitives
-summary: The atomic ui="..." vocabulary -- button, input, label, field-shell, surface, badge, alert, avatar, spinner -- the foundation tokens and skins behind it, and the attribute-driven runtime.
+summary: The atomic ui="..." vocabulary -- buttons, form controls (input, select, textarea, checkbox, radio, switch, segmented), display pieces (badge, alert, avatar, spinner, progress, meter, skeleton, divider, description list, tag, kbd) and icons -- the tokens and skins behind them, and the attribute-driven runtime.
 order: 160
 locale: en
 status: canonical
@@ -17,7 +17,7 @@ keywords:
 
 # UI Primitives
 
-Nine primitives ship today: `button`, `input`, `label`, `field-shell`, `surface`, `badge`, `alert`, `avatar`, `spinner`. All are semantic HTML styled by `ui="<id>"` plus modifiers. CSS is the stable contract; Twig macros in `resources/twig/primitives/` are optional DX.
+Primitives ship for actions (`button`), form controls (`input`, `select`, `textarea`, `checkbox`, `radio`, `switch`, `segmented`, `label`, `field-shell`) and display (`surface`, `badge`, `alert`, `avatar`, `spinner`, `progress`, `meter`, `skeleton`, `divider`, `description-list`, `tag`, `kbd`). All are semantic HTML styled by `ui="<id>"` plus modifiers; `bin/semitexa platform-ui:catalog --kind=primitive` lists them with their contracts. CSS is the stable contract; Twig macros in `resources/twig/primitives/` are optional DX.
 
 **Tone and variant are independent.** A tone names a colour; a variant decides how the colour is used. Every pair works, and a tone works on its own: `<button ui="button" ui-tone="danger">` is a red solid button.
 
@@ -48,6 +48,23 @@ States: `:hover`, `:active`, `:focus-visible`, `:disabled`, `aria-disabled="true
 | `ui-state` | `default` · `invalid` | `default` |
 
 `aria-invalid="true"` is styled the same as `ui-state="invalid"`. Hover strengthens the border; focus draws a ring from `--ui-focus-ring`. `textarea[ui="input"]` gets a taller minimum height.
+
+## `ui="select"` and `ui="textarea"`
+
+`primitive('select', {name, options: [{value, label, disabled?}], value, placeholder, multiple})` and `primitive('textarea', {name, value, rows, placeholder})` share the input's look (`ui-size`, invalid, focus, disabled).
+
+- **The select** draws its chevron from tokens.
+- **Customizable select:** where the browser supports `appearance: base-select`, the open list is styled from tokens too (light and dark), with the native picker icon and check mark. Elsewhere it stays the native list.
+- **`multiple`** submits a list (`name[]`).
+- **`part:`** puts `data-ui-part` on the control itself, which is how `platform.field` addresses it.
+
+## `ui="checkbox"`, `ui="radio"`, `ui="switch"`
+
+`primitive('checkbox' | 'radio' | 'switch', {name, value, label, checked})`:
+
+- **Markup:** a `<label>` around the native input, so the whole label toggles it. A switch is `<input type="checkbox" role="switch">`, so it submits and validates like a checkbox.
+- **Drawing:** done with tokens (`appearance: none`), with focus ring, `aria-invalid`, disabled, and reduced motion respected.
+- **`part:`** marks the input itself.
 
 ## `ui="label"`
 
@@ -94,9 +111,38 @@ The tone tints the surface and border and colours the icon; body text stays at f
 
 `avatar`: image or initials on a brand-tinted circle, `ui-size` `sm`/`md`/`lg`/`xl`. `spinner`: CSS ring, `ui-tone` `brand`/`neutral`, `ui-size` `sm`/`md`/`lg`, slowed under `prefers-reduced-motion`.
 
+## Display: progress, meter, skeleton, divider, description list, tag, segmented, kbd
+
+Native elements first, drawn from tokens in light and dark; motion stops under `prefers-reduced-motion`.
+
+| Primitive | Markup | Props |
+|---|---|---|
+| `progress` | `<progress>` (indeterminate without a value) + caption | `value`, `max`, `label`, `showValue`, `tone`, `size` |
+| `meter` | `<meter>`; the browser picks good / so-so / bad from the thresholds | `value`, `min`, `max`, `low`, `high`, `optimum`, `label` |
+| `skeleton` | `aria-hidden` placeholder | `shape` (`text` · `circle` · `rect`), `lines`, `width`, `height` |
+| `divider` | `<hr>`, or `role="separator"` with a `label` / vertical | `label`, `orientation` |
+| `description-list` | `<dl>`; side by side once its **container** is ≥ 28rem (container query), stacked below | `items: [{term, details}]`, `layout` (`inline` · `stacked`) |
+| `tag` | chip; `removable` adds a remove button (behavior `removable`); `name` carries a hidden `name[]` value that leaves with it — for a plain HTML form (a `platform.form` submits its `platform.field`s only) | `text`, `tone`, `removable`, `name`, `value` |
+| `segmented` | a real radio group drawn as one button bar (arrow keys, form value); also `platform.field` `control: 'segmented'` | `name`, `options`, `value`, `label`, `size` |
+| `kbd` | `<kbd>` keys joined by `+` | `keys: ['Ctrl', 'K']` |
+
+The `removable` behavior dispatches a cancelable `ui-removable:remove` event first. Unless a listener calls `preventDefault()`, the element is removed with any hidden form value it carried, its form gets an `input` event, and focus moves to the remove button of the next removable sibling (or the previous one), so a keyboard user is never dropped on `<body>`. A cancelled event leaves the element, its value and focus as they were.
+
 ## Not yet shipped
 
-`select`, `checkbox`, `radio`, `switch`, `hint`, `tag`, `divider`, `toolbar` — tracked in `ep-platform-breadth`. Icons ship as the `icon(name, {size, label, class})` Twig function over a Lucide-shaped registry, not as a primitive.
+`hint` and `toolbar` — tracked in `ep-platform-breadth`.
+
+## Icons
+
+`icon(name, {size, label, class, strokeWidth})` renders a glyph from the **full Lucide set** (1,866 icons, ISC) as inline SVG in `currentColor`. A page carries only the icons it uses: no sprite, no font, no request.
+
+- **Decorative by default** (`aria-hidden`); a `label` makes it an accessible image.
+- **Old names keep working** through aliases (`home` → `house`, `alert-triangle` → `triangle-alert`).
+- **Unknown names** render nothing. In dev they leave an `<!-- icon "…" not found -->` comment, so a typo can be found.
+- **Lazy loading:** the set is vendored in `resources/icons/lucide/`, sharded by first letter, and a worker reads a shard the first time a page needs it.
+- **Search:** `IconRegistry::keywords()` exposes Lucide's tags. `/ui-playground/components/icons` browses the set.
+- **Upgrade** with `bin/semitexa platform-ui:icons:sync [--release=x.y.z | --from=<unpacked lucide-static>]`. The licence and version travel with the data (`LICENSE`, `VERSION`).
+- **Add your own** at runtime with `IconRegistry::add(name, innerSvg)`. A runtime icon wins over the vendored one.
 
 ## Introspection
 
@@ -201,7 +247,7 @@ The playground only consumes public APIs — primitive declarations and the `pri
 - Patch op allow-list covers `setText`, `setValue`, `setAttribute` only. No `setHtml`, no class-list mutations, no node insertion/removal — those are future-slice concerns and intentionally absent.
 - `setAttribute` is restricted to four allow-listed attribute names (`aria-invalid`, `aria-describedby`, `data-state`, `ui-state`). Anything else is rejected server-side and again by the frontend applier.
 - A patch whose target element is missing in the rendered DOM (e.g. the caller did not pass `showServerAckTarget: true`) is a graceful no-op — the bridge emits `semitexa:ui-patch:failed` with `reason: "target_not_found"` and the rest of the batch continues.
-- Dispatch responses are still **ack-style**: a single JSON body with optional `patches[]`. Streaming `/__ui/dispatch` responses (chunked patches over the dispatch transport) is not on the roadmap — clients that want streaming use the SSE channel.
+- Dispatch responses are still **ack-style**: a single JSON body with optional `patches[]`. Streaming HUG responses (chunked patches over the dispatch transport) is not on the roadmap — clients that want streaming use the SSE channel.
 - **Replay guard is wired through DI and runtime-checked**: `UiReplayStoreInterface` resolves to `CacheBackedUiReplayStore` by default via `SatisfiesServiceContract`, and the dispatcher's runtime guard refuses to invoke handlers in production-like environments when the bound store reports `isShared() === false`. The 503 `ui_replay_store_not_shared` response tells operators exactly what to fix. With `CACHE_DRIVER=redis` (this project's shipped config), replay protection is global across Swoole workers — verified live with 10/10 same-`(ctx,dispatchId)` requests returning 409.
 - **Authorization hook is wired through DI**: `UiInteractionAuthorizerInterface` resolves to `AllowAllUiInteractionAuthorizer` by default via `SatisfiesServiceContract`. Apps override by registering their own implementation in a module that "extends" `semitexa-platform-ui`; the contract registry's module-order winner picks the descendant. No per-handler wiring required.
 - No **full anti-abuse system**. Replay protection is exclusively `(ctx, dispatchId)` deduplication: a malicious client holding a valid `ctx` can mint as many fresh `dispatchId`s as it wants within the ctx TTL. Bot/abuse mitigation (rate limiting, captcha, behavioural heuristics) is a separate concern that should sit in pipeline middleware, not in the dispatcher.
@@ -209,7 +255,7 @@ The playground only consumes public APIs — primitive declarations and the `pri
 - No **replay nonce inside SignedContext**. Replay protection is exclusively `(ctx, dispatchId)` — the signed `ctx` is reusable within its TTL. Embedding a nonce in the signed context would force the server to mint a new ctx per dispatch, breaking opt-in transport bridging and complicating SSR.
 - No **per-handler validation pipeline**. Handlers receive the raw (guard-scrubbed) payload; richer per-event payload schemas land later.
 - No **DI-managed components yet**. Components must have a no-required-arg constructor. If they don't, the dispatcher returns 422 `cannot_instantiate_component` — by design, not a regression.
-- The transport bridge is **opt-in per page**. The runtime never auto-attaches. This keeps non-event pages no-network and lets each surface decide its own dispatch contract.
+- The transport bridge **attaches automatically once the runtime has parsed an event manifest**, and posts captured events to HUG (`/__semitexa_hug`). A page with no manifest never attaches, so a page without events makes no network requests. A page opts out by setting `window.SEMITEXA_UI_DISABLE_AUTOATTACH = true` before the runtime loads (see [UI events](ui-events.md#frontend-transport-bridge)).
 - `SignedContext::sign` adds a TTL (default 300s). Captured events for an expired ctx will return 403 `invalid_signed_ctx`. Re-rendering the component reissues the ctx; no in-place re-sign API exists yet.
 - Bind is **server-rendered projection only** — no client-side two-way binding, no live updates.
 - Bind currently projects **`value` only**. `checked` / `selected` are not wired yet.
@@ -229,4 +275,4 @@ The playground only consumes public APIs — primitive declarations and the `pri
 7. **SSE delivery semantics upgrade**: at-least-once via Redis pub/sub fanout (today the bridge uses LPOP — at-most-once per claim), plus reconnect with `Last-Event-ID` so a transient drop does not lose patches.
 8. **SSE channel revocation**: an out-of-band revocation set (Redis key with token id) so an issued channel token can be invalidated before its TTL expires.
 9. **Persistent component state** — a server-side projection a handler can read/mutate, with SSE deltas published over the canonical KISS stream. The validation result type from this slice is the smallest shape that fits — the persistent state layer will wrap it, not replace it. (Patch shape stays the same.)
-10. **Framework-layer unification**: a `UiInteractionDispatcherInterface` contract so SSR's `/__ui/event` can delegate to platform-ui's dispatcher; the two endpoints collapse into one. (The streaming half of this unification is **done** — all UI streaming now rides the single `/__semitexa_kiss` stream on `AsyncResourceSseServer`.)
+10. **Framework-layer unification**: done: HUG (`POST /__semitexa_hug`) delegates to platform-ui's dispatcher through `UiResponseDispatcherInterface`; the two endpoints collapse into one. (The streaming half of this unification is **done** — all UI streaming now rides the single `/__semitexa_kiss` stream on `AsyncResourceSseServer`.)

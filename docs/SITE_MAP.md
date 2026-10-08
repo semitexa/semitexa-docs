@@ -6,7 +6,7 @@ The docs are organized around a simple journey:
 
 1. **Why Semitexa**  
    The problem, the philosophy, and the promise.  
-   Entry: [../README.md](../README.md)
+   Entry: [the Semitexa README](https://github.com/semitexa/semitexa-ultimate#readme)
 
 2. **Get Started**  
    The shortest path from zero to a running app.  

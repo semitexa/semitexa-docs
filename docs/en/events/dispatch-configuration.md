@@ -21,7 +21,7 @@ keywords:
 
 Domain events are for side-effects triggered after business operations. They support sync, async (Swoole defer), and queued (NATS) execution.
 
-Domain listeners use `#[AsEventListener(event: EventClass::class, execution: ...)]` and live in `Event/DomainListener/`.
+Domain listeners use `#[AsEventListener(event: EventClass::class, execution: ...)]` and live in the module's `Application/Handler/DomainListener/`.
 
 ### Configuration
 
@@ -61,4 +61,4 @@ bin/semitexa queue:work
 | Execution | Always sync (in request) | Always sync (bootstrap path) | Sync / Async / Queued |
 | Dispatcher / Invoker | `PipelineExecutor` | `ServerLifecycleInvoker` | `EventDispatcher` |
 | Purpose | Request lifecycle phases | Swoole server lifecycle events | Business logic side-effects |
-| Location | `Event/System/` | `src/Server/Lifecycle/` or module `Application/Server/` | `Event/DomainListener/` |
+| Location (in a module) | `Application/Service/` | `Application/Service/` (e.g. `Server/Lifecycle/`) | `Application/Handler/DomainListener/` |

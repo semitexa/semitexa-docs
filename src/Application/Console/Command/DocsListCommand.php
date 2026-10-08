@@ -59,7 +59,7 @@ final class DocsListCommand extends BaseCommand
                 return self::FAILURE;
             }
 
-            $output->writeln($encoded);
+            $output->writeln($encoded, OutputInterface::OUTPUT_RAW);
             return self::SUCCESS;
         }
 
