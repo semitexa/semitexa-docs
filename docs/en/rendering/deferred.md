@@ -33,6 +33,31 @@ A `skeletonTemplate` can be specified so the region shows a meaningful placehold
 - **SSE push** — the server streams rendered slot HTML fragments over a persistent HTTP connection.
 - **SSR-first live UI** — the page model stays server-driven from first byte to final slot render.
 
+## Deferred components
+
+A component class with `#[WithTransport(TransportType::Sse, deferred: true)]` is drawn as a
+skeleton in the page and rendered over the page's KISS stream afterwards.
+
+- **All at once.** A page's deferred components render concurrently, one session coroutine
+  each, and each is sent as it finishes. A slow one no longer holds the others up. Deferred
+  slots already worked this way.
+- **Only where something will fill it.** A component is deferred only on a page whose deferred
+  stream is set up. Anywhere else it is rendered on the spot: a re-render on KISS (an island, a
+  morph), a feed, the CLI, and what a deferred render itself nests. A placeholder there would
+  never be filled.
+- **Paid for when used.** A page with no deferred slot stores its deferred request only when a
+  deferred component actually rendered, not on every page.
+- **As the visitor.** The KISS stream is served outside the route pipeline, so nothing there
+  says who the visitor is. Every deferred region and component is rendered after re-establishing
+  the visitor of the browser that opened the stream (`RouteExecutor::establishVisitor()`): its
+  session first, then who it is, best-effort, as for a public page. `can()` and `signed_in()`
+  answer as on the page. Before this, they answered as for a guest.
+- **Measure first.** Deferred content arrives after the page, over the KISS stream. Measured on
+  the whoami lab page (2026-10-06): about 26 ms after DOMContentLoaded (it was about 380 ms
+  until the stream loop learned to wake when a frame is queued, instead of waiting out its
+  0.2 s tick). Cheap, but a skeleton still flashes: defer what is slow, not what is merely
+  separate. The Playground dashboard's widgets take milliseconds, so they render inline.
+
 ## When to defer, and when not to
 
 Deferring is not strictly better. A skeleton buys patience for a region that takes time; for a region that does not, it costs a round trip and a frame of placeholder to hide work that had already finished, and it reads as jank.

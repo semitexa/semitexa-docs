@@ -51,6 +51,7 @@ That is the whole consumer-facing surface. A request carrying `X-Semitexa-Shell:
 - moves focus into the swapped region and announces the new title through a polite live region — a reload does both for free and a swap does neither;
 - re-creates any `<script>` inside arriving markup with **this** document's nonce, because a script parsed out of a fragment is inert until re-created and carries the wrong nonce if it is not;
 - hands the URL back to the browser on any failure. A navigation that cannot be completed as a swap becomes an ordinary one.
+- cross-fades the old region into the new with a **view transition** when the app opted in (`<body data-app-view-transitions>`, which the app-shell layout sets from `appViewTransitions`), the browser has one, and motion is not reduced. The synchronous commit — history and DOM together — runs inside the transition's update callback, and the navigation token is checked again there. An app that did not opt in keeps the immediate swap.
 
 `data-nav="off"` on a link is the escape hatch: a sign-out, a download, a different app.
 
@@ -78,3 +79,44 @@ That third body is also why `Accept: application/json` is not how you ask for th
 ## Why this matters
 
 Without this, "make the admin feel like one app" is a project-sized decision: a second layout, a router, a history contract, and a list of traps that each cost a round of debugging — the same list in every project. Marking a region is a declaration. Everything above it is the framework's problem.
+
+## The sidebar shell layout
+
+Platform UI ships a complete application layout: a top bar, a sidebar, and the working area.
+
+```twig
+{# your module's layouts/app.html.twig #}
+{% extends '@platform-ui/layouts/app-shell.html.twig' %}
+{% set appName = 'Admin' %}
+{% set appNav = [
+    {label: 'Content', items: [
+        {label: 'Articles', href: '/admin/articles', icon: 'file-text', match: 'prefix'},
+        {label: 'Media', href: '/admin/media', icon: 'image', permission: 'media.read'},
+        {label: 'Settings', href: '/admin/settings', icon: 'settings', permission: null},
+    ]},
+] %}
+```
+
+An item with a `permission` is listed only for a visitor who holds it ([`can()`](../auth/requires-permission.md)).
+`permission: null` means signed in. A group left with no items is not listed.
+
+Pages extend that layout and fill `title` and `main`. Other blocks:
+
+- `brand`, `topbar_end` — the top bar;
+- `sidebar`, `sidebar_footer` — the sidebar;
+- `breadcrumbs`, `footer` — the working area;
+- `head_extra` — the document head.
+
+| Concern | What the layout does |
+|---|---|
+| **Navigation** | Groups are `<details name="app-nav">`, so one group is open at a time. The group holding the current page opens, and the current link gets `aria-current="page"`. The server decides which page is current: an exact path, or `match: 'prefix'`. |
+| **Width** | A container query on the shell, not a viewport media query. Below 56rem of shell width the sidebar becomes a drawer. |
+| **Drawer** | The same `<nav>` is a native `popover`: the menu button opens it with `popovertarget`, and Esc or an outside click closes it, as does choosing a link. On a wide shell the popover attribute is overridden and the nav is a static column. |
+| **Rail** | The collapse button turns the sidebar into an icon rail. Every item stays reachable, and the labels stay for assistive technology. The choice is kept in `localStorage` and applied before paint. |
+| **Search** | The top bar carries the Ctrl+K command palette (`appPalette: false` removes it). |
+| **Motion** | `appViewTransitions: true` cross-fades navigations between the app's pages (`@view-transition`), while the top bar and sidebar stay put. Use it only when every page under `appHome` uses this layout, because both documents must opt in. A link out of the app skips the transition, so the destination does not log a skipped-transition error. The auth layout reads the same variable, so sign-in and the app cross-fade too. Reduced motion turns it off. |
+| **Styles** | Tokens only, `@scope ([ui-app-shell])`, light and dark. |
+| **Region swaps** | `appShellSwap: true` marks `<main>` as the app-shell region, so navigation swaps only it (see above). The sidebar then re-marks the current page after each swap. |
+
+A skip link ("Skip to content") is the first focusable element.
+

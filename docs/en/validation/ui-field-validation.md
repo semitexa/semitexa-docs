@@ -109,7 +109,7 @@ Custom rule names are signed into `cfg.r` exactly like built-ins — the wire sh
 
 - **Boot**: `BootPlatformUiRegistryListener` is instantiated by the container with the container-bound winner of `UiFieldRuleRegistryInterface`. On `WorkerStartAfterContainer` the listener calls `UiFieldRuleRegistry::setActive($registry)`, stashing the active registry in a worker-scoped static holder (same pattern as `UiPrimitiveRegistry` / `UiComponentRegistry`).
 - **Render time**: the `ui_field_rules()` Twig helper instantiates `UiFieldRuleParser` with `UiFieldRuleRegistry::getActive()`. Custom rule names from a bound registry now pass through `rules:` props at template compile time.
-- **Dispatch time**: `UiDispatchHandler` injects `UiFieldRuleRegistryInterface` via `#[InjectAsReadonly]` and passes it to `UiInteractionDispatcher` (new optional `ruleRegistry` ctor arg). After the dispatcher instantiates a component, it checks `instanceof UsesUiFieldRuleRegistry` and calls `withFieldRuleRegistry($activeRegistry)`. `FieldComponent` implements that interface — its `onInputChanged()` resolves the wire-shape rules through the registry the dispatcher provided.
+- **Dispatch time**: `PlatformUiResponseDispatcher` (behind HUG) injects `UiFieldRuleRegistryInterface` via `#[InjectAsReadonly]` and passes it to `UiInteractionDispatcher` (new optional `ruleRegistry` ctor arg). After the dispatcher instantiates a component, it checks `instanceof UsesUiFieldRuleRegistry` and calls `withFieldRuleRegistry($activeRegistry)`. `FieldComponent` implements that interface — its `onInputChanged()` resolves the wire-shape rules through the registry the dispatcher provided.
 
 **The `UsesUiFieldRuleRegistry` interface** (opt-in bridge):
 
@@ -263,7 +263,7 @@ Sanitised by `UiFormPayloadSnapshot` at the dispatch boundary:
 
 1. **Rules are signed.** They cannot be added, removed, or retargeted by the client.
 2. **Snapshot values are client-submitted.** A user could lie about the sibling value to silence a validation message. `sameAsField` (and any future cross-field rule) is therefore **UX-feedback only**.
-3. **Final persistence is out of scope for this slice.** When the real submit pipeline lands, it MUST revalidate the whole submitted payload against authoritative state (server-rendered fields, persistent form state, or fresh queries) before touching the database. The cross-field result returned by `/__ui/dispatch` is *not* a green light to persist.
+3. **Final persistence is out of scope for this slice.** When the real submit pipeline lands, it MUST revalidate the whole submitted payload against authoritative state (server-rendered fields, persistent form state, or fresh queries) before touching the database. The cross-field result returned by HUG (`POST /__semitexa_hug`) is *not* a green light to persist.
 
 **Debug surface**:
 

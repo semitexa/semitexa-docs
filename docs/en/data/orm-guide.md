@@ -142,6 +142,20 @@ Each relation declares who owns the rows on write:
 | `SyncPivotOnly` | Only the pivot table is synced (delete + chunked batch insert); related rows untouched |
 | `ReferenceOnly` | Never written; the FK column must already agree with the referenced object (validated) |
 
+**An owned relation must be able to say "not loaded".** `CascadeOwned` and `SyncPivotOnly`
+relations are written from the property, so the property's type must admit `RelationState`:
+
+```php
+#[ManyToMany(target: TagResource::class, pivotTable: 'article_tags', foreignKey: 'article_id', relatedKey: 'tag_id', writePolicy: RelationWritePolicy::SyncPivotOnly)]
+public array|RelationState $tags = [],
+```
+
+A model read without the relation then carries it as `RelationState::notLoaded()`, and saving it
+leaves the children or pivot rows alone. A plain list (or a loaded `RelationState`) replaces them,
+and `[]` clears them. A plain `array $tags = []` is refused when the model's metadata is built:
+"not loaded" read as "none", and saving the model deleted every row. A mapper whose domain object
+does not carry the relation passes `RelationState::notLoaded()`.
+
 ## Writes
 
 `DomainRepository::insert/update/delete` run through the
