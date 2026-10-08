@@ -16,6 +16,90 @@ verified_against: 2026.10.03.1952
 
 Every attribute declared by `PlatformUi`, with the signature the code has and a usage quoted from the codebase.
 
+## `#[AsCommandSource]`
+
+`Semitexa\PlatformUi\Attribute\AsCommandSource`
+
+Applies to: class
+
+Takes no arguments.
+
+```php
+#[AsCommandSource]
+final class CrudScreenCommands implements UiCommandSourceInterface
+```
+
+— `vendor/semitexa/crud/src/Application/Service/Palette/CrudScreenCommands.php`
+
+## `#[AsDashboardWidget]`
+
+`Semitexa\PlatformUi\Attribute\AsDashboardWidget`
+
+Applies to: class
+
+| parameter | type | required |
+|---|---|---|
+| `dashboard` | `string` | yes |
+| `order` | `int` | no |
+| `permission` | `string` | no |
+| `wide` | `bool` | no |
+
+```php
+#[AsDashboardWidget(dashboard: 'admin', order: 10)]
+final class PublicWidgetFixture implements UiDashboardWidgetInterface
+```
+
+— `vendor/semitexa/platform-ui/tests/Unit/Dashboard/DashboardTest.php`
+
+## `#[AsFieldType]`
+
+`Semitexa\PlatformUi\Attribute\AsFieldType`
+
+Applies to: class
+
+Takes no arguments.
+
+```php
+#[AsFieldType]
+final class StarsFieldTypeFixture extends \Semitexa\PlatformUi\Application\Service\Field\Type\AbstractUiFieldType
+```
+
+— `vendor/semitexa/platform-ui/tests/Unit/Field/UiFieldTypesTest.php`
+
+## `#[AsFormSubmitAction]`
+
+`Semitexa\PlatformUi\Attribute\AsFormSubmitAction`
+
+Applies to: class
+
+| parameter | type | required |
+|---|---|---|
+| `name` | `string` | yes |
+
+```php
+#[AsFormSubmitAction(self::NAME)]
+final class CrudDeleteAction extends CrudFormAction implements UiFormSubmitActionInterface
+```
+
+— `vendor/semitexa/crud/src/Application/Service/Submit/CrudDeleteAction.php`
+
+## `#[AsGridAction]`
+
+`Semitexa\PlatformUi\Attribute\AsGridAction`
+
+Applies to: class
+
+| parameter | type | required |
+|---|---|---|
+| `name` | `string` | yes |
+
+```php
+#[AsGridAction(self::NAME)]
+final class CrudGridAction implements UiGridActionInterface
+```
+
+— `vendor/semitexa/crud/src/Application/Service/Grid/CrudGridAction.php`
+
 ## `#[AsUiBehavior]`
 
 `Semitexa\PlatformUi\Attribute\AsUiBehavior`
@@ -58,26 +142,22 @@ Applies to: class
 | `props` | `array` | no |
 | `examples` | `array` | no |
 | `previewSafe` | `bool` | no |
+| `agent` | `bool` | no |
+| `permission` | `string` | no |
 
 ```php
 #[AsUiContract(
-    summary: 'Group related content in a themed surface with optional media and actions.',
+    summary: 'Light, dark or follow the system — a segmented control on the skin-mode contract, applied at once and remembered in this browser.',
     props: [
-        new UiProp('variant', default: 'elevated', values: ['elevated', 'outlined', 'plain']),
-        new UiProp('title', default: '', description: 'Heading used when the header slot is empty.'),
-        new UiProp('subtitle', default: ''),
-    ],
-    examples: [
-        new UiExample('default', 'Project overview', ['title' => 'Your workspace', 'subtitle' => 'A place for the next idea'], ['body' => 'Build something useful.', 'footer' => 'Updated just now']),
-        new UiExample('outlined', 'Outlined', ['variant' => 'outlined', 'title' => 'A quieter surface'], ['body' => 'The same content, another token-driven treatment.']),
-        new UiExample('empty', 'Empty', ['title' => 'Nothing here yet'], ['body' => 'Create your first item to get started.']),
+        new UiProp('title', default: 'Theme'),
+        new UiProp('description', default: 'Choose how the interface looks on this device.'),
     ],
     previewSafe: true,
 )]
-final class CardComponent
+final class AppearanceSettingsComponent
 ```
 
-— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/CardComponent.php`
+— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/AppearanceSettingsComponent.php`
 
 ## `#[AsUiPrimitive]`
 
@@ -101,10 +181,40 @@ Applies to: class
     template: '@platform-ui/primitives/runtime/alert.html.twig',
     style: 'platform-ui:css:full',
 )]
+#[AsUiContract(
+    summary: 'A message in a box, with a tone that says what kind: info, success, warning or danger.',
+    props: [
+        new UiProp('text', required: true),
+        new UiProp('title', nullable: true),
+        new UiProp('tone', default: 'info', values: ['neutral', 'info', 'success', 'warning', 'danger']),
+        new UiProp('variant', default: 'soft', values: ['soft', 'outline', 'solid']),
+    ],
+    examples: [
+        new UiExample('default', 'Saved', ['title' => 'Saved', 'text' => 'Your changes are live.', 'tone' => 'success']),
+    ],
+    previewSafe: true,
+)]
 final class AlertPrimitive
 ```
 
 — `vendor/semitexa/platform-ui/src/Application/Service/Primitive/Builtin/AlertPrimitive.php`
+
+## `#[AsUiTreeAction]`
+
+`Semitexa\PlatformUi\Attribute\AsUiTreeAction`
+
+Applies to: class
+
+| parameter | type | required |
+|---|---|---|
+| `kind` | `string` | yes |
+
+```php
+#[AsUiTreeAction(kind: 'create')]
+final class CrudCreateTreeAction extends CrudScreenTreeAction
+```
+
+— `vendor/semitexa/crud/src/Application/Service/Tree/CrudCreateTreeAction.php`
 
 ## `#[CollaborativeForm]`
 
@@ -177,13 +287,15 @@ Applies to: method
 | `part` | `string` | yes |
 | `event` | `string` | yes |
 | `updates` | `string` | no |
+| `debounce` | `int` | no |
+| `throttle` | `int` | no |
 
 ```php
-    #[UiOn(part: 'input', event: 'change')]
-    public function onInputChanged(UiInteractionEvent $event): UiInteractionResult
+    #[UiOn(part: 'trigger', event: 'click')]
+    public function onExpand(UiInteractionEvent $event): UiInteractionResult
 ```
 
-— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/FieldComponent.php`
+— `vendor/semitexa/demo/resources/examples/Rendering/Philosophy/EventComponent.example.php`
 
 ## `#[UiPart]`
 
@@ -199,15 +311,11 @@ Applies to: class. Repeatable.
 | `bind` | `string` | no |
 
 ```php
-#[UiPart(name: 'form', uses: FormRootPrimitive::class)]
-#[UiSlot(name: 'field', description: 'Per-field edit binding anchor (field.edit).')]
-#[UiSlot(name: 'presence', description: 'Presence heartbeat binding anchor (presence.ping).')]
-#[UiSlot(name: 'lock', description: 'Lock lifecycle binding anchor (lock.acquire/release/heartbeat).')]
-#[UiSlot(name: 'content', description: 'Caller-provided field inputs (tagged data-ui-field-name).')]
-final class CollaborativeFormComponent
+#[UiPart(name: 'trigger', uses: ButtonPrimitive::class)]
+final class DisclosurePromptComponent
 ```
 
-— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/CollaborativeFormComponent.php`
+— `vendor/semitexa/demo/resources/examples/Rendering/Philosophy/EventComponent.example.php`
 
 ## `#[UiSlot]`
 
@@ -221,9 +329,74 @@ Applies to: class. Repeatable.
 | `description` | `string` | no |
 
 ```php
-#[UiSlot(name: 'trailing', description: 'Optional inline actions rendered after the trail (e.g. a copy-path button or status badge).')]
-final class BreadcrumbComponent
+#[UiSlot(name: 'media', description: 'An image, video or illustration; beside the text on a wide block, below it on a narrow one.')]
+#[AsUiContract(
+    summary: 'The opening statement of a page: eyebrow, headline, lead and actions, with optional media beside it.',
+    props: [
+        new UiProp('title', required: true, description: 'The headline (the page\'s h1 unless headingLevel says otherwise).'),
+        new UiProp('eyebrow', default: '', description: 'A short line above the headline.'),
+        new UiProp('lead', default: ''),
+        new UiProp('align', default: 'start', values: ['start', 'center']),
+        new UiProp('headingLevel', UiPropType::Integer, default: 1, values: [1, 2]),
+        new UiProp('actions', UiPropType::Array, default: [], items: new UiProp('action', UiPropType::Object, properties: [
+            new UiProp('label', required: true),
+            new UiProp('href', required: true, description: 'Through ui_href(): a script URL renders no link.'),
+            new UiProp('variant', default: 'solid', values: ['solid', 'soft', 'outline', 'ghost', 'link']),
+            new UiProp('icon', default: '', description: 'A Lucide icon name after the label.'),
+        ])),
+    ],
+    examples: [
+        new UiExample('default', 'Product launch', [
+            'eyebrow' => 'New in 2026.10',
+            'title' => 'Ship the interface, not the plumbing',
+            'lead' => 'Server-rendered components, native popovers and one transport for every interaction.',
+            'actions' => [['label' => 'Get started', 'href' => '#start'], ['label' => 'Read the docs', 'href' => '#docs', 'variant' => 'outline']],
+        ]),
+        new UiExample('centered', 'Centred', ['title' => 'One place for your whole team', 'lead' => 'Plan, build and ship together.', 'align' => 'center']),
+    ],
 ```
 
-— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/BreadcrumbComponent.php`
+— `vendor/semitexa/platform-ui/src/Application/Component/Builtin/Block/HeroBlockComponent.php`
+
+## `#[UiState]`
+
+`Semitexa\PlatformUi\Attribute\UiState`
+
+Applies to: property
+
+Takes no arguments.
+
+```php
+    #[UiState]
+    public int $count = 0;
+```
+
+— `vendor/semitexa/platform-ui/tests/Unit/State/UiComponentStatesTest.php`
+
+## `#[UiUrl]`
+
+`Semitexa\PlatformUi\Attribute\UiUrl`
+
+Applies to: class. Repeatable.
+
+| parameter | type | required |
+|---|---|---|
+| `prop` | `string` | yes |
+| `as` | `string` | no |
+| `history` | `string` | no |
+| `type` | `string` | no |
+| `values` | `array` | no |
+| `maxLength` | `int` | no |
+| `min` | `int` | no |
+| `max` | `int` | no |
+| `except` | `string\|int\|bool\|null` | no |
+
+```php
+#[UiUrl(prop: 'query', as: 'q', maxLength: 40)]
+#[UiUrl(prop: 'page', type: 'int', min: 1, except: 1, history: 'push')]
+#[UiUrl(prop: 'sort', values: ['top', 'new'])]
+final class UrlSearchFixture
+```
+
+— `vendor/semitexa/platform-ui/tests/Unit/Url/UiUrlBindingsTest.php`
 
