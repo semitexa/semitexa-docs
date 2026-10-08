@@ -125,6 +125,14 @@ Applies to: class
     ],
     a11y: ['aria-expanded', 'aria-controls', 'region-roles', 'arrow-nav'],
 )]
+#[AsUiContract(
+    summary: 'Stacked sections that expand one at a time by default; with multiple, several can stay open.',
+    examples: [
+        new UiExample('single', 'Single open', [], template: '@platform-ui/examples/accordion.html.twig'),
+        new UiExample('multiple', 'Several open', ['multiple' => true], template: '@platform-ui/examples/accordion.html.twig'),
+    ],
+    previewSafe: true,
+)]
 final class AccordionBehavior {}
 ```
 
@@ -191,6 +199,11 @@ Applies to: class
     ],
     examples: [
         new UiExample('default', 'Saved', ['title' => 'Saved', 'text' => 'Your changes are live.', 'tone' => 'success']),
+        new UiExample('info', 'Info', ['title' => 'Heads up', 'text' => 'Your trial ends in 3 days.']),
+        new UiExample('success', 'Success', ['tone' => 'success', 'title' => 'Saved', 'text' => 'Your changes are live.']),
+        new UiExample('warning', 'Warning', ['tone' => 'warning', 'title' => 'Storage almost full', 'text' => 'You have used 92% of your quota.']),
+        new UiExample('danger', 'Danger', ['tone' => 'danger', 'title' => 'Payment failed', 'text' => 'Update your card to keep the workspace active.']),
+        new UiExample('solid', 'Solid', ['tone' => 'success', 'variant' => 'solid', 'text' => 'Deployment finished.']),
     ],
     previewSafe: true,
 )]
