@@ -16,7 +16,7 @@ Deploying a **Swoole** application like Semitexa requires a different approach t
 
 3.  **Cache Configuration**:
     - Ensure `var/cache` is writable by the user running the process.
-    - Run `bin/semitexa cache:clear` before starting.
+    - Clear stale caches before starting: `php vendor/bin/semitexa cache:clear` inside the container or on the server.
 
 ## 🐳 Docker Deployment
 
@@ -28,21 +28,25 @@ Ensure your `Dockerfile` installs only necessary production extensions and clean
 Example snippet:
 ```dockerfile
 FROM php:8.4-cli-alpine
-# ... install extensions ...
-COPY . /app
-WORKDIR /app
+# ... install extensions (swoole, pdo_mysql, ...) and Composer ...
+COPY . /var/www/html
+WORKDIR /var/www/html
 RUN composer install --no-dev --optimize-autoloader
-CMD ["bin/semitexa", "server:start"]
+EXPOSE 9502
+CMD ["php", "server.php"]
 ```
+
+Inside a container the process is `php server.php`, the Swoole server itself; the project's own `Dockerfile` ends the same way. Do **not** use `bin/semitexa server:start` as the container command: it is the host-side wrapper that runs `docker compose`, and there is no Docker inside your production image.
 
 ## ⚙️ Process Management (Supervisor)
 
-If not using Docker, use **Supervisor** to keep the Swoole server running.
+If not using Docker, use **Supervisor** to keep the Swoole server running. It runs the same `php server.php` process directly on the host.
 
 `/etc/supervisor/conf.d/semitexa.conf`:
 ```ini
 [program:semitexa]
-command=/path/to/project/bin/semitexa server:start
+directory=/path/to/project
+command=php server.php
 autostart=true
 autorestart=true
 user=www-data
@@ -64,7 +68,7 @@ server {
     }
 
     location @swoole {
-        proxy_pass http://127.0.0.1:9501;
+        proxy_pass http://127.0.0.1:9502;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -72,5 +76,7 @@ server {
 ```
 
 ## 🚀 Tuning
-- **Worker Count**: Adjust `SWOOLE_WORKER_NUM` in `.env` based on CPU cores (usually `CPU * 2` or `CPU * 4`).
-- **Task Workers**: If using async tasks, tune `SWOOLE_TASK_WORKER_NUM`.
+- **Port**: the server listens on `SWOOLE_PORT` (default `9502`) on `SWOOLE_HOST` (default `0.0.0.0`). Point the proxy at whatever you set.
+- **Worker Count**: Adjust `SWOOLE_WORKER_NUM` (default `4`) in `.env` based on CPU cores (usually `CPU * 2` or `CPU * 4`).
+- **Worker recycling**: `SWOOLE_MAX_REQUEST` (default `10000`) restarts a worker after that many requests.
+- Event handlers enqueued for asynchronous execution are processed by a separate worker process, `php vendor/bin/semitexa queue:work`, not by Swoole task workers; there is no task-worker setting. Run it under Supervisor or as its own container.

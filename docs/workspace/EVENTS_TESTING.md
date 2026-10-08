@@ -1,61 +1,112 @@
 # Testing event-driven (async) handling
 
-This project is set up to test async events with NATS.
+How to see an event listener run outside the request, through NATS and the queue worker. A new project ships no event example of its own, so the steps below use a small listener you add to one of your modules.
 
-## 1. Start the stack (with NATS and worker)
+## 1. Turn on the NATS transport
+
+In `.env`:
+
+```dotenv
+EVENTS_ASYNC=1
+```
+
+Then start (or restart) the stack:
 
 ```bash
 bin/semitexa server:start
 ```
 
-Or manually:
+With `EVENTS_ASYNC=1`, `server:start` adds `docker-compose.nats.yml`, which starts a `nats` (JetStream) container and points the app at it through `NATS_PRIMARY_URL`. With `EVENTS_ASYNC=0` (the default) events are handled in memory.
+
+## 2. Add an event and a queued listener
+
+An event is a plain class, for example `src/modules/Website/src/Domain/Event/ContactSubmitted.php`:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Website\Domain\Event;
+
+final class ContactSubmitted
+{
+    public function __construct(
+        public readonly string $email,
+    ) {
+    }
+}
+```
+
+A listener in `src/modules/Website/src/Application/Handler/DomainListener/LogContactListener.php`:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Website\Application\Handler\DomainListener;
+
+use App\Modules\Website\Domain\Event\ContactSubmitted;
+use Semitexa\Core\Log\LoggerInterface;
+use Semitexa\Core\Attribute\AsEventListener;
+use Semitexa\Core\Attribute\InjectAsReadonly;
+use Semitexa\Core\Event\EventExecution;
+
+#[AsEventListener(event: ContactSubmitted::class, execution: EventExecution::Queued)]
+final class LogContactListener
+{
+    #[InjectAsReadonly]
+    protected LoggerInterface $logger;
+
+    public function handle(ContactSubmitted $event): void
+    {
+        $this->logger->info('Contact form submitted', ['email' => $event->email]);
+    }
+}
+```
+
+`execution` is required and has no default: `EventExecution::Sync` runs in the request, `Async` runs later in the same worker, `Queued` goes through the transport to the queue worker.
+
+Dispatch the event from any handler through an injected `Semitexa\Core\Event\EventDispatcherInterface`:
+
+```php
+#[InjectAsReadonly]
+protected EventDispatcherInterface $eventDispatcher;
+
+// in handle():
+$this->eventDispatcher->dispatch(new ContactSubmitted($payload->getEmail()));
+```
+
+Restart so the workers discover the new classes: `bin/semitexa server:restart`.
+
+## 3. Run the worker
+
+The default stack has no dedicated worker container. Run the worker in a second terminal:
 
 ```bash
-docker compose up -d
+bin/semitexa queue:work
 ```
 
-This starts the **app**, **NATS**, and the **events worker**. The worker runs in a separate container and processes async handlers automatically — you don’t need to run `queue:work` yourself.
+It processes queued handlers until you stop it. In production, run `php vendor/bin/semitexa queue:work` as its own process (see [DEPLOYMENT.md](DEPLOYMENT.md)).
 
-## 2. Example: contact form → async notification
+## 4. Trigger and check
 
-- **Sync handler:** `ContactFormHandler` — renders the thank-you page (runs immediately).
-- **Async handler:** `ContactFormNotifyHandler` — logs the submission via `LoggerInterface` (e.g. `var/log/app.log`, runs in the background).
-
-When you submit the contact form at **http://localhost:9502/contact**, the response returns immediately; the notify handler is enqueued and runs when a worker processes it.
-
-## 3. Worker (no manual step)
-
-The **worker** container starts with the stack and runs `queue:work` continuously. After you submit the contact form, the async handler is processed automatically. To see worker output:
+Call the route whose handler dispatches the event. The response returns without waiting for the listener; the worker terminal shows the job, and the application log has the entry:
 
 ```bash
-docker compose logs -f worker
-```
-
-You should see lines like:
-
-```
-✅ Async handler executed: Semitexa\Modules\Website\Application\Handler\Request\ContactFormNotifyHandler
-```
-
-## 4. Check the log
-
-```bash
-cat var/log/app.log
-```
-
-You should see JSON lines (one per event), e.g.:
-
-```json
-{"level":"info","message":"Contact form submitted","context":{"name":"John","email":"john@example.com","message_preview":"Hello..."},"timestamp":"..."}
+bin/semitexa logs:app --grep="Contact form submitted"
 ```
 
 ## Summary
 
-| Step              | Command / action                          |
-|-------------------|-------------------------------------------|
-| Start everything  | `bin/semitexa server:start` (app + NATS + worker) |
-| Trigger async job | Submit form at http://localhost:9502/contact |
-| See worker logs   | `docker compose logs -f worker`           |
-| See result        | `docker compose exec app cat var/log/app.log` |
+| Step | Command / action |
+|------|------------------|
+| Enable NATS | `EVENTS_ASYNC=1` in `.env`, then `bin/semitexa server:start` |
+| Declare a queued listener | `#[AsEventListener(event: ..., execution: EventExecution::Queued)]` |
+| Run the worker | `bin/semitexa queue:work` |
+| See the result | `bin/semitexa logs:app` |
 
-To disable async and use in-memory only, set `EVENTS_ASYNC=0` in `.env`.
+To go back to in-memory handling, set `EVENTS_ASYNC=0` in `.env` and restart.
+
+More: the hub pages `events/queued` and `events/dispatch-configuration`.
