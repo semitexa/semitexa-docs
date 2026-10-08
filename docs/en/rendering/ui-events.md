@@ -141,7 +141,7 @@ Every Platform UI component render emits a per-instance **signed event manifest*
 
 ## Frontend event runtime (capture-only)
 
-Shipped in this slice. The runtime is a tiny IIFE (`packages/semitexa-platform-ui/src/Application/Static/js/event-runtime.js`) loaded globally via the asset manifest with `defer`. It scans the DOM for `<script type="application/json" data-ui-event-manifest>` blocks emitted by the server, attaches one document-level capture-phase delegated listener per distinct native event name across all manifests, and **captures matches locally**. It does not send anything anywhere.
+Shipped in this slice. The runtime is a tiny IIFE (`packages/semitexa-platform-ui/src/Application/Static/js/event-runtime.js`) loaded globally via the asset manifest with `defer`. It scans the DOM for `<script type="application/json" data-ui-event-manifest>` blocks emitted by the server, attaches one document-level capture-phase delegated listener per distinct native event name across all manifests, and **captures matches locally**. Capturing on its own sends nothing; the [transport bridge](#frontend-transport-bridge) is what posts a captured event to HUG.
 
 **What the runtime does on every captured event:**
 
@@ -525,9 +525,9 @@ The `server-ack` `<span data-ui-patch-target="server-ack">` is **opt-in** per re
 
 For ack-only responses the `patches` field is `[]` and `kind` stays `"ack"`.
 
-## Frontend transport bridge (opt-in)
+## Frontend transport bridge
 
-`window.SemitexaUi.transport.attach()` subscribes the capture pipeline to HUG. Pages with a parsed manifest attach automatically; until then the runtime makes **zero** network requests — `fetch(` lives only inside `transport.attach`'s closure body.
+`window.SemitexaUi.transport.attach()` subscribes the capture pipeline to HUG. The runtime calls it for you as soon as it has parsed at least one event manifest — at page load, or later when a manifest arrives with a deferred component, a navigation swap or a morph — so a captured event on such a page is posted to `/__semitexa_hug`. A page with no manifest never attaches and makes **zero** network requests: `fetch(` lives only inside `transport.attach`'s closure body. Calling `attach()` again for the same endpoint is a no-op that returns the existing `detach`, so a page that also attaches by hand does not send each event twice. To keep a page from attaching automatically, set `window.SEMITEXA_UI_DISABLE_AUTOATTACH = true` before the runtime script loads.
 
 ```js
 const detach = window.SemitexaUi.transport.attach();   // posts to /__semitexa_hug

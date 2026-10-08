@@ -253,7 +253,7 @@ The playground only consumes public APIs — primitive declarations and the `pri
 - No **replay nonce inside SignedContext**. Replay protection is exclusively `(ctx, dispatchId)` — the signed `ctx` is reusable within its TTL. Embedding a nonce in the signed context would force the server to mint a new ctx per dispatch, breaking opt-in transport bridging and complicating SSR.
 - No **per-handler validation pipeline**. Handlers receive the raw (guard-scrubbed) payload; richer per-event payload schemas land later.
 - No **DI-managed components yet**. Components must have a no-required-arg constructor. If they don't, the dispatcher returns 422 `cannot_instantiate_component` — by design, not a regression.
-- The transport bridge is **opt-in per page**. The runtime never auto-attaches. This keeps non-event pages no-network and lets each surface decide its own dispatch contract.
+- The transport bridge **attaches automatically once the runtime has parsed an event manifest**, and posts captured events to HUG (`/__semitexa_hug`). A page with no manifest never attaches, so a page without events makes no network requests. A page opts out by setting `window.SEMITEXA_UI_DISABLE_AUTOATTACH = true` before the runtime loads (see [UI events](ui-events.md#frontend-transport-bridge)).
 - `SignedContext::sign` adds a TTL (default 300s). Captured events for an expired ctx will return 403 `invalid_signed_ctx`. Re-rendering the component reissues the ctx; no in-place re-sign API exists yet.
 - Bind is **server-rendered projection only** — no client-side two-way binding, no live updates.
 - Bind currently projects **`value` only**. `checked` / `selected` are not wired yet.
