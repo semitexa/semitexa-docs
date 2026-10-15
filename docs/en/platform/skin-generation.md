@@ -78,7 +78,7 @@ The LLM skill (`platform-ui.skin.resolve-prompt`) picks **algorithm + seed + kno
 
 Override the LLM's algorithm choice by passing `--algorithm=<id>` explicitly; override its knob suggestions via `--knob=name:value` (repeatable). CLI always wins over LLM.
 
-See [llm-prompt.md](llm-prompt.md) for the system prompt and output contract.
+See [the LLM prompt reference](../llm/prompt-reference.md) for the system prompt and output contract.
 
 ## Light & dark mode
 

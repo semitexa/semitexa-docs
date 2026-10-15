@@ -20,7 +20,7 @@ keywords:
 
 The practical manual for the package: how to declare resources, query,
 load relations, write aggregates, and wire a store. The structural rules
-live in [MODULE_STRUCTURE.md](MODULE_STRUCTURE.md); this file is about
+live in [Module structure](../get-started/module-structure.md); this file is about
 using the ORM day to day.
 
 ## Concepts in one paragraph
