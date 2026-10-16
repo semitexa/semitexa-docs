@@ -67,31 +67,72 @@ Response includes domain context with name, description, and criticality.
 
 ## Execution Flows
 
-Execution flows trace request → handler → service → event chains.
+Execution flows trace request → handler → storage → event → listener chains.
 
 ### How They're Built
 
-1. A payload access attribute (`#[AsPublicPayload]` and friends) defines an entry point (HTTP route)
-2. `#[AsPayloadHandler]` links to the payload
-3. The handler's dependencies form the flow steps
-4. Events emitted by the handler extend the flow
+The graph stores only the flow node: one per payload, with the id `flow:<payload class>` and a readable `name` (`CheckoutPayload` → `CheckoutFlow`). Two modules can each hold a `CheckoutFlow`; their ids differ.
 
-### Flow Metadata
+Everything else is walked out of the stored edges on each query, never stored. A stored edge belongs to the file that produced it; a handler → event → listener edge spans three files and would go stale when one of them changed.
+
+1. A payload access attribute (`#[AsPublicPayload]` and friends) defines the entry point (HTTP route)
+2. `#[AsPayloadHandler]` adds the handler
+3. From the handler the walk follows injections, references and instantiations through services, up to 6 hops, and stops at an entity: its `#[FromTable]` table is a storage touch
+4. An injected interface is crossed only when one class can be behind it: the one bound with `#[SatisfiesServiceContract]` / `#[SatisfiesRepositoryContract]`, or else its only implementation. As in the container, a Core binding loses to a module's
+5. A class imported by 5 or more other modules (`OrmManager`, `Environment`, the tenant context) is framework infrastructure: it is listed under `infrastructure` and walked for the events it emits, but its own tables and gaps are not the flow's
+6. Every event emitted on the way adds its listeners as steps, and the walk continues from each listener the flow's own module triggers
+7. The first async handler or listener is the sync boundary
+
+### Reachability, not execution
+
+The graph holds classes and what they inject, reference and emit; it holds no method calls. A flow's tables and events are therefore what its classes **can reach**, not what one request does: a handler that only reads, through a service that can also write, is credited with the write and the events it fires. Checked by hand on the Tasks module: the mutating flow was exact, the two read-only flows were each given a table and an ORM event that only a save causes.
+
+Read `storage_touches` as "tables it can reach" and `events_emitted` as "events it may fire". The steps, the listeners and the gaps are what the graph actually holds.
+
+### Flow Shape
 
 ```json
 {
-  "name": "CheckoutFlow",
+  "id": "flow:App\\Ordering\\CheckoutPayload",
+  "flow": "CheckoutFlow",
   "entry_point": "route:POST:/api/checkout",
   "steps": [
-    {"order": 1, "node": "class:App\\Ordering\\CheckoutPayload", "role": "payload"},
-    {"order": 2, "node": "class:App\\Ordering\\CheckoutHandler", "role": "handler"},
-    {"order": 3, "node": "class:App\\Ordering\\PaymentService", "role": "service"}
+    {"order": 1, "node": "App\\Ordering\\CheckoutPayload", "role": "payload"},
+    {"order": 2, "node": "App\\Ordering\\CheckoutHandler", "role": "handler"},
+    {"order": 3, "node": "App\\Ordering\\SendReceiptListener", "role": "listener",
+     "event": "App\\Ordering\\Event\\OrderCreated", "execution": "async", "certain": true}
   ],
-  "events_emitted": ["class:App\\Ordering\\Event\\OrderCreated"],
+  "sync_boundary": 2,
+  "events_emitted": ["App\\Ordering\\Event\\OrderCreated"],
   "storage_touches": ["orders", "payments"],
-  "external_calls": ["stripe_api"]
+  "external_calls": [],
+  "infrastructure": ["Semitexa\\Orm\\OrmManager"],
+  "complete": false,
+  "gaps": [
+    {"kind": "ambiguous_contract", "at": "class:App\\Ordering\\PaymentGatewayInterface",
+     "detail": "2 classes implement it and none is bound with #[SatisfiesServiceContract] or #[SatisfiesRepositoryContract]",
+     "candidates": ["App\\Ordering\\StripeGateway", "App\\Ordering\\FakeGateway"]}
+  ]
 }
 ```
+
+A listener is a step because the graph saw it subscribe, not because it acts on every event. When the event comes from another module than the flow's handler — the ORM's `ResourceChangedEvent`, fired on every write — the step carries `"certain": false` and the walk does not enter the listener: it decides at runtime whether this flow concerns it.
+
+### Gaps
+
+Wherever the walk cannot vouch for what comes next it records a gap instead of going quiet. A flow is `complete` only with no gaps.
+
+| Gap | Meaning |
+|-----|---------|
+| `no_handler` | No `#[AsPayloadHandler]` declares the payload and it names no `responseWith:` (with one, the response is the flow's last step) |
+| `ambiguous_contract` | Two or more classes can stand behind an injected interface; `candidates` names them |
+| `unbound_contract` | A project interface is injected and nothing implements it |
+| `depth_limit` | The walk stopped at 6 hops with classes still left to follow |
+| `dynamic_reference` | A class on the way names a class only at runtime (`new $class`, `$class::make()`) |
+| `event_without_listener` | An event is emitted and no listener of it is in the graph |
+| `conditional_listener` | A listener of another module's event; it may or may not act for this flow |
+
+Across every flow at once: `ai:review-graph:findings --kind=flows` — one finding per place, weighted by how many flows it blinds.
 
 ### Query
 

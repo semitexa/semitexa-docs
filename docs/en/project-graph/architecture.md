@@ -39,9 +39,7 @@ Nodes use prefixed IDs for fast type identification:
 | `file:` | `file:src/Ordering/CheckoutHandler.php` |
 | `ns:` | `ns:App\Ordering` |
 | `domain:` | `domain:Ordering` |
-| `flow:` | `flow:CheckoutFlow` |
-| `event_flow:` | `event_flow:OrderFulfillmentFlow` |
-| `lifecycle:` | `lifecycle:ProductLifecycle` |
+| `flow:` | `flow:App\Ordering\CheckoutPayload` |
 | `boundary:` | `boundary:OrderingBoundary` |
 | `hotspot:` | `hotspot:App\Ordering\CheckoutHandler` |
 | `stream:` | `stream:EVENTS` |
@@ -101,8 +99,6 @@ Nodes use prefixed IDs for fast type identification:
 |------|-------------|
 | `domain_context` | Business domain (e.g. "Billing", "Inventory") |
 | `execution_flow` | Named request flow (e.g. "CheckoutFlow") |
-| `event_flow` | Named event chain |
-| `data_lifecycle` | Entity lifecycle |
 | `system_boundary` | Module isolation boundary |
 | `hotspot` | High-risk / frequently-used area |
 | `jetstream` | NATS JetStream definition |
@@ -171,8 +167,6 @@ Edges represent relationships between nodes.
 |-----------|----------------|---------|
 | `belongs_to_domain` | class → domain | Domain membership |
 | `participates_in_flow` | class → flow | Flow participation |
-| `triggers_flow` | class → flow | Flow trigger |
-| `precedes_in_flow` | class → class | Flow ordering |
 | `crosses_boundary` | class → boundary | Boundary crossing |
 | `is_hotspot` | class → hotspot | Risk indicator |
 | `coupled_to` | class → class | Bidirectional coupling |

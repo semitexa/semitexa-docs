@@ -52,12 +52,31 @@ Classes that depend on each other in a loop, one row per loop: its members and o
 2 classes: CacheManager -> ScopedCacheManager -> CacheManager
 ```
 
+## Flow gaps
+
+```bash
+bin/semitexa ai:review-graph:findings --kind=flows
+bin/semitexa ai:review-graph:findings --kind=flows --module=Tasks --format=json
+```
+
+Every [execution flow](intelligence.md#execution-flows) is traced, and each place the graph stops seeing one is a finding: an interface two modules bind, a listener that may not act, an event nobody listens to. One place is one finding however many flows it blinds; `flow_count` is its weight, and the list comes most flows first. The headline counts the complete flows — the only ones whose picture the graph can stand behind.
+
+```
+176 of 306 flows complete: the graph sees every step; 130 stop somewhere. (43 flows of test code left out.)
+ 119  conditional_listener     SiteMapRefreshListener
+      ResourceChangedEvent comes from AggregateWriteEngine (module Orm), not from this flow's module; the listener decides at runtime whether it acts
+```
+
+Payload fixtures under a `tests/` directory are left out and counted. A payload with no handler but a `responseWith:` is a page its response renders, not a gap.
+
+Not part of `--kind=all`: it traces every flow, about 40 seconds on a workspace of 349.
+
 ## Options
 
 | Option | Description |
 |---|---|
-| `--kind=unused\|cycles\|all` | What to report (default `all`) |
+| `--kind=unused\|cycles\|all\|flows` | What to report (default `all`; `flows` is separate, see [Flow gaps](#flow-gaps)) |
 | `--min-confidence=high\|medium\|low` | Unused classes at or above this grade (default `medium`) |
-| `--module=NAME` | Unused classes of one module, and loops that touch it |
+| `--module=NAME` | Unused classes of one module, and loops that touch it; with `flows`, the flows of that module |
 | `--format=text\|json\|ndjson\|markdown` | `ndjson` starts with a summary line |
 | `--no-refresh` | Answer from the graph as it is, without the incremental refresh |

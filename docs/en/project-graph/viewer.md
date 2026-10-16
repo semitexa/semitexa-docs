@@ -32,6 +32,7 @@ Open `/__observatory` and switch the header from **live** to **graph** (or press
 | Focus | The selected node's dependencies, 1–4 steps deep, each class drawn once. Dependents are on the left, dependencies on the right, and a node's height grows with its fan-in across the whole graph. Amber edges close a loop; dashed edges and ghost nodes are references resolved only at runtime. Click inspects a node, double-click refocuses. |
 | Node | Every edge in both directions, the coverage gaps in the node's file, the source link, and the recent recorded traces that ran the class. |
 | Findings | The same unused classes and loops `ai:review-graph:findings` prints, each focusing its node, with the coverage line that says how far "no finding" can be trusted. |
+| Flows | Every business flow, filterable by name, module or route; test fixtures behind a switch. Opening one traces it on the spot (about a second): its steps, the tables it can reach and the events it may fire, and first the places the graph stops seeing it. Each step and gap focuses its node. What the trace includes: [Execution Flows](intelligence.md#execution-flows). Not in the exported file, which cannot trace. |
 
 Search (`/`) jumps to a class and opens the tree along the shortest path from an entry point. The address keeps the selection (`/__observatory#graph=<node id>`), so a link opens the same node.
 
