@@ -168,4 +168,4 @@ Every LLM-generated skin includes its full provenance in `skin.json`:
 }
 ```
 
-Any LLM-generated skin can be re-generated offline via `skin:generate <algorithm> "<resolved.seed>" --knob=…` without touching an LLM. The LLM is a UX layer, never a load-bearing dependency. `history[]` on the manifest records every generate + refine event on the skin — see [skin-refinement.md](skin-refinement.md).
+Any LLM-generated skin can be re-generated offline via `skin:generate <algorithm> "<resolved.seed>" --knob=…` without touching an LLM. The LLM is a UX layer, never a load-bearing dependency. `history[]` on the manifest records every generate + refine event on the skin — see [skin refinement](../platform/skin-refinement.md).
