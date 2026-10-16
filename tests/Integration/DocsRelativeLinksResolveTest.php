@@ -30,7 +30,9 @@ final class DocsRelativeLinksResolveTest extends TestCase
             if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'md') {
                 continue;
             }
-            $text = (string) file_get_contents($file->getPathname());
+            $text = file_get_contents($file->getPathname());
+            // A file the scan cannot read must fail it, not count as empty.
+            self::assertIsString($text, 'unreadable: ' . $file->getPathname());
             // Links inside fenced code are examples, not navigation.
             $text = (string) preg_replace('/^```.*?^```/ms', '', $text);
             preg_match_all('/\]\(([^)\s#]+\.md)(?:#[^)]*)?\)/', $text, $m);
