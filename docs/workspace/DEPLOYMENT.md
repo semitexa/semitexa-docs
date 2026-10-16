@@ -78,5 +78,5 @@ server {
 ## 🚀 Tuning
 - **Port**: the server listens on `SWOOLE_PORT` (default `9502`) on `SWOOLE_HOST` (default `0.0.0.0`). Point the proxy at whatever you set.
 - **Worker Count**: Adjust `SWOOLE_WORKER_NUM` (default `4`) in `.env` based on CPU cores (usually `CPU * 2` or `CPU * 4`).
-- **Worker recycling**: `SWOOLE_MAX_REQUEST` (default `10000`) restarts a worker after that many requests.
+- **Worker recycling**: `SWOOLE_MAX_REQUEST` (default `10000`) restarts a worker after that many requests; the memory watchdog (`SWOOLE_MEMORY_WATCHDOG_RATIO`, default `0.8` of `PHP_MEMORY_LIMIT`) restarts one that grows too large. See `docs/en/runtime/worker-recycling.md`.
 - Event handlers enqueued for asynchronous execution are processed by a separate worker process, `php vendor/bin/semitexa queue:work`, not by Swoole task workers; there is no task-worker setting. Run it under Supervisor or as its own container.
