@@ -175,6 +175,8 @@ bin/semitexa make:page
 | `--access` | yes |
 | `--with-assets` | no |
 | `--no-test` | no |
+| `--ui-tree` | yes |
+| `--grant` | yes |
 | `--dry-run` | no |
 | `--write` | no |
 | `--force` | no |
