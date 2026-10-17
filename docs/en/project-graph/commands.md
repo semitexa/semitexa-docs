@@ -202,7 +202,9 @@ Trace an execution flow end-to-end — from entry point through all steps.
 
 | Argument | Description |
 |----------|-------------|
-| `flow` | Flow name or payload class |
+| `flow` | Flow id (`flow:<payload class>`), flow name, route id, or a payload / handler class |
+
+A name two modules share is not guessed: the command lists every flow carrying it, with its id.
 
 **Options:**
 
@@ -213,11 +215,14 @@ Trace an execution flow end-to-end — from entry point through all steps.
 
 **Shows:**
 - Entry point (route)
-- Ordered steps with roles
+- Ordered steps with roles: payload, handler, then the listener of each event emitted on the way
 - Sync/async boundary
-- Events emitted
-- Storage touches
-- External calls
+- Events it may fire
+- Tables it can reach (of the entities the handler and listeners reach; [reachability, not execution](intelligence.md#reachability-not-execution))
+- Framework infrastructure passed through, followed for events only
+- Gaps: every place the graph could not see past; `Complete: yes` only when there are none
+
+How the steps are derived: [Execution Flows](intelligence.md#execution-flows).
 
 **Examples:**
 
