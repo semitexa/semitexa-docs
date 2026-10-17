@@ -75,7 +75,8 @@ Create `.env` only for local overrides (for example a different `SWOOLE_PORT`); 
 ## Rules And Constraints
 
 - Run Semitexa through `bin/semitexa` and Docker, not `php server.php` on the host.
-- The canonical install path is `curl -fsSL https://semitexa.com/install.sh | bash -s my-project`.
+- The canonical install path is `curl -fsSL https://semitexa.com/install.sh | bash -s my-project`. `composer require semitexa/ultimate` and `composer create-project` are not install paths: the first creates no project, the second needs fix-ups the installer does for you.
+- A fresh install runs with `APP_ENV=dev` (tests, the Workbench and the Observatory need it). On a server, set `APP_ENV=prod` and `APP_DEBUG=0` in `.env`.
 - New code goes into modules under `src/modules/` — see [MINIMAL_PAGE.md](MINIMAL_PAGE.md).
 
 The point of these constraints is simple: fewer unofficial paths means fewer confusing failures later.
