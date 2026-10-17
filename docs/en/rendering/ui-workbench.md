@@ -3,7 +3,7 @@ id: rendering/ui-workbench
 section: rendering
 slug: ui-workbench
 title: UI Workbench
-summary: A dev page that renders every primitive, component and behavior from the examples its contract declares, with props, slots, copyable Twig, skins and dark mode — and a browser suite that audits all of it.
+summary: A dev page that renders every primitive, component and behavior from its declared examples, with props, slots, Twig, skins and dark mode, audited in a browser.
 order: 175
 locale: en
 status: canonical

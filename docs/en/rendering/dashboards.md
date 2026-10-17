@@ -3,7 +3,7 @@ id: rendering/dashboards
 section: rendering
 slug: dashboards
 title: Dashboards
-summary: Widgets registered by attribute — a stat with a trend, recent records, a small SVG chart — each behind its own permission, laid out by platform.dashboard; ready-made widgets for CRUD screens.
+summary: Dashboard widgets registered by attribute: stats with a trend, recent records, small SVG charts, each behind its own permission, laid out by platform.dashboard.
 order: 139
 locale: en
 status: canonical

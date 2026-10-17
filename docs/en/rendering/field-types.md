@@ -3,7 +3,7 @@ id: rendering/field-types
 section: rendering
 slug: field-types
 title: Field Types
-summary: One field declaration — Field::email('contact') — is the form control, its validation rules, the stored value, the grid column and the filter; built-in types plus your own with #[AsFieldType].
+summary: One field declaration such as Field::email('contact') is the form control, validation, stored value, grid column and filter. Add types with #[AsFieldType].
 order: 135
 locale: en
 status: canonical

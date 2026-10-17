@@ -3,7 +3,7 @@ id: migration/one-component-model
 section: migration
 slug: one-component-model
 title: One Component Model Migration Guide
-summary: Upgrade to the release where every UI event goes through HUG and every live update through KISS — component events move to #[UiOn], the extra /__ doors are gone, and a few runtime defaults change.
+summary: Upgrade to the release where every UI event goes through HUG and every live update through KISS: events move to #[UiOn] and the extra /__ doors are gone.
 order: 20
 locale: en
 status: canonical

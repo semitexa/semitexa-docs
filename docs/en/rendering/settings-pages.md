@@ -3,7 +3,7 @@ id: rendering/settings-pages
 section: rendering
 slug: settings-pages
 title: Settings Pages
-summary: An editable settings page in one class — fields with defaults, stored per tenant in platform-settings, validated by the field rules, grouped into sections, read back typed.
+summary: An editable settings page in one class: fields with defaults, stored per tenant in platform-settings, validated by field rules, grouped and read back typed.
 order: 140
 locale: en
 status: canonical

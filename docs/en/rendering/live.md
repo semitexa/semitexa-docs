@@ -3,7 +3,7 @@ id: rendering/live
 section: rendering
 slug: live
 title: Live by Default
-summary: How a Semitexa page stays live — writes reach every open screen as keyed patches, components redraw themselves, state lives on the server, reconnects resume, clicks answer at once — and how to watch it happen.
+summary: How a Semitexa page stays live: writes reach every open screen as keyed patches, components redraw, state stays on the server and reconnects resume.
 order: 136
 locale: en
 status: canonical
