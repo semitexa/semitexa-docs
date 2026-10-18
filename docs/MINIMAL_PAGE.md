@@ -75,7 +75,7 @@ Options worth knowing:
 - `--no-test` skips the two test scaffolds that are otherwise created in `src/modules/Website/tests/`.
 - Leave out `--write` to print the planned files without creating them.
 
-It creates the four files from the table above plus two tests. The generated classes use the `Semitexa\Modules\Website\` namespace; the registrar maps that prefix to the same directory, so it works, but `App\Modules\Website\` is the canonical name (it is what the `Hello` module uses), and the listings below use it.
+It creates the four files from the table above plus two tests, under the `App\Modules\Website\` namespace that the listings below use. (A module whose code already declares `Semitexa\Modules\<Module>\`, an older prefix the registrar still maps, keeps that prefix: the generator reads it from the module.)
 
 The generated template extends the bundled theme's `one-column` layout, so the page renders as soon as the server restarts. Step 4 shows the same template written by hand.
 
@@ -209,8 +209,6 @@ final class MinimalHandler implements TypedHandlerInterface
 ```
 
 The handler trusts the validated Payload and does not parse the raw request again. It does not build response arrays or render the template itself: the template is declared on the Resource, and the framework renders it after `handle()` returns. Services come in through `#[InjectAsReadonly]` properties, never through a constructor (see `HelloHandler` for an example).
-
-If you renamed the generated classes to the `App\Modules\Website\` namespace, update the `namespace` and `use` lines in the two generated tests as well.
 
 ---
 
