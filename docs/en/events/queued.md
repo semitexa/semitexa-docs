@@ -29,7 +29,7 @@ Async deferred execution runs in the same worker and is lost on restart. Queued 
 
 ## When a listener fails
 
-A queued listener that throws is never acknowledged and dropped. With `maxRetries` above zero it is retried that many times; once they run out — or on the first failure, with the default of `0` — the message moves to the failed queue:
+A queued listener that throws does not lose its message. The failure follows the listener's retry policy: with `maxRetries` above zero the message goes back on its queue that many times, and once the retries are used up it moves to the failed queue; with the default of `0` it moves there on the first failure:
 
 ```php
 #[AsEventListener(
