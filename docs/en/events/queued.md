@@ -44,7 +44,7 @@ final class ChargeCardListener
 }
 ```
 
-With no retries left the message moves to `<queue>.failed` on the same transport, carrying the listener, the event and the error. The same happens when the message cannot run at all: a listener class that no longer exists goes there at once, and a listener or event that cannot be built follows the retry policy first. A payload that is not a readable message is kept there as it came, under `raw`. Nothing replays the failed queue for you: read it with a consumer of your own and publish what should run again back onto the queue. If writing to the failed queue itself fails, the worker logs it and the message is not kept. A queued payload handler (`#[AsPayloadHandler]`) follows the same policy.
+With no retries left the message moves to `<queue>.failed` on the same transport, carrying the listener, the event and the error. The same happens when the message cannot run at all: a listener class that no longer exists goes there at once, and a listener or event that cannot be built follows the retry policy first. A payload that is not a readable message is kept there as it came: `raw` holds it as text, and `raw_base64` holds its exact bytes, which matters when the payload is not valid UTF-8. Nothing replays the failed queue for you: read it with a consumer of your own and publish what should run again back onto the queue. If writing to the failed queue itself fails, the worker logs it and the message is not kept; for an unreadable payload the log line gives its size and SHA-1. A queued payload handler (`#[AsPayloadHandler]`) follows the same policy.
 
 ## What reaches the listener
 
