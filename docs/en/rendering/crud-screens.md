@@ -3,7 +3,7 @@ id: rendering/crud-screens
 section: rendering
 slug: crud-screens
 title: CRUD Screens
-summary: A list, live grid, view, create and edit dialogs, delete, row/bulk/header actions, permissions, navigation and Ctrl+K over one ORM model — one #[AsCrud] class with a field list.
+summary: List, live grid, view, create, edit, delete, row and bulk actions, permissions and Ctrl+K over one ORM model, from one #[AsCrud] class with a field list.
 order: 138
 locale: en
 status: canonical

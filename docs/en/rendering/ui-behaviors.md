@@ -3,7 +3,7 @@ id: rendering/ui-behaviors
 section: rendering
 slug: ui-behaviors
 title: UI Behaviors
-summary: Client-only interactions bound by markup — ui-behavior="menu|dropdown|modal|…" — on the native platform (popover, commandfor, CSS anchor positioning), with their keyboard and ARIA wired by the runtime.
+summary: Client-only interactions bound by markup with ui-behavior: menu, dropdown, modal and more, on native popover and anchor positioning, keyboard and ARIA included.
 order: 165
 locale: en
 status: canonical

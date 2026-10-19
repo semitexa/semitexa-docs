@@ -160,39 +160,41 @@ Application modules under `src/modules/` follow the same structure as packages. 
 
 ```text
 src/modules/{ModuleName}/
-  Application/
-    Payload/
-      Request/
-      Event/
-    Resource/
-      Response/
-      Slot/
-    Handler/
-      PayloadHandler/
-      SlotHandler/
-      DomainListener/
-    Console
-      Command/            # Console commands (#[AsCommand]) — see §1.1
-    Update/               # Post-schema data patches (#[AsDataPatch]) — see §1.2
-    Service/
-    Static/               # Static assets (manifest-driven)
-      css/
-      js/
-      assets.json         # Required v2 manifest (include rules)
-    View/
-      locales/
-      templates/
-        pages/            # Page-level templates (one per route)
-        layouts/          # Layout templates (extend chains)
-        partials/         # Reusable fragments
-        components/       # Component-specific templates
-        deferred/         # Templates for deferred/async slots
-    Component/
-  Domain/
-    Model/
-    Repository/
-    Contract/
-    Service/
+  src/
+    Application/
+      Payload/
+        Request/
+        Event/
+      Resource/
+        Response/
+        Slot/
+      Handler/
+        PayloadHandler/
+        SlotHandler/
+        DomainListener/
+      Console/
+        Command/            # Console commands (#[AsCommand]) — see §1.1
+      Update/               # Post-schema data patches (#[AsDataPatch]) — see §1.2
+      Service/
+      Static/               # Static assets (manifest-driven)
+        css/
+        js/
+        assets.json         # Required v2 manifest (include rules)
+      View/
+        locales/
+        templates/
+          pages/            # Page-level templates (one per route)
+          layouts/          # Layout templates (extend chains)
+          partials/         # Reusable fragments
+          components/       # Component-specific templates
+          deferred/         # Templates for deferred/async slots
+      Component/
+    Domain/
+      Model/
+      Repository/
+      Contract/
+      Service/
+  tests/
   composer.json
 ```
 
@@ -206,7 +208,7 @@ Console commands are first-class module artifacts, discovered the same way handl
 
 | Location | Path | Namespace |
 |---|---|---|
-| App module | `src/modules/{Module}/Application/Console/Command/{Name}Command.php` | `Semitexa\Modules\{Module}\Application\Console\Command` |
+| App module | `src/modules/{Module}/src/Application/Console/Command/{Name}Command.php` | `App\Modules\{Module}\Application\Console\Command` |
 | Package | `packages/semitexa-{pkg}/src/Application/Console/Command/{Name}Command.php` | `Semitexa\{Pkg}\Application\Console\Command` |
 
 **Discovery:** any class carrying `#[AsCommand(name: '...', description: '...')]` from `Semitexa\Core\Attribute\AsCommand` is registered with the framework console kernel. There is no manual wiring step.
@@ -220,8 +222,8 @@ bin/semitexa make:command --module=Catalog --name=Reindex --command-name=catalog
 **Canonical example** (illustrative module-owned command):
 
 ```php
-// src/modules/Catalog/Application/Console/Command/CatalogReindexCommand.php
-namespace Semitexa\Modules\Catalog\Application\Console\Command;
+// src/modules/Catalog/src/Application/Console/Command/CatalogReindexCommand.php
+namespace App\Modules\Catalog\Application\Console\Command;
 
 use Semitexa\Core\Attribute\AsCommand;
 use Semitexa\Core\Console\BaseCommand;
@@ -259,7 +261,7 @@ final class CatalogReindexCommand extends BaseCommand
 - **Do** extend `Semitexa\Core\Console\BaseCommand` so the framework can wire DI cleanly.
 - **Do** use Symfony Console primitives (`InputInterface`, `OutputInterface`, `SymfonyStyle`) inside `execute()`.
 - **Do** put destructive commands behind explicit `--yes` / `--force` and refuse to run outside dev environments unless the operator has confirmed.
-- **Don't** put commands in random locations like `src/{Module}/Cli/`, `bin/`, `scripts/`, or the project's `App\` namespace — discovery walks `Application/Console/Command/` (modules and packages alike).
+- **Don't** put commands in random locations like `src/{Module}/Cli/`, `bin/`, `scripts/`, or project-root `App\` classes outside a module (e.g. `App\Console\…`) — discovery walks `Application/Console/Command/` (modules and packages alike); `App\Modules\{Module}\Application\Console\Command` is the module location above, not an exception to this rule.
 - **Don't** wire commands into `bin/semitexa` by hand or register them in a global list; the attribute is the registration.
 - **Don't** call out to `bin/semitexa` from inside another command (process-fork loop) — depend on the underlying service or invoke a command class directly through the kernel if absolutely necessary.
 
@@ -271,7 +273,7 @@ Data patches sit on top of the ORM schema. They never change the schema. Schema 
 
 | Location | Path (suggested) | Namespace (suggested) |
 |---|---|---|
-| App module | `src/modules/{Module}/Application/Update/{PatchName}.php` | `Semitexa\Modules\{Module}\Application\Update` |
+| App module | `src/modules/{Module}/src/Application/Update/{PatchName}.php` | `App\Modules\{Module}\Application\Update` |
 | Package | `packages/semitexa-{pkg}/src/Update/{PatchName}.php` | `Semitexa\{Pkg}\Update` |
 
 > Discovery is namespace-agnostic — `DataPatchDiscovery` walks every class in the composer classmap that carries `#[AsDataPatch]`. The paths above are the convention. Following them keeps patches alongside the rest of the module's `Application/` artifacts; placing them anywhere reachable by autoload still works but loses the structural cue.
@@ -279,9 +281,9 @@ Data patches sit on top of the ORM schema. They never change the schema. Schema 
 **The contract:**
 
 ```php
-namespace Semitexa\Modules\Catalog\Application\Update;
+namespace App\Modules\Catalog\Application\Update;
 
-use Semitexa\Modules\Catalog\Domain\Model\Article;
+use App\Modules\Catalog\Domain\Model\Article;
 use Semitexa\Update\Attribute\AsDataPatch;
 use Semitexa\Update\Context\DataPatchContext;
 use Semitexa\Update\Domain\Contract\DataPatchInterface;
@@ -1247,7 +1249,7 @@ When two modules provide the same service contract, the **child** wins.
 
 | Location | Priority | Namespace |
 |---|---|---|
-| `src/modules/{Name}/` | 400 | `Semitexa\Modules\{Name}` |
+| `src/modules/{Name}/` | 400 | `App\Modules\{Name}` (older modules: `Semitexa\Modules\{Name}`) |
 | `packages/` | 200 | Varies |
 | `vendor/` | 100 | Varies |
 
@@ -2628,11 +2630,11 @@ scripts/cleanup.php
 src/Console/Reset.php           # only valid inside packages, not under src/
 
 # GOOD — discovered via #[AsCommand]
-src/modules/{Module}/Application/Console/Command/{Name}Command.php
+src/modules/{Module}/src/Application/Console/Command/{Name}Command.php
 packages/semitexa-{pkg}/src/Application/Console/Command/{Name}Command.php
 
 # GOOD — discovered via #[AsDataPatch]
-src/modules/{Module}/Application/Update/{PatchName}.php
+src/modules/{Module}/src/Application/Update/{PatchName}.php
 packages/semitexa-{pkg}/src/Update/{PatchName}.php
 ```
 

@@ -3,7 +3,7 @@ id: rendering/page-blocks
 section: rendering
 slug: page-blocks
 title: Page Blocks
-summary: Landing-page sections as data-driven components — hero, features, stats, pricing, call to action, FAQ on native details[name], footer — laid out by their own width, with every link target checked by ui_href().
+summary: Landing-page sections as data-driven components: hero, features, stats, pricing, call to action, FAQ and footer, every link target checked by ui_href().
 order: 125
 locale: en
 status: canonical

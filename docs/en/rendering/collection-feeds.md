@@ -3,7 +3,7 @@ id: rendering/collection-feeds
 section: rendering
 slug: collection-feeds
 title: Collection Feeds
-summary: A live, paginated, searchable, sortable, filterable feed for platform.grid in one class — #[AsCollectionFeed] over an ORM model and a list of fields; no payload setters, no field map, no projection, no response class.
+summary: A live, paginated, searchable, sortable, filterable feed for platform.grid in one #[AsCollectionFeed] class over an ORM model, with no setters or field map.
 order: 137
 locale: en
 status: canonical
