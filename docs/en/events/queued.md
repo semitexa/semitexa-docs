@@ -44,11 +44,11 @@ final class ChargeCardListener
 }
 ```
 
-With no retries left the message moves to `<queue>.failed` on the same transport, carrying the listener, the event and the error, so it can be inspected and replayed. A queued payload handler (`#[AsPayloadHandler]`) follows the same policy.
+With no retries left the message moves to `<queue>.failed` on the same transport, carrying the listener, the event and the error. The same happens when the message cannot run at all: a listener class that no longer exists goes there at once, and a listener or event that cannot be built follows the retry policy first. A payload that is not a readable message is kept there as it came, under `raw`. Nothing replays the failed queue for you: read it with a consumer of your own and publish what should run again back onto the queue. If writing to the failed queue itself fails, the worker logs it and the message is not kept. A queued payload handler (`#[AsPayloadHandler]`) follows the same policy.
 
 ## What reaches the listener
 
-The event is serialized through its **getters** and rebuilt through its **setters**, on the worker that consumes it. A value without a getter does not reach the listener: give every field of a queued event a `getX()` and a `setX()`.
+The event is serialized through its **getters** and rebuilt through its **setters**, on the worker that consumes it. A value without a getter does not reach the listener: give every field of a queued event a `getX()` and a `setX()`. The worker creates the event with `new` and no arguments, so a queued event must not have a constructor with required arguments — such an event cannot be rebuilt and ends in the failed queue.
 
 ## Queue feature support
 
