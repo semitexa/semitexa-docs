@@ -50,7 +50,7 @@ bin/semitexa make:service
 
 That list is exhaustive — it is `LintDiCommand::CONTAINER_MANAGED_ATTRIBUTES`, and it is what `lint:di` walks.
 
-**`#[AsCommand]` is deliberately not on it.** Console commands are not container-managed, so the constructor rule does not apply to them: a command may take constructor arguments like any ordinary class. If you have been wondering why a command can do what a service cannot, that is why.
+**`#[AsCommand]` is deliberately not on it.** Console commands are not container-managed, so `lint:di` does not check them — but a command still cannot take its dependencies through the constructor: console boot does not resolve constructor arguments, and a command that asks for them is skipped at boot with a warning that names the fix. Declare them as protected properties with `#[InjectAsReadonly]`, as a service does.
 
 The one combination that *is* idiomatic is pairing it with a contract declaration, because the two say different things — this class is a service, and it satisfies that capability:
 
