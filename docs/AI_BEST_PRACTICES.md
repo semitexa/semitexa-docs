@@ -160,39 +160,41 @@ Application modules under `src/modules/` follow the same structure as packages. 
 
 ```text
 src/modules/{ModuleName}/
-  Application/
-    Payload/
-      Request/
-      Event/
-    Resource/
-      Response/
-      Slot/
-    Handler/
-      PayloadHandler/
-      SlotHandler/
-      DomainListener/
-    Console
-      Command/            # Console commands (#[AsCommand]) — see §1.1
-    Update/               # Post-schema data patches (#[AsDataPatch]) — see §1.2
-    Service/
-    Static/               # Static assets (manifest-driven)
-      css/
-      js/
-      assets.json         # Required v2 manifest (include rules)
-    View/
-      locales/
-      templates/
-        pages/            # Page-level templates (one per route)
-        layouts/          # Layout templates (extend chains)
-        partials/         # Reusable fragments
-        components/       # Component-specific templates
-        deferred/         # Templates for deferred/async slots
-    Component/
-  Domain/
-    Model/
-    Repository/
-    Contract/
-    Service/
+  src/
+    Application/
+      Payload/
+        Request/
+        Event/
+      Resource/
+        Response/
+        Slot/
+      Handler/
+        PayloadHandler/
+        SlotHandler/
+        DomainListener/
+      Console/
+        Command/            # Console commands (#[AsCommand]) — see §1.1
+      Update/               # Post-schema data patches (#[AsDataPatch]) — see §1.2
+      Service/
+      Static/               # Static assets (manifest-driven)
+        css/
+        js/
+        assets.json         # Required v2 manifest (include rules)
+      View/
+        locales/
+        templates/
+          pages/            # Page-level templates (one per route)
+          layouts/          # Layout templates (extend chains)
+          partials/         # Reusable fragments
+          components/       # Component-specific templates
+          deferred/         # Templates for deferred/async slots
+      Component/
+    Domain/
+      Model/
+      Repository/
+      Contract/
+      Service/
+  tests/
   composer.json
 ```
 
