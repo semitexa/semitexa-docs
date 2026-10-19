@@ -27,7 +27,7 @@ A Semitexa worker is a Swoole process that serves thousands of requests and hold
 
 `bin/semitexa system:doctor` reports the configured value (check `server.worker-memory`) and warns below `256M`. It reads `PHP_MEMORY_LIMIT`, not the CLI's own `memory_limit`: a CLI process can run with a different limit from the server, and on one production host the CLI said `128M` while every worker ran with `256M`.
 
-With `SEMITEXA_METRICS_ENABLED=1`, `/metrics` shows each worker's own figures: `worker_memory_usage`, `worker_memory_limit` and `worker_memory_watchdog_threshold`.
+With `SEMITEXA_METRICS_ENABLED=1`, `/metrics` shows the figures of the worker that answered, named by `worker_pid`: `worker_memory_usage`, `worker_memory_limit` and `worker_memory_watchdog_threshold`. Ask a few times to see more than one worker.
 
 ## Recycling after N requests
 
