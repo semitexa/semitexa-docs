@@ -53,6 +53,8 @@ $rates = $response->json();
 | `timeout` | 30 s | the whole attempt |
 | `connectTimeout` | 5 s | |
 | `maxResponseBytes` | 16 MiB | counted as the body arrives; a body the server compresses anyway is inflated no further than this, so a gzip bomb is `too_large`, not a full memory |
+| `truncateOversized` | off | keep the first `maxResponseBytes` of a larger body and succeed — for a body you only log |
+| `decodeContent` | on | off returns an encoded body as sent, for a store that keeps an object's own `Content-Encoding` |
 | `followRedirects` | off | when on, at most 5 hops; a hop to another origin keeps only `Accept`, `Accept-Language` and `User-Agent` — never `Authorization`, cookies or API keys. Refused together with `pinnedResolve` |
 | `noProxy` | off | ignore `HTTP(S)_PROXY` from the environment |
 | `pinnedResolve` | none | `host:port:ip`: connect to the address you already checked |
