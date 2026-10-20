@@ -22,9 +22,9 @@ Async listeners run after the response via Swoole defer in the same worker. The 
 
 The container schedules the listener using Swoole's defer mechanism. The HTTP response is flushed first, then the listener runs in the same worker process. This avoids delaying the current response, but heavy deferred work can still reduce throughput on that worker.
 
-Deferred listeners run in the order they were scheduled. A worker that is being recycled lets one finish within the same grace window it gives a request still being answered (about two seconds), and cancels it after that.
+Deferred listeners run in the order they were scheduled, with the context of the request that scheduled them: its tenant, signed-in user, locale and theme, although the request has cleared them by then. A worker that is being recycled lets one finish within the same grace window it gives a request still being answered (about two seconds), and cancels it after that.
 
-In a live region (a held-open connection), each re-run runs the route's sync handlers to render a fresh frame, and its async handlers run again after it. The route's queued handlers and the `HandlerCompleted` event ran with the request that opened the connection, and they do not run again on each re-run. Work a re-run defers, such as an async listener of an event a data resolver dispatched, runs after that re-run's frame is written, not when the connection closes. The work of successive re-runs runs one after another, in order.
+In a live region (a held-open connection), each re-run runs the route's sync handlers to render a fresh frame, and its async handlers run again after it. The route's queued handlers and the `HandlerCompleted` event ran with the request that opened the connection, and they do not run again on each re-run. Work the opening request deferred runs once the connection has sent what it sends first and starts waiting for updates, not when it closes, and so does work deferred later outside a re-run. Work a re-run defers, such as an async listener of an event a data resolver dispatched, runs after that re-run's frame is written. The work of successive re-runs runs one after another, in order.
 
 ## Why this matters
 
