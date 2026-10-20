@@ -554,6 +554,21 @@ final class LimitedPingPayload
 
 — `vendor/semitexa/core/tests/Fixtures/RateLimitDemo/Payload/LimitedPingPayload.php`
 
+## `#[RequiresSignedUrl]`
+
+`Semitexa\Core\Attribute\RequiresSignedUrl`
+
+Applies to: class
+
+Takes no arguments.
+
+```php
+#[RequiresSignedUrl]
+final class SignedDownloadPayload
+```
+
+— `vendor/semitexa/core/tests/Fixtures/SignedUrlDemo/Payload/SignedDownloadPayload.php`
+
 ## `#[ResolveWith]`
 
 `Semitexa\Core\Resource\Attribute\ResolveWith`
