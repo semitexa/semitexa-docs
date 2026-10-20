@@ -10,7 +10,7 @@ status: canonical
 verified_against: 2026.09.19.1020
 keywords:
   - queue:work
-  - queue:queues
+  - worker:processes
   - scheduler:list
   - scheduler:plan
   - scheduler:work
@@ -25,7 +25,7 @@ Semitexa is not only request-response code. The CLI also owns the long-running w
 
 `queue:work`, `webhook:work`, and `mail:work` are separate explicit processes rather than hidden side-effects of the web runtime. The scheduler surface is split into `scheduler:list` (inspect), `scheduler:plan` (materialize), and `scheduler:work` (run the loop) so teams can inspect state before pushing harder. `tenant:run` executes any command inside a concrete tenant context, including queue and cache operations.
 
-In a project started with `bin/semitexa server:start` and `EVENTS_ASYNC=1`, the queue worker is already running: a `worker` service, in a container of its own so it can be scaled apart from the web server, runs one `queue:work` per line of `queue:queues`, which lists the default queue and every queue a listener or handler names.
+In a project started with `bin/semitexa server:start` and `EVENTS_ASYNC=1`, these workers are already running: a `worker` service, in a container of its own so it can be scaled apart from the web server, runs every line `bin/semitexa worker:processes` prints. Each package names what it needs with `#[AsWorkerProcessSource]`: core one `queue:work` per queue its listeners and handlers use, mail `mail:work`, media `media:work`, the scheduler `scheduler:plan` (once a minute) and `scheduler:work`, webhooks `webhook:work`.
 
 ## Why this matters
 

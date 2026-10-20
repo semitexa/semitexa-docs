@@ -16,18 +16,6 @@ verified_against: 2026.10.20.0340
 
 Every `queue` command, with the arguments and options the console actually defines.
 
-## `queue:queues`
-
-List every transport and queue the queue workers must consume
-
-```bash
-bin/semitexa queue:queues
-```
-
-| option | takes a value |
-|---|---|
-| `--json` | no |
-
 ## `queue:work`
 
 Run async events worker (processes handlers enqueued with execution: async)
