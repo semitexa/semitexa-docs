@@ -44,6 +44,8 @@ final class ChargeCardListener
 }
 ```
 
+The database and NATS transports hold a retry back for `retryDelay` themselves, so the worker goes on with the next job meanwhile, and a retry that was waiting survives a worker restart. On NATS a retry pulled before it is due is handed back for the time that remains, which counts as one delivery; on its last allowed delivery it runs at once instead. A transport that cannot hold a message back (the in-memory one, the dual-write one, a custom one) makes the worker wait before it requeues, as it always did.
+
 With no retries left the message moves to `<queue>.failed` on the same transport, carrying the listener, the event and the error. The same happens when the message cannot run at all: a listener class that no longer exists goes there at once, and a listener or event that cannot be built follows the retry policy first. A payload that is not a readable message is kept there as it came: `raw` holds it as text, and `raw_base64` holds its exact bytes, which matters when the payload is not valid UTF-8. `bin/semitexa queue:failed` lists what is there and `queue:retry` queues it again — see [Watching the queues](#watching-the-queues). If writing to the failed queue itself fails, the worker logs it and the message is not kept; for an unreadable payload the log line gives its size and SHA-1. A queued payload handler (`#[AsPayloadHandler]`) follows the same policy.
 
 ## What reaches the listener
