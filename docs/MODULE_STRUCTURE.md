@@ -421,7 +421,8 @@ Beyond Application/Db (already covered above), the following layers have explici
 | `Support` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — no subdirectories. Phase 3 batch 1. |
 | `Validation` (top-level, semitexa-core) | — | — | Children: `Trait/` only. Phase 3 batch 1. |
 | `Validation/Trait` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Trait\.php$/` | — | LEAF — basename ends in Trait.php. Phase 3 batch 1. |
-| `Http` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Exception/`, `Response/` only + PascalCase root files. Phase 3 batch 1. |
+| `Http` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Client/`, `Exception/`, `Response/` only + PascalCase root files. Phase 3 batch 1. |
+| `Http/Client` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | drift deny-list | LEAF. The outbound HTTP client, its values, retry policy and test fake. |
 | `Http/Exception` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Exception\.php$/` | — | LEAF. Phase 3 batch 1. |
 | `Http/Response` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF. Phase 3 batch 1. |
 | `Queue` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Message/`, `Transport/` only + PascalCase root files. Phase 3 batch 1. |
