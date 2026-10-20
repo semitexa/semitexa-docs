@@ -54,4 +54,8 @@ The event is serialized through its **getters** and rebuilt through its **setter
 
 - Retry on failure, then a dead-letter queue (`maxRetries`, `retryDelay`)
 - Cross-worker delivery
-- Survives worker restart (the transport keeps the message; a worker must be running `bin/semitexa queue:work`)
+- Survives worker restart (the transport keeps the message until a worker consumes it)
+
+## Running the worker
+
+With `EVENTS_ASYNC=1`, the default in a new project, `bin/semitexa server:start` starts a `worker` service in a container of its own (`docker-compose.worker.yml`), and `server:stop` stops it. Being its own container, it can be given its own resources and scaled apart from the web server: set `QUEUE_WORKER_REPLICAS=3` in `.env` and run `bin/semitexa server:restart`. Start it through `bin/semitexa`, not a bare `docker compose`: `server:start` hands the worker the database, cache and broker addresses the overlays give the app. It runs one `queue:work` for each line `bin/semitexa queue:queues` prints: the default queue, and every queue a queued listener or an async handler names in `queue:`. A queue you add later is picked up by `bin/semitexa server:restart`. With `EVENTS_ASYNC=0` no worker runs, because nothing is queued.

@@ -48,8 +48,11 @@ Every declared handler (e.g. `#[AsPayloadHandler(...)]`) has an **execution** op
 
 ### Running the worker (async events)
 
+`bin/semitexa server:start` runs the worker for you when `EVENTS_ASYNC=1`: one `queue:work` per transport and queue that `queue:queues` lists. To run one by hand, for example outside Docker:
+
 ```bash
-bin/semitexa queue:work
+bin/semitexa queue:queues          # what the workers must consume: "<transport> <queue>" per line
+bin/semitexa queue:work nats events # one of them
 ```
 
 ## Comparison
