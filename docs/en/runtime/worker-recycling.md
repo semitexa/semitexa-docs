@@ -13,6 +13,7 @@ keywords:
   - PHP_MEMORY_LIMIT
   - SWOOLE_MEMORY_WATCHDOG_RATIO
   - SWOOLE_MEMORY_WATCHDOG_INTERVAL
+  - SWOOLE_WORKER_NUM
   - WorkerMemoryWatchdog
   - InFlightRequests
 ---
@@ -38,6 +39,12 @@ With `SEMITEXA_METRICS_ENABLED=1`, `/metrics` shows the figures of the worker th
 Every `SWOOLE_MEMORY_WATCHDOG_INTERVAL` seconds (default `10`) a worker compares `memory_get_usage(true)` with `SWOOLE_MEMORY_WATCHDOG_RATIO` of its limit (default `0.8`). Past it, the worker logs what it was holding (memory, coroutine count, where its coroutines are parked) under the `lifecycle` channel and stops itself. The manager starts a replacement and the other workers keep serving. It is not counted as a crash.
 
 Set `SWOOLE_MEMORY_WATCHDOG_RATIO=0` to turn it off. With no memory limit (`-1`) it has nothing to measure against and stays off.
+
+## Run at least two workers
+
+The replacement comes from Swoole's manager, and the other workers serve while it boots. With `SWOOLE_WORKER_NUM=1` there are no others: while the one worker is recycled nothing serves, and every open connection, SSE streams included, is cut. With `SWOOLE_MAX_REQUEST=0` as well, Swoole runs that worker without a manager at all, so a watchdog recycle or a fatal error ends the server process. Docker's restart policy starts the container again, but until it is up requests are refused.
+
+So in production run two or more (the scaffold sets `4`). With `APP_ENV=prod` and one worker, `bin/semitexa server:start` warns before it starts the containers, and `system:doctor` warns in check `server.worker-count`. In development one worker is allowed and doctor only says what it would mean.
 
 ## What a leaving worker does with its requests
 
