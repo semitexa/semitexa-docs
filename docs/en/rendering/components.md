@@ -223,7 +223,7 @@ The mailer is a `#[SatisfiesServiceContract(of: PasswordResetMailerInterface::cl
 
 - **What `request()` reveals:** nothing. An unknown address, a disabled account, an account over its limit and a mailer that fails all look like a sent link (a failure is logged, without the token).
 - **The link:** build it from the site's configured address, never from the request's `Host` header, and repeat `#[\SensitiveParameter]` on `$token` in the mailer. A queued mail keeps its rendered body, so the live link sits in the mail store until it expires.
-- **After a reset:** the account's failed sign-ins and lock are cleared and its other links stop working. Sessions that are already signed in are **not** ended.
+- **After a reset:** the account's failed sign-ins and lock are cleared and its other links stop working. Every new password raises `PlatformUser::getCredentialVersion()`, so OS console sessions signed in with the old one end on their next request. A project that signs platform users in through its own session stores the version at sign-in and compares it the same way.
 - **Limits:** `PLATFORM_USER_RESET_TTL_SECONDS` (3600), `PLATFORM_USER_RESET_MAX_REQUESTS` (3) per `PLATFORM_USER_RESET_WINDOW_SECONDS` (900). The limit protects one inbox from floods; it is not a lock, and it does not throttle a client that asks for many addresses.
 - **Schema:** `orm:sync` creates `platform_user_password_reset`.
 
