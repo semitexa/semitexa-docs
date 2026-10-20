@@ -16,6 +16,38 @@ verified_against: 2026.10.20.0340
 
 Every `queue` command, with the arguments and options the console actually defines.
 
+## `queue:failed`
+
+List dead letters and queue depth; retry with queue:retry.
+
+```bash
+bin/semitexa queue:failed
+```
+
+| option | takes a value |
+|---|---|
+| `--transport` | yes |
+| `--queue` | yes |
+| `--limit` | yes |
+| `--payload` | no |
+| `--json` | no |
+
+## `queue:retry`
+
+Retry (or --forget) a dead letter by id, or --all of a queue.
+
+```bash
+bin/semitexa queue:retry ["id"]
+```
+
+| option | takes a value |
+|---|---|
+| `--queue` | yes |
+| `--transport` | yes |
+| `--all` | no |
+| `--forget` | no |
+| `--dry-run` | no |
+
 ## `queue:work`
 
 Run a queue worker (processes queued listeners and handlers enqueued with execution: queued)
