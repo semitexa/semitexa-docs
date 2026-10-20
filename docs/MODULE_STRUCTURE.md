@@ -254,6 +254,7 @@ The complete table follows. **"Allowed in packages"** means standard production 
 | `Csrf` | core-only | CSRF handling | only `semitexa-core` | no | Framework primitive |
 | `Error` | core-only | Error type definitions | only `semitexa-core` | no | Framework primitive |
 | `Event` | core-only | Event system | only `semitexa-core` | no | Framework primitive (modules use `Domain/Event/` or `Application/Payload/Event/`) |
+| `Feature` | core-only | Feature flags: contract, registry, default flags | only `semitexa-core` | no | Framework primitive |
 | `Http` | core-only | HTTP wrappers | only `semitexa-core` | no | Framework primitive |
 | `Lifecycle` | core-only | Server lifecycle | only `semitexa-core` | no | Framework runtime |
 | `Locale` (top-level) | core-only | Locale primitives | only `semitexa-core` | no | Other packages use `Application/View/locales/` |
@@ -428,6 +429,7 @@ Beyond Application/Db (already covered above), the following layers have explici
 | `Queue` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Message/`, `Transport/` only + PascalCase root files. Phase 3 batch 1. |
 | `Queue/Message` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Message\.php$/` | — | LEAF — basename ends in Message.php. Phase 3 batch 1. |
 | `Queue/Transport` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Transport(?:Factory)?\.php$/` | — | LEAF — Transport / TransportFactory naming. Phase 3 batch 1. |
+| `Feature` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | drift deny-list | LEAF — feature flag contract, registry, default and in-memory flags. `#[AsFeatureFlag]` lives in `Attribute/`. |
 | `RateLimit` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — RateLimiter, its decision and key, the counter stores. The `#[RateLimit]` attribute lives in `Attribute/`. |
 | `Support` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | LEAF. Phase 3 batch 1 + tightening: drift-rejecting deny-list keeps Support from becoming a Helpers/Utils dumping ground. |
 | `Authorization` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF. Phase 3 batch 2. |

@@ -122,6 +122,29 @@ final class DemoNotificationListener
 
 — `vendor/semitexa/demo/resources/examples/Async/Deferred/DemoNotificationListener.example.php`
 
+## `#[AsFeatureFlag]`
+
+`Semitexa\Core\Attribute\AsFeatureFlag`
+
+Applies to: class. Repeatable.
+
+| parameter | type | required |
+|---|---|---|
+| `name` | `string` | yes |
+| `default` | `bool` | no |
+| `description` | `string` | no |
+| `percent` | `int` | no |
+
+```php
+#[AsFeatureFlag('checkout.new-flow', description: 'One-page checkout')]
+#[AsFeatureFlag('search.semantic', default: true)]
+#[AsFeatureFlag('Bad Name')]
+#[AsFeatureFlag('rollout.half', percent: 50)]
+final class FeatureFlagsTestDeclarations
+```
+
+— `vendor/semitexa/core/tests/Unit/Feature/FeatureFlagsTest.php`
+
 ## `#[AsPayloadHandler]`
 
 `Semitexa\Core\Attribute\AsPayloadHandler`
