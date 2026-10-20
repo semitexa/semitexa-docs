@@ -16,6 +16,10 @@ verified_against: 2026.10.20.0340
 
 Every `mcp` command, with the arguments and options the console actually defines.
 
+## `mcp:config`
+
+Handled by the `bin/semitexa` wrapper before PHP starts.
+
 ## `mcp:serve`
 
 MCP server on stdio: the tools, resources and prompts the installed packages provide, for a coding agent (dev only)
