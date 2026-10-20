@@ -511,6 +511,21 @@ Applies to: property
 
 _No usage found in this installation._
 
+## `#[RateLimit]`
+
+`Semitexa\Core\Attribute\RateLimit`
+
+Applies to: class. Repeatable.
+
+| parameter | type | required |
+|---|---|---|
+| `limit` | `int` | yes |
+| `perSeconds` | `int` | no |
+| `by` | `Semitexa\Core\RateLimit\RateLimitKey` | no |
+| `bucket` | `string` | no |
+
+_No usage found in this installation._
+
 ## `#[ResolveWith]`
 
 `Semitexa\Core\Resource\Attribute\ResolveWith`

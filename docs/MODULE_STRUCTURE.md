@@ -260,6 +260,7 @@ The complete table follows. **"Allowed in packages"** means standard production 
 | `Log` | core-only | Logging primitives | only `semitexa-core` | no | Framework primitive |
 | `PHPStan` | core-only | PHPStan rule sources | only `semitexa-core` | no | Excluded from autoload classmap; only the framework ships rules |
 | `Queue` | core-only | Queue primitives | only `semitexa-core` | no | Framework primitive |
+| `RateLimit` | core-only | Rate limiting: limiter, counter stores | only `semitexa-core` | no | Framework primitive |
 | `Redis` | core-only | Redis adapter | only `semitexa-core` | no | Framework primitive |
 | `Registry` | core-only | Registry pattern types | only `semitexa-core` | no | Framework primitive |
 | `Request` | core-only | Request types | only `semitexa-core` | no | Framework primitive |
@@ -426,6 +427,7 @@ Beyond Application/Db (already covered above), the following layers have explici
 | `Queue` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Message/`, `Transport/` only + PascalCase root files. Phase 3 batch 1. |
 | `Queue/Message` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Message\.php$/` | — | LEAF — basename ends in Message.php. Phase 3 batch 1. |
 | `Queue/Transport` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Transport(?:Factory)?\.php$/` | — | LEAF — Transport / TransportFactory naming. Phase 3 batch 1. |
+| `RateLimit` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — RateLimiter, its decision and key, the counter stores. The `#[RateLimit]` attribute lives in `Attribute/`. |
 | `Support` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | LEAF. Phase 3 batch 1 + tightening: drift-rejecting deny-list keeps Support from becoming a Helpers/Utils dumping ground. |
 | `Authorization` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF. Phase 3 batch 2. |
 | `Cookie` (semitexa-core) | `/^Cookie[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — basenames start with Cookie. Phase 3 batch 2. |
