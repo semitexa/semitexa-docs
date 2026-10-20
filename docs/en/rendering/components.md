@@ -172,6 +172,61 @@ The auth pages are components on `platform.form`. The project names the `#[AsFor
 
 A sign-in action writes the session (for example `AuthSessionWriter::setAuthenticated()`, which rotates the session id) and answers `redirectingTo(...)`. A wrong password is best a field error that does not say which half failed.
 
+### Password reset
+
+`semitexa/platform-user` holds the backend: `PasswordResetService` issues a single-use link that expires, keeps only the SHA-256 of its token, and limits how many links one account is sent. The project writes the two actions and says how the link is mailed:
+
+```php
+#[AsService]
+#[AsFormSubmitAction('app.auth.forgot')]
+final class ForgotPasswordAction implements UiFormSubmitActionInterface
+{
+    #[InjectAsReadonly]
+    protected PasswordResetService $resets;
+
+    public function name(): string { return 'app.auth.forgot'; }
+
+    public function handle(UiFormSubmitActionContext $context): UiFormSubmitActionResult
+    {
+        // The current site's tenant id, or null on a single-site install: with null,
+        // an address registered on two sites gets no link.
+        $this->resets->request((string) ($context->values['email'] ?? ''), $tenantId);
+
+        return UiFormSubmitActionResult::accepted('If that address has an account, a link is on its way.')->resettingForm();
+    }
+}
+
+#[AsService]
+#[AsFormSubmitAction('app.auth.reset')]
+final class ResetPasswordAction implements UiFormSubmitActionInterface
+{
+    #[InjectAsReadonly]
+    protected PasswordResetService $resets;
+
+    public function name(): string { return 'app.auth.reset'; }
+
+    public function handle(UiFormSubmitActionContext $context): UiFormSubmitActionResult
+    {
+        $result = $this->resets->reset((string) ($context->props['token'] ?? ''), (string) ($context->values['password'] ?? ''));
+
+        return match ($result->outcome) {
+            PasswordResetOutcome::Reset => UiFormSubmitActionResult::accepted('Password changed.')->redirectingTo('/sign-in'),
+            PasswordResetOutcome::PasswordRejected => UiFormSubmitActionResult::rejected('Choose another password.')
+                ->withFieldErrors(['password' => (string) $result->passwordProblem]),
+            PasswordResetOutcome::InvalidToken => UiFormSubmitActionResult::rejected('This link has expired or was already used. Ask for a new one.'),
+        };
+    }
+}
+```
+
+The mailer is a `#[SatisfiesServiceContract(of: PasswordResetMailerInterface::class)]` class that sends the link, for example through `MailServiceInterface`. Until one is bound, `request()` throws for every address. The page that serves the reset form reads `token` from the query and passes it to `component('platform.reset-password', {submitAction: 'app.auth.reset', token: token})`.
+
+- **What `request()` reveals:** nothing. An unknown address, a disabled account, an account over its limit and a mailer that fails all look like a sent link (a failure is logged, without the token).
+- **The link:** build it from the site's configured address, never from the request's `Host` header, and repeat `#[\SensitiveParameter]` on `$token` in the mailer. A queued mail keeps its rendered body, so the live link sits in the mail store until it expires.
+- **After a reset:** the account's failed sign-ins and lock are cleared and its other links stop working. Sessions that are already signed in are **not** ended.
+- **Limits:** `PLATFORM_USER_RESET_TTL_SECONDS` (3600), `PLATFORM_USER_RESET_MAX_REQUESTS` (3) per `PLATFORM_USER_RESET_WINDOW_SECONDS` (900). The limit protects one inbox from floods; it is not a lock, and it does not throttle a client that asks for many addresses.
+- **Schema:** `orm:sync` creates `platform_user_password_reset`.
+
 Settings pages embed `@platform-ui/pages/settings.html.twig`. It takes `sections: [{key, label, href, icon}]` and `current`, and fills `{% block section %}`. The section links sit beside the content, or become a scrolling row in a narrow container. `component('platform.appearance-settings')` lets the visitor choose light, dark or system (the `skin-mode` behavior): it is kept in this browser and applied before paint.
 
 ## State on the server
