@@ -44,7 +44,7 @@ final class ChargeCardListener
 }
 ```
 
-With no retries left the message moves to `<queue>.failed` on the same transport, carrying the listener, the event and the error. The same happens when the message cannot run at all: a listener class that no longer exists goes there at once, and a listener or event that cannot be built follows the retry policy first. A payload that is not a readable message is kept there as it came: `raw` holds it as text, and `raw_base64` holds its exact bytes, which matters when the payload is not valid UTF-8. Nothing replays the failed queue for you: read it with a consumer of your own and publish what should run again back onto the queue. If writing to the failed queue itself fails, the worker logs it and the message is not kept; for an unreadable payload the log line gives its size and SHA-1. A queued payload handler (`#[AsPayloadHandler]`) follows the same policy.
+With no retries left the message moves to `<queue>.failed` on the same transport, carrying the listener, the event and the error. The same happens when the message cannot run at all: a listener class that no longer exists goes there at once, and a listener or event that cannot be built follows the retry policy first. A payload that is not a readable message is kept there as it came: `raw` holds it as text, and `raw_base64` holds its exact bytes, which matters when the payload is not valid UTF-8. `bin/semitexa queue:failed` lists what is there and `queue:retry` queues it again — see [Watching the queues](#watching-the-queues). If writing to the failed queue itself fails, the worker logs it and the message is not kept; for an unreadable payload the log line gives its size and SHA-1. A queued payload handler (`#[AsPayloadHandler]`) follows the same policy.
 
 ## What reaches the listener
 
@@ -59,3 +59,21 @@ The event is serialized through its **getters** and rebuilt through its **setter
 ## Running the worker
 
 `bin/semitexa server:start` starts a `worker` service in a container of its own (`docker-compose.worker.yml`), and `server:stop` stops it. Being its own container, it can be given its own resources and scaled apart from the web server: set `WORKER_REPLICAS=3` in `.env` and run `bin/semitexa server:restart`. Start it through `bin/semitexa`, not a bare `docker compose`: `server:start` hands the worker the database, cache and broker addresses the overlays give the app. It runs every process `bin/semitexa worker:processes` lists: one `queue:work` for the default queue and for every queue a queued listener or a queued handler names in `queue:`, and what the other installed packages need (`mail:work`, `media:work`, `scheduler:plan` once a minute and one `scheduler:work` per pool, `webhook:work`), each started again when it exits. A queue or package you add later is picked up by `bin/semitexa server:restart`. With `EVENTS_ASYNC=0` nothing is queued, so the worker runs only what needs no queue (the scheduler and webhook delivery): the transport would be in-memory, one per process, which no worker can read. A queued listener then runs in the process that dispatched the event, as an `Async` one does (after the response, in a request). It gets the event rebuilt from its getters, and it is resolved and run with no request context (no tenant, signed-in user or locale of the request), as a worker would, so the rules in "What reaches the listener" still apply. A failure is logged rather than thrown at the caller, and `maxRetries`, `retryDelay` and the failed queue do not apply. A mail sent with `MailSendMode::Queued` (the default) is sent at once, within the request, in a single attempt.
+
+## Watching the queues
+
+```bash
+bin/semitexa queue:stats                      # every queue a worker reads, last 15 minutes
+bin/semitexa queue:stats --queue=orders --window=2h --json
+bin/semitexa queue:failed --queue=orders      # dead letters, newest first; --payload prints them
+bin/semitexa queue:retry <id> --queue=orders  # queue it again, attempts start over
+bin/semitexa queue:retry --all --queue=orders --forget
+```
+
+`queue:stats` shows per queue: jobs done, retried and dead-lettered, the rate per minute, how long jobs waited (from entering the queue to starting) and ran — average and p95 — and how many wait now and for how long. Percentiles are estimates from fixed buckets (10 ms … 30 s): "p95 ≤ 250 ms" means 95 % finished within 250 ms.
+
+- **Where the counters live** (`QUEUE_STATS_STORE`): `auto` (default) uses Redis when `REDIS_HOST` is set, so a worker in its own container and the command in another read the same numbers; otherwise files under `var/queue-stats`, shared only on one host. `file` and `off` choose explicitly. Each finished job is written at once; counters are kept a week.
+- **Dead letters** are what the transport already keeps on `<queue>.failed`: database rows (also messages the transport itself gave up on), or messages on the NATS stream. A retry queues a fresh copy and removes the letter; on NATS, whose queue stream allows no delete, the letter is marked handled instead, and a second retry of the same letter inside JetStream's duplicate window is dropped. A payload that was never readable can only be forgotten.
+- **The in-memory transport** keeps nothing to inspect: the commands say so.
+- **Not counted yet:** the mail and media queues are read by their own workers (`mail:work`, media), which record no counters; their dead letters still list and retry.
+

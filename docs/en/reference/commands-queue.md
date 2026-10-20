@@ -48,6 +48,21 @@ bin/semitexa queue:retry ["id"]
 | `--forget` | no |
 | `--dry-run` | no |
 
+## `queue:stats`
+
+Throughput, failures, wait and run time per queue, and what is waiting now.
+
+```bash
+bin/semitexa queue:stats
+```
+
+| option | takes a value |
+|---|---|
+| `--transport` | yes |
+| `--queue` | yes |
+| `--window` | yes |
+| `--json` | no |
+
 ## `queue:work`
 
 Run a queue worker (processes queued listeners and handlers enqueued with execution: queued)
