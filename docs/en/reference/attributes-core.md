@@ -200,11 +200,11 @@ Applies to: class
 | `priority` | `int` | no |
 
 ```php
-#[AsPipelineListener(phase: AuthCheck::class, priority: 0)]
-final class AuthorizationListener implements PipelineListenerInterface
+#[AsPipelineListener(phase: AuthCheck::class, priority: 1)]
+final class RequiresScopeListener implements PipelineListenerInterface
 ```
 
-— `vendor/semitexa/authorization/src/Pipeline/AuthorizationListener.php`
+— `vendor/semitexa/api/src/Pipeline/RequiresScopeListener.php`
 
 ## `#[AsPublicPayload]`
 
