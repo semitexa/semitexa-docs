@@ -524,7 +524,12 @@ Applies to: class. Repeatable.
 | `by` | `Semitexa\Core\RateLimit\RateLimitKey` | no |
 | `bucket` | `string` | no |
 
-_No usage found in this installation._
+```php
+#[RateLimit(2, 60)]
+final class LimitedPingPayload
+```
+
+— `vendor/semitexa/core/tests/Fixtures/RateLimitDemo/Payload/LimitedPingPayload.php`
 
 ## `#[ResolveWith]`
 
