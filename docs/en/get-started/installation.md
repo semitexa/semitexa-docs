@@ -65,6 +65,8 @@ bin/semitexa routes:list --json
 - Load the printed URL in a browser.
 - `bin/semitexa logs:app` shows the application log when something fails.
 
+When a new release comes out, [Upgrading](upgrading.md) moves the project to it with `bin/semitexa update`.
+
 ## Why this matters
 
 If the first boot path is ambiguous, every later problem becomes harder to diagnose. Semitexa should feel operationally legible from the first hour.
