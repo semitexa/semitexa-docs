@@ -275,14 +275,14 @@ Applies to: class
 
 ```php
 #[AsServerLifecycleListener(
-    phase: ServerLifecyclePhase::WorkerStartFinalize->value,
+    phase: ServerLifecyclePhase::PreStart->value,
     priority: 0,
-    requiresContainer: true,
+    requiresContainer: false,
 )]
-final class WarmResourceMetadataListener implements ServerLifecycleListenerInterface
+final class CreateRateLimitTableListener implements ServerLifecycleListenerInterface
 ```
 
-— `vendor/semitexa/core/src/Resource/Lifecycle/WarmResourceMetadataListener.php`
+— `vendor/semitexa/core/src/RateLimit/CreateRateLimitTableListener.php`
 
 ## `#[AsService]`
 
