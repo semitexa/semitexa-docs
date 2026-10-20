@@ -16,7 +16,7 @@ verified_against: 2026.10.20.0340
 
 What each part of the public surface is, generated from the code itself.
 
-This installation exposes 136 attributes, 209 commands and 12 events.
+This installation exposes 137 attributes, 210 commands and 12 events.
 
 Reference says what a thing is. For when you would want it, see the guides under `en/`.
 
@@ -32,6 +32,7 @@ Reference says what a thing is. For when you would want it, see the guides under
 - [graphql](attributes-graphql.md)
 - [ledger](attributes-ledger.md)
 - [llm](attributes-llm.md)
+- [mcp](attributes-mcp.md)
 - [media](attributes-media.md)
 - [orm](attributes-orm.md)
 - [platformui](attributes-platformui.md)
@@ -64,6 +65,7 @@ Reference says what a thing is. For when you would want it, see the guides under
 - [logs](commands-logs.md)
 - [mail](commands-mail.md)
 - [make](commands-make.md)
+- [mcp](commands-mcp.md)
 - [media](commands-media.md)
 - [openapi](commands-openapi.md)
 - [orm](commands-orm.md)
