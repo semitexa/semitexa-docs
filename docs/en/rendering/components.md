@@ -184,10 +184,18 @@ final class ForgotPasswordAction implements UiFormSubmitActionInterface
     #[InjectAsReadonly]
     protected PasswordResetService $resets;
 
+    #[InjectAsMutable]
+    protected RateLimiter $limiter;
+
     public function name(): string { return 'app.auth.forgot'; }
 
     public function handle(UiFormSubmitActionContext $context): UiFormSubmitActionResult
     {
+        // The service limits mail to one inbox; this limits one client asking for many.
+        if (!$this->limiter->attempt('password-reset', 5, 900)->allowed) {
+            return UiFormSubmitActionResult::rejected('Too many requests. Try again later.');
+        }
+
         // The current site's tenant id, or null on a single-site install: with null,
         // an address registered on two sites gets no link.
         $this->resets->request((string) ($context->values['email'] ?? ''), $tenantId);
@@ -224,7 +232,7 @@ The mailer is a `#[SatisfiesServiceContract(of: PasswordResetMailerInterface::cl
 - **What `request()` reveals:** nothing. An unknown address, a disabled account, an account over its limit and a mailer that fails all look like a sent link (a failure is logged, without the token).
 - **The link:** build it from the site's configured address, never from the request's `Host` header, and repeat `#[\SensitiveParameter]` on `$token` in the mailer. A queued mail keeps its rendered body, so the live link sits in the mail store until it expires.
 - **After a reset:** the account's failed sign-ins and lock are cleared and its other links stop working. Every new password raises `PlatformUser::getCredentialVersion()`, so OS console sessions signed in with the old one end on their next request. A project that signs platform users in through its own session stores the version at sign-in and compares it the same way.
-- **Limits:** `PLATFORM_USER_RESET_TTL_SECONDS` (3600), `PLATFORM_USER_RESET_MAX_REQUESTS` (3) per `PLATFORM_USER_RESET_WINDOW_SECONDS` (900). The limit protects one inbox from floods; it is not a lock, and it does not throttle a client that asks for many addresses.
+- **Limits:** `PLATFORM_USER_RESET_TTL_SECONDS` (3600), `PLATFORM_USER_RESET_MAX_REQUESTS` (3) per `PLATFORM_USER_RESET_WINDOW_SECONDS` (900). The limit protects one inbox from floods; it is not a lock. A client asking for many addresses is limited in the action, with `RateLimiter` as above (see [Rate Limiting](../routing/rate-limiting.md)).
 - **Schema:** `orm:sync` creates `platform_user_password_reset`.
 
 Settings pages embed `@platform-ui/pages/settings.html.twig`. It takes `sections: [{key, label, href, icon}]` and `current`, and fills `{% block section %}`. The section links sit beside the content, or become a scrolling row in a narrow container. `component('platform.appearance-settings')` lets the visitor choose light, dark or system (the `skin-mode` behavior): it is kept in this browser and applied before paint.
