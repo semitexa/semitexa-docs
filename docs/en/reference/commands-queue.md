@@ -18,7 +18,7 @@ Every `queue` command, with the arguments and options the console actually defin
 
 ## `queue:work`
 
-Run async events worker (processes handlers enqueued with execution: async)
+Run a queue worker (processes queued listeners and handlers enqueued with execution: queued)
 
 ```bash
 bin/semitexa queue:work ["transport"] ["queue"]

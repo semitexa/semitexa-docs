@@ -31,20 +31,24 @@ Domain listeners use `#[AsEventListener(event: EventClass::class, execution: ...
 
 When **EVENTS_ASYNC=1**, the app uses NATS JetStream. If you run with Docker, `bin/semitexa server:start` automatically uses `docker-compose.nats.yml` (so NATS is started and the app connects to the `nats` service via `NATS_PRIMARY_URL`).
 
-### Sync vs async per handler
+### Sync, async or queued per handler
 
-Every declared handler (e.g. `#[AsPayloadHandler(...)]`) has an **execution** option:
+Every declared handler (e.g. `#[AsPayloadHandler(...)]`) has an **execution** option. It takes the same three values as a listener's, with the same meaning:
 
-- **Sync** (default): handler runs in the same process and blocks the HTTP response until it finishes.
-- **Async**: handler is enqueued; the HTTP response is sent immediately and the handler runs later.
+- **Sync** (default): the handler runs in the request and the HTTP response waits for it.
+- **Async**: the handler runs in the same process right after the response is sent, with the request's context: session, auth, tenant and locale are the request's. The resource it returns is sent to the page over SSE. It runs again on each re-run of a live region, so the region gets a fresh result. The session was saved with the response, so what the handler writes to it is lost. It is not durable: a worker that is being recycled lets it finish within about two seconds and then cancels it, and there are no retries. A failure is logged.
+- **Queued**: the handler is enqueued, and a worker runs it later, in its own container. `transport`, `queue`, `maxRetries` and `retryDelay` apply, and so does the dead-letter queue. The request's context does not: the worker gets copies of the payload and resource, so the handler must not depend on the session or the signed-in user. Use it for heavy work, such as an export, a report or a call to a slow API, so it does not slow the site down. With `EVENTS_ASYNC=0` no worker reads the in-memory transport, so the handler runs in the same process right after the response is sent, without the request's context, as a worker would run it.
 
 ```php
 #[AsPayloadHandler(payload: SomeRequest::class, resource: SomeResponse::class, execution: HandlerExecution::Async)]
+#[AsPayloadHandler(payload: ExportRequest::class, resource: ExportResponse::class, execution: HandlerExecution::Queued, queue: 'exports', maxRetries: 3)]
 ```
+
+Both get copies of the payload and resource, so neither can change the response that was already sent. An `Async` handler that names a `transport`, `queue` or retries is reported at boot: those apply only to `Queued`. Before the October 2026 releases, `Async` meant what `Queued` means now, so a handler that relied on a worker must now say `Queued`. Messages already waiting for such a handler in its own queue get no worker until it does.
 
 ### HandlerCompleted event
 
-`HandlerCompleted` is a **domain event** dispatched once after the entire HandleRequest phase completes. It is not a pipeline phase — it is a side-effect for domain listeners (SSE push, analytics, etc.).
+`HandlerCompleted` is a **domain event** dispatched once after the entire HandleRequest phase completes. It is not a pipeline phase — it is a side-effect for domain listeners (SSE push, analytics, etc.). A re-run of a live region does not dispatch it, and does not run the route's queued handlers either: a re-run renders a fresh frame, and its async handlers run again for it.
 
 ### Running the worker (async events)
 
@@ -54,6 +58,8 @@ Every declared handler (e.g. `#[AsPayloadHandler(...)]`) has an **execution** op
 bin/semitexa worker:processes      # what the worker runs: "<pause> <command>" per line
 bin/semitexa queue:work nats events # one of them
 ```
+
+Each queue needs one kind of worker. If a listener names the queue `mail:work` reads (`MAIL_QUEUE`), `queue:work` would take the mail and `mail:work` the listener's messages, and each would fail what it took. So `worker:processes` runs neither, and prints on stderr which queue they share. Give each its own queue.
 
 ## Comparison
 

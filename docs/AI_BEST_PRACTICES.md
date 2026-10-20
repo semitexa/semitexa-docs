@@ -964,11 +964,11 @@ final class ValidateFileHandler implements TypedHandlerInterface { ... }
 #[AsPayloadHandler(payload: FileUploadPayload::class, resource: GenericResponse::class)]
 final class StoreFileHandler implements TypedHandlerInterface { ... }
 
-// Handler 3: notify (async — enqueued, not blocking)
+// Handler 3: notify (queued — a worker runs it, the response does not wait)
 #[AsPayloadHandler(
     payload: FileUploadPayload::class,
     resource: GenericResponse::class,
-    execution: HandlerExecution::Async,
+    execution: HandlerExecution::Queued,
 )]
 final class NotifyUploadHandler implements TypedHandlerInterface { ... }
 ```
@@ -1930,13 +1930,21 @@ LocaleContextStore::setFallbackLocale('en');
 
 ## 16. Queue & Async Handlers
 
-### Declaring an async handler
+`execution` takes the same three values as a listener's:
+
+| Value | Where it runs | Request context | Durable |
+|---|---|---|---|
+| `HandlerExecution::Sync` (default) | in the request, before the response | yes | — |
+| `HandlerExecution::Async` | same process, after the response; again on each live-region re-run | yes (session read-only, auth, tenant, locale) | no: ~2 s grace on a recycle, no retries |
+| `HandlerExecution::Queued` | a queue worker, in its own container | no: copies of payload + resource only | yes: retries, dead letter |
+
+### Declaring a queued handler
 
 ```php
 #[AsPayloadHandler(
     payload: OrderPlacedPayload::class,
     resource: GenericResponse::class,
-    execution: HandlerExecution::Async,
+    execution: HandlerExecution::Queued,
     transport: 'nats',
     queue: 'orders',
     maxRetries: 3,
@@ -1953,12 +1961,14 @@ final class SendOrderConfirmationHandler implements TypedHandlerInterface
 }
 ```
 
-### Execution flow
+### Execution flow (Queued)
 
-1. `PipelineExecutor` encounters an async handler in the handler group.
+1. `PipelineExecutor` encounters a queued handler in the handler group.
 2. Serializes payload + resource DTOs into a `QueuedHandlerMessage`.
 3. Publishes to the configured transport/queue.
 4. `QueueWorker` picks it up, deserializes, instantiates the handler, calls `handle()`.
+
+An `Async` handler skips all of that: it is resolved in the request, run on copies of the payload and resource after the response, inside the request's execution context, and its resource goes to the page over SSE.
 
 ### Retry & DLQ
 
@@ -1976,11 +1986,12 @@ final class SendOrderConfirmationHandler implements TypedHandlerInterface
 
 ### Rules
 
-- **Do** use `HandlerExecution::Async` for side-effect operations (email, analytics, file processing).
-- **Do** set `maxRetries` and `retryDelay` for async handlers.
-- **Do** keep async handler logic idempotent — retries can cause duplicate execution.
-- **Don't** depend on async handler results in the HTTP response — the handler is queued instead of running inline.
-- **Don't** access `Session` or `CookieJar` in async handlers — they're not available.
+- **Do** use `HandlerExecution::Async` for page data that may arrive after the response (it reaches the page over SSE).
+- **Do** use `HandlerExecution::Queued` for heavy or must-not-be-lost work (email, exports, file processing, slow APIs).
+- **Do** set `maxRetries` and `retryDelay` for queued handlers, and keep them idempotent — retries can cause duplicate execution.
+- **Don't** depend on async or queued handler results in the HTTP response — neither runs before it is sent.
+- **Don't** access `Session`, `CookieJar` or the signed-in user in queued handlers — the worker has no request.
+- **Don't** set `transport`, `queue` or retries on an `Async` handler — they apply only to `Queued`, and boot reports it.
 
 ---
 
