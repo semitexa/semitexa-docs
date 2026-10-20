@@ -24,5 +24,10 @@ Applies to: class
 
 Takes no arguments.
 
-_No usage found in this installation._
+```php
+#[AsMcpProvider]
+final class ProjectDocs implements McpResourceProviderInterface
+```
+
+— `vendor/semitexa/mcp/src/Application/Service/ProjectDocs.php`
 
