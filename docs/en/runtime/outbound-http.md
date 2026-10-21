@@ -95,3 +95,7 @@ $http->assertSent(fn (HttpRequest $r) => $r->header('x-api-key') === 'test-key')
 ## Under Swoole
 
 Curl is hooked by the server (`SWOOLE_HOOK_ALL`). The hook speaks HTTP/1.1 only and refuses curl options it does not implement, so the client uses only options the hook accepts; `CurlHttpClientCoroutineTest` runs it against a Swoole server to keep it that way. Calling `curl_*` yourself works too, with traps the client already avoids: the hook offers gzip unless told otherwise, a `CURLOPT_WRITEFUNCTION` then receives the body still compressed, and it is called before the header callback has seen the status. So under the server `onChunk` receives the body in one piece once the call succeeds; in the CLI it receives it as it arrives. A header value with a line break is refused when the request is built.
+
+## In a trace
+
+With semitexa/dev installed, every call the container's client makes is a `http.client` span in a dev trace (`?__trace=1`, then `/__trace` or `ai:observe show --id=<process>`): the method and the URL cut to its host and first path segment (`https://api.anthropic.com/v1/…`) — a webhook or bot URL carries its secret further down the path, and a trace is written to disk and rendered — then the status, the attempts and the bytes received (`streamed` for an `onChunk` call), or the transport failure's kind. A client built with `new` is not traced. A call made in a coroutine that outlives its request shows as never closed: the trace ended first.
