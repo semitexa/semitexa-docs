@@ -3,7 +3,7 @@ id: runtime/logging
 section: runtime
 slug: logging
 title: Logging
-summary: Write structured log lines through LoggerInterface, choose a file, stderr or both with LOG_SINK, and read them back with logs:app — rotation and levels included.
+summary: Write structured log lines through LoggerInterface, choose a file, stderr or both with LOG_SINK and per channel with LOG_CHANNELS, and read them back with logs:app — rotation and levels included.
 order: 60
 locale: en
 status: canonical
@@ -12,6 +12,7 @@ keywords:
   - LoggerInterface
   - StaticLoggerBridge
   - LOG_SINK
+  - LOG_CHANNELS
   - LOG_LEVEL
   - LOG_FILE
   - logs:app
@@ -53,9 +54,25 @@ Each line is written when it is logged, by the coroutine that logged it. While o
 |---|---|---|
 | `LOG_LEVEL` | `info` in dev, `warning` otherwise | lines below it are not written |
 | `LOG_SINK` | `file` | `file`, `stderr` or `both` |
+| `LOG_CHANNELS` | none | per-channel destinations, see [Routing channels](#routing-channels) |
 | `LOG_FILE` | `var/log/app.log` | relative to the project root (a leading `/` is ignored); `logs:app` and the Observatory read it there |
 | `LOG_MAX_BYTES` | 33554432 (32 MiB) | when the file passes this it is renamed aside with a timestamp suffix; `0` lets it grow |
 | `LOG_RETENTION_DAYS` | 14 | rotated files older than this are removed when the next rotation happens; `0` keeps them |
+
+## Routing channels
+
+`LOG_CHANNELS` sends a channel somewhere other than `LOG_SINK`: comma-separated `channel=route` pairs, where a route is `file` (`LOG_FILE`), `stderr`, `both`, `off` (dropped), or a file of the channel's own under `var/log/` ending in `.log`.
+
+```
+LOG_CHANNELS=audit=var/log/audit.log,security=both,sql=off
+```
+
+- A channel it does not name, and a line with no channel, go where `LOG_SINK` says. Channel names match exactly, case included.
+- A channel's own file is rotated like `LOG_FILE` (`LOG_MAX_BYTES`, `LOG_RETENTION_DAYS`).
+- A route that is none of these (a typo such as `of`, a path outside `var/log/`, one with `..`, `var/log/swoole.log`, `var/log/error.log` or `LOG_FILE` itself) is ignored with one warning in the error log per worker, and that channel follows `LOG_SINK`.
+- Each file and stderr get their lines in the order they were logged, whichever routes write them.
+- `logs:app` and the Observatory read `LOG_FILE` only, not a channel's own file.
+- There is no syslog or network route. A log shipper reading stderr (`LOG_SINK=stderr`) or the files is the way to a remote collector.
 
 ## In a container: stderr
 
