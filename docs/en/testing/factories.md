@@ -69,10 +69,10 @@ final class PlaceOrderTest extends TestCase
 The transaction opens before `setUp()` and is rolled back after `tearDown()`. Every ORM manager in the test process joins it, and a `TransactionManager::run()` inside the test becomes a savepoint, so nothing commits. That has two consequences:
 
 - Resource-changed signals never fire, for any write in the test, with a transaction of its own or without: inside the test transaction every write waits for a commit that never comes. Listeners on them (a site map refresh, cache invalidation) are not exercised; assert on rows, or test those listeners with `RefreshesTables`.
-- It refuses an in-memory SQLite database (one per connection: the test's would be empty) and Swoole coroutine hooks turned on inside the test (a coroutine pool would commit outside the transaction).
+- It refuses an in-memory SQLite database (one per connection: the test's would be empty). Database work inside a coroutine is not supported while it is open: one connection cannot be shared between coroutines, so a coroutine asking a pool for a connection is refused rather than given one that commits outside the transaction.
 - On MySQL, DDL (`CREATE`, `ALTER`, `DROP`) and `TRUNCATE` commit the transaction on their own. The test then fails after it ends, naming the cause, instead of leaving rows behind. Create tables in `setUpBeforeClass()`.
 
-The default connection is rolled back; override `connectionsToRollBack()` to add named ones. The trait refuses to start under the Swoole coroutine runtime (inside a coroutine, or with hooks enabled), where connections are pooled per coroutine and cannot join one transaction.
+The default connection is rolled back; override `connectionsToRollBack()` to add named ones. The trait refuses to start inside a Swoole coroutine. Hooks left on by an earlier `Co\run()` do not matter: outside a coroutine every pool hands out the test's connection.
 
 A test that cannot run inside a transaction — the code under test commits on purpose, runs coroutines, or changes the schema — empties its tables instead, with `RefreshesTables`:
 
