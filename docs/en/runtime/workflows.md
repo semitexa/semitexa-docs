@@ -128,7 +128,7 @@ Every guard on the transition runs, and every denial is collected. `$context` is
 
 ### Side effects
 
-A side effect runs once the new state is saved. It returns `SideEffectResult::success()` or `SideEffectResult::failure($code, $message)`; a thrown exception counts as a failure with code `exception`. A failure never undoes the transition: the engine logs a warning and, if the transition has a `RetryPolicy`, schedules a retry.
+A side effect runs once the new state is saved. It returns `SideEffectResult::success()` or `SideEffectResult::failure($code, $message)`; a thrown exception counts as a failure with code `exception`. A failure never undoes the transition: the engine logs a warning and, if the transition has a `RetryPolicy`, schedules a retry. A side effect that fails for good — no `RetryPolicy`, its last attempt failed, or its retry could not be scheduled — means the transition did not complete: the engine logs an error and dispatches `WorkflowFailed`. A retry that is dropped because the instance was deleted or the transition no longer declares that side effect is logged as a warning, with no event.
 
 ```php
 use Semitexa\Core\Attribute\AsService;
@@ -273,9 +273,9 @@ Those are the defaults. `maxAttempts` counts every run, the first one inside `ap
 - the job is dispatched with no pool (so `SCHEDULER_DEFAULT_POOL`), the instance's tenant id and a unique lock key;
 - the retry runs only a side effect the transition still declares, against the instance as it is now, not as it was when the transition was applied;
 - the `context` is stored as JSON: a date comes back as an array, an enum as its value (a warning is logged), and a context that cannot be encoded is replaced by `[]`;
-- after the last attempt fails, the engine logs an error ("failed N times; giving up"). Nothing else happens: no event, no history row, no status change.
+- after the last attempt fails, the engine logs an error ("failed N times; giving up") and dispatches `WorkflowFailed`. No history row is written and the status does not change.
 
-Without a scheduler, or when dispatching fails, the engine logs and does not retry.
+Without a scheduler, or when dispatching fails, the engine logs, does not retry, and dispatches `WorkflowFailed` at once.
 
 ## Events
 
@@ -304,10 +304,11 @@ final class NotifyOrderClosed
 | `WorkflowEnteredWaitingState` | after the above, when the status became `waiting` | instanceId, workflowKey, currentState, waitingUntil (ATOM string), tenantId |
 | `WorkflowManualActionRequired` | after the above, when the status became `awaiting_manual_action` | instanceId, workflowKey, subjectType, subjectId, currentState, pendingTransitionKey, tenantId |
 | `WorkflowTransitionRejected` | `invalid_transition` and `guard_denied` rejections | instanceId, workflowKey, transitionKey, fromState, rejectionReason, failureCode, tenantId |
+| `WorkflowFailed` | a side effect failed for good (see [Side effects](#side-effects)), once per such side effect: inside `apply()` after the transition's own events, or later from the retry job | instanceId, workflowKey, subjectType, subjectId, failedState (the instance's state when it was given up: after a retry, possibly a later state than the transition moved to), failureCode, failureMessage (`<transitionKey>: <side effect class>: <message>`), tenantId |
 
 At most one of `WorkflowCompleted`, `WorkflowEnteredWaitingState` and `WorkflowManualActionRequired` follows `WorkflowTransitionApplied`. `pendingTransitionKey` is the key of the transition that was just applied, not of one still to come.
 
-`WorkflowFailed` exists as a class, but nothing in the package dispatches it, and no code path sets the `failed` or `cancelled` status. A listener on `WorkflowFailed` never runs.
+`WorkflowFailed` does not change the instance: it keeps its state and status (a terminal state stays `completed`, so `WorkflowCompleted` can be followed by `WorkflowFailed`) and can take further transitions. What to do — compensate, alert, move it on by hand — is the listener's; the transition key in `failureMessage` says which transition did not complete. A listener that throws is logged and does not fail `apply()`, whose transition is already committed. No code path sets the `failed` or `cancelled` status.
 
 ## Persistence
 
