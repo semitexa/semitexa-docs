@@ -215,12 +215,12 @@ For a run with a `tenant_id`, whether it came from `per_tenant`, `dispatchAt(ten
 
 | Command | Arguments and options |
 |---|---|
-| `scheduler:list` | none. Reads `scheduler_schedule_definitions`, enabled rows only, and shows key, cron, next due time (UTC), pool, overlap, misfire, tenant mode and `Last Planned`, which is the planning cursor |
+| `scheduler:list` | none. Reads `scheduler_schedule_definitions`, enabled rows only, and shows key, cron, next due time (in the row's timezone, with the UTC time beside it when that is not UTC), pool, overlap, misfire, tenant mode and `Last Planned`, which is the planning cursor |
 | `scheduler:plan` | none. One pass: sync, then plan |
 | `scheduler:work` | `[pool]`, which defaults to `SCHEDULER_DEFAULT_POOL` or `default`. Runs until killed |
 | `scheduler:run-now` | `<schedule-key>`, `--tenant` / `-t <id>`, `--inline` |
 
-`scheduler:run-now` creates a run for an existing definition that is due now, using the definition's pool, attempts, backoff and the same lock key a planned run would get. Without `--inline`, a worker for that pool picks it up. With `--inline`, the command runs it in its own process through the same overlap, executor and retry path, and exits non-zero if the run did not succeed.
+`scheduler:run-now` creates a run for an existing definition that is due now, using the definition's pool, attempts, backoff and the same lock key a planned run would get. Without `--inline`, a worker for that pool picks it up. With `--inline`, the run is saved already claimed under the command's own lease, so no worker can claim it while the command holds it. The command runs it in its own process through the same overlap, executor and retry path, and exits non-zero unless a success was recorded. `renewLease()` works there as it does in a worker. A retry or an overlap delay it schedules goes to the workers, and so does a run whose lease ran out, because the job outlived it or the command was killed.
 
 ## Tables
 
@@ -266,7 +266,6 @@ A pool name must be a single plain word (`A–Z a–z 0–9 . _ : / = -`). Any o
 - **A pool with no worker never runs.** Only `default`, `SCHEDULER_DEFAULT_POOL` and pools named in an attribute get a `scheduler:work`. If you dispatch to any other pool, add your own `#[AsWorkerProcessSource]`, as the workflow package does for its timeout pools.
 - **A mistyped policy stops that schedule.** `overlapPolicy`, `misfirePolicy` and `tenantMode` are not checked when synced. A value outside the enum makes `scheduler:plan` report that schedule and pass over it on every pass; the other schedules are planned as usual. Its planning cursor does not move, so once the value is fixed, the occurrences missed meanwhile go through the misfire policy like an outage.
 - **`scheduler:list` and `scheduler:run-now` read the table, not the code.** A new job appears only after the next `scheduler:plan`.
-- **`renewLease()` always throws under `scheduler:run-now --inline`.** The inline run holds no lease, so a job that calls it fails its first attempt with `LeaseLostException`.
 - **`explicit_tenant` is refused.** Use `per_tenant`, or dispatch with a `tenantId`.
 - **New schedules do not backfill, and `run_once` runs late.** A daily 03:00 job with `run_once` whose planner was down until 09:00 runs once at 09:00. With `skip` it does not run that day. With `catch_up` and no `maxCatchUpRuns`, it runs every missed occurrence.
 - **The tables grow without limit.** Delete old `scheduler_runs` and `scheduler_run_history` rows yourself, for example from a scheduled job.
