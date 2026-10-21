@@ -75,6 +75,7 @@ The API has no listing, copy, move, append or signed-URL method. `put()` takes t
 | `STORAGE_S3_REGION` | `us-east-1` | Signing region |
 | `STORAGE_S3_ENDPOINT` | `https://s3.<region>.amazonaws.com` | Scheme, host and optional port of the store |
 | `STORAGE_S3_KEY` / `STORAGE_S3_SECRET` | empty | Access key pair |
+| `STORAGE_S3_PATH_STYLE` | by endpoint | `1`, `true`, `yes` or `on` puts the bucket in the path (`<endpoint>/<bucket>/<key>`), any other value in the host name; unset, an IP address, `localhost` or a one-word host (a compose service such as `objects`) is path style, any other host virtual-hosted |
 | `STORAGE_S3_MISSING_IS_FORBIDDEN` | off | `1`, `true`, `yes` or `on` makes a 403 on a read count as "not found" (see below) |
 
 `StorageManager` creates the driver on first use and keeps it for the worker's lifetime. After changing `STORAGE_DRIVER`, restart the server.
@@ -89,7 +90,7 @@ With more than one node, `local` only works if `var/uploads` is a volume that ev
 
 ### S3-compatible
 
-Requests are signed with Signature Version 4 and sent **virtual-hosted style**: `<scheme>://<bucket>.<endpoint host>[:port]/<key>`. Each request has a 30-second timeout, and an idempotent one (a read, a delete) is tried up to twice more, so one call can take longer. Each path segment of the key is percent-encoded, so spaces and non-ASCII characters work.
+Requests are signed with Signature Version 4 and sent **virtual-hosted style**, `<scheme>://<bucket>.<endpoint host>[:port]/<key>`, or **path style**, `<endpoint>/<bucket>/<key>`, as `STORAGE_S3_PATH_STYLE` and the endpoint decide (see the table). Each request has a 30-second timeout, and an idempotent one (a read, a delete) is tried twice in all, so one call can take about a minute. Each path segment of the key is percent-encoded, so spaces and non-ASCII characters work.
 
 `url()` builds a **path-style**, unsigned address instead, `<endpoint>/<bucket>/<key>`. It opens only for objects the bucket lets anyone read.
 
@@ -294,10 +295,10 @@ Every other limit sits below this one. A plain multipart route has no size limit
 
 ## Watch out for
 
-- **The S3 driver is virtual-hosted only.** It sends to `<bucket>.<endpoint host>`. A store that only supports path-style requests, or that is reached by a plain service name (`http://objects:9000` becomes host `<bucket>.objects`), must resolve and accept bucket subdomains. Check this before switching.
+- **Path style is chosen by the endpoint unless you say.** `http://objects:9000` and `http://127.0.0.1:9000` are path style without a setting; a self-hosted store behind a dotted name (`https://objects.example.com`, a cluster-internal `*.svc.cluster.local`) is sent virtual-hosted requests unless `STORAGE_S3_PATH_STYLE=1`. Set it too for a bucket whose name has dots over https: as a host name (`my.bucket.s3.…`) it fails the certificate check.
 - **`url()` is not a download link.** Local returns `''` unless `STORAGE_LOCAL_PUBLIC_URL` is set. S3 returns an unsigned path-style URL that works only for publicly readable objects. Store keys, and build URLs when you render.
 - **`delete()` on S3 costs two requests.** S3 answers 204 whether or not the key existed, so the driver asks first (HEAD) and returns `false` for a missing object, as the local driver does. Two deletes racing may both report `true`.
-- **`readStream()` on S3 is not streaming.** The whole object is downloaded into memory and then copied into a `php://temp` stream. Only the local driver returns a stream over the file itself.
+- **`readStream()` on S3 downloads first.** The object is written into a `php://temp` stream as it arrives (in memory up to 2 MiB, then a temporary file) and the stream is handed back once the download is complete, so a large object costs disk, not memory (inside the application server, up to twice its size while it arrives), and the 30-second timeout covers the whole download. A download that arrives shorter than the store said it is throws rather than returning a cut stream. Only the local driver returns a stream over the file itself.
 - **A key is a file, not a folder.** On the local driver a key that names a directory (`invoices` when `invoices/2026.pdf` exists) is no object: `exists()` is `false`, `get()`, `stat()` and `readStream()` return `null`, `delete()` returns `false`.
 - **The stored MIME type is what you passed.** The local driver records whatever `put()` received and returns it from `stat()` without checking. Detect the type from the bytes before you call `put()`. Never pass `$file->clientMimeType`.
 - **An empty file input is still a file.** Swoole delivers it with `UPLOAD_ERR_NO_FILE` and an empty temp path. `hasFile()` is `true` and a `?UploadedFile` setter receives an object, not `null`. Check `isOk()`.
