@@ -163,11 +163,12 @@ namespace App\Modules\Billing\Application\Service;
 use Semitexa\Core\Attribute\InjectAsReadonly;
 use Semitexa\Core\Attribute\SatisfiesServiceContract;
 use Semitexa\Orm\OrmManager;
+use Semitexa\Webhooks\Auth\Contract\ExpiringWebhookReplayStoreInterface;
 use Semitexa\Webhooks\Auth\Contract\WebhookReplayStoreInterface;
 use Semitexa\Webhooks\Auth\MySqlWebhookReplayStore;
 
 #[SatisfiesServiceContract(of: WebhookReplayStoreInterface::class)]
-final class SharedWebhookReplayStore implements WebhookReplayStoreInterface
+final class SharedWebhookReplayStore implements ExpiringWebhookReplayStoreInterface
 {
     #[InjectAsReadonly]
     protected OrmManager $orm;
@@ -181,9 +182,14 @@ final class SharedWebhookReplayStore implements WebhookReplayStoreInterface
     public function isShared(): bool { return true; }
     public function diagnosticName(): string { return 'mysql'; }
 
-    public function cleanupExpired(?int $limit = null): int
+    public function cleanupExpired(?\DateTimeImmutable $now = null, ?int $limit = null, ?string $tenantId = null): int
     {
-        return $this->store()->cleanupExpired(null, $limit);
+        return $this->store()->cleanupExpired($now, $limit, $tenantId);
+    }
+
+    public function countExpired(?\DateTimeImmutable $now = null, ?string $tenantId = null): int
+    {
+        return $this->store()->countExpired($now, $tenantId);
     }
 
     private function store(): MySqlWebhookReplayStore
@@ -193,7 +199,7 @@ final class SharedWebhookReplayStore implements WebhookReplayStoreInterface
 }
 ```
 
-Run `bin/semitexa contracts:list` afterwards and check that this class, not `InMemoryWebhookReplayStore`, is the active implementation of `WebhookReplayStoreInterface`. Schedule `cleanupExpired()` yourself: `webhook:cleanup` does not reach a store bound this way (see Watch out).
+Run `bin/semitexa contracts:list` afterwards and check that this class, not `InMemoryWebhookReplayStore`, is the active implementation of `WebhookReplayStoreInterface`. Because it implements `ExpiringWebhookReplayStoreInterface`, `webhook:cleanup` deletes its expired keys; schedule that command. A wrapper written before 2026-10-21 implements only `WebhookReplayStoreInterface` with `cleanupExpired(?int $limit)`: `webhook:cleanup` skips it until it implements `ExpiringWebhookReplayStoreInterface` with the signatures above.
 
 ### The inbox
 
@@ -294,7 +300,7 @@ When the lease has run out before the result is written, another worker may alre
 |---|---|
 | `webhook:work` | `[worker-id]` (default `webhook-worker-{hostname}-{pid}`), `[poll-interval]` in seconds (default 5) — runs until killed; sleeps the interval only when nothing is due |
 | `webhook:show` | `<type>` = `endpoints`, `inbox`, `outbox` or `attempts`; `[id]`; `--status` / `-s`; `--limit` / `-l` (default 20) |
-| `webhook:replay:outbound` | `<id>` — resets the outbox row to `pending`, due now, `attempt_count` 0, lease cleared, and logs a `replayed` attempt |
+| `webhook:replay:outbound` | `<id>` `[--force]` — resets the outbox row to `pending`, due now, `attempt_count` 0, lease cleared, and logs a `replayed` attempt. Refused while a worker holds a live lease on it; a `delivered` row needs `--force` |
 | `webhook:replay:inbound` | `<id>` — meant to re-run an inbox row through the receiver; fails in this release (see The inbox) |
 | `webhook:cleanup` | `--dry-run`, `--batch-size` / `-b` (rows per table per run, default 1000, 0 = no limit), `--retention-days` (default `WEBHOOK_RETENTION_DAYS`), `--tenant` |
 
@@ -324,8 +330,5 @@ The variables named by your `secretRef` values hold the secrets. `WEBHOOK_MAX_AT
 - **A missing outbound secret stops the delivery.** If the endpoint's `env:` variable is unset or empty, the attempt fails and is retried on the usual backoff until its attempts run out, so setting the secret in time lets it through. An endpoint with a `signingMode` and no `secretRef` fails at once, permanently. The outbound signer reads only `env:` and literal references; a custom `WebhookSecretResolverInterface` applies to receiving only.
 - **Keep the timeout well under the lease.** A send that outlasts `WEBHOOK_LEASE_SECONDS` (the timeout plus the DNS lookup) is reclaimed and sent again by another worker.
 - **Redirects never deliver.** A 3xx is retried until attempts run out; register the final URL, `https://` included.
-- **`webhook:replay:outbound` does not check the status.** A `delivered` row is sent again, and a `delivering` one loses its lease while it is in flight, so two workers send it.
-- **`webhook:show` lists shortened ids.** List rows show the first 8 characters, which the replay commands cannot use. A UUIDv7 starts with its timestamp, so rows created within about a minute of each other share that prefix.
-- **`webhook:cleanup` does not clean a replay store you bound.** It asks the container for `MySqlWebhookReplayStore` itself, which the container never builds, and reports "no MySQL backing". Since expired MySQL keys keep blocking, call `cleanupExpired()` on a schedule.
 - **Sequential delivery.** One worker sends one request at a time, so a slow receiver delays everything behind it. Add `WORKER_REPLICAS` rather than raising timeouts.
 - **Tenants share one key space.** `endpoint_key` is unique across the table and lookups by key ignore the tenant; give each tenant's endpoint its own key.
