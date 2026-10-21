@@ -116,6 +116,8 @@ A `Queued` send is published to a queue only when the queue can reach another pr
 |---|---|---|---|
 | the config resolver threw | `Failed` | `config_error` | none |
 | the template failed to render | `Failed` | `render_failed` | none |
+| no recipient (`to`, `cc`, `bcc` empty) | `Failed` | `invalid_recipient` | none |
+| an inline attachment is over 256 KB | `Failed` | `attachment_missing` | none |
 | a message with the same idempotency key was already sent | `Sent` | | the existing one; its id is returned |
 | a message with the same idempotency key is still on its way (`pending`, `queued`, `sending`) | `Queued` | | the existing one; its id is returned |
 | published to the queue | `Queued` | | `queued` |
@@ -146,7 +148,7 @@ new AttachmentReference(
 );
 ```
 
-The contents are loaded when the mail is delivered, not when it is sent. `inlineContents` wins over `storagePath`. Inline contents are stored base64-encoded in the row and may be at most 256 KB (`AttachmentReference::MAX_INLINE_SIZE`). A storage path is read with `StorageDriverInterface::get()`. A reference with neither, a storage file that is not there, or inline contents over the limit fail the message with `attachment_missing`.
+The contents are loaded when the mail is delivered, not when it is sent. `inlineContents` wins over `storagePath`. Inline contents are stored base64-encoded in the row; the decoded contents may be at most 256 KB (`AttachmentReference::MAX_INLINE_SIZE`). A storage path is read with `StorageDriverInterface::get()`. Inline contents over the limit are refused by `send()` itself (`Failed`, `attachment_missing`, nothing stored); a reference with neither, or a storage file that is not there, fails the message with `attachment_missing` on delivery.
 
 A part is written as `Content-Disposition: inline` with a `Content-ID` only when `disposition` is `'inline'` and `contentId` is set; otherwise it is an attachment. The file name is quoted with control characters dropped (a non-ASCII name is also sent RFC 2231-encoded), a MIME type that is not `type/subtype` becomes `application/octet-stream`, and a `Content-ID` keeps only letters, digits and `.@_+=-`.
 
@@ -406,7 +408,7 @@ See also [Requests and Fakes](../testing/requests-and-fakes.md).
 - **Text templates compiled before the upgrade stay HTML-escaped** until `bin/semitexa cache:clear`: Twig keeps the escaping it compiled with.
 - **An unknown `MAIL_DRIVER` fails the mail.** The row becomes `failed` with `config_error`, in `send()` and in the worker; fix the setting and `send()` again under the key.
 - **The worker reads the config at delivery time.** A queued mail is delivered with the resolver's answer for its tenant and `mailerKey` as it is when the worker runs, not when it was sent. The sender address and bodies were fixed when it was stored.
-- **Large inline attachments fail late.** Inline contents over 256 KB are stored and queued, then fail on delivery with `attachment_missing`. Use a storage path.
+- **A large inline attachment is refused by `send()`.** Inline contents over 256 KB make `send()` return `Failed` with `attachment_missing` before anything is stored. Use a storage path.
 - **A mail needs a recipient.** With no `to`, `cc` or `bcc`, `send()` returns `Failed` with `invalid_recipient` and stores nothing.
 - **`send()` inside a database transaction publishes before the commit.** The queue message goes out right after the row is written, so a worker may look for the row before it is committed (it then drops the message as not found), and a rollback leaves a queue message for a row that never existed.
 - **The tables grow without limit.** Every rendered body and every inline attachment stays in `mail_messages`. Delete old rows yourself, for example from a [scheduled job](scheduler.md).
