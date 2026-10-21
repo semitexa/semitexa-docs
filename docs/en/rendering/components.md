@@ -174,60 +174,21 @@ A sign-in action writes the session (for example `AuthSessionWriter::setAuthenti
 
 ### Password reset
 
-`semitexa/platform-user` holds the backend: `PasswordResetService` issues a single-use link that expires, keeps only the SHA-256 of its token, and limits how many links one account is sent. The project writes the two actions and says how the link is mailed:
+`semitexa/platform-user` holds the backend: `PasswordResetService` issues a single-use link that expires, keeps only the SHA-256 of its token, and limits how many links one account is sent. The two actions ship with platform-ui:
 
-```php
-#[AsService]
-#[AsFormSubmitAction('app.auth.forgot')]
-final class ForgotPasswordAction implements UiFormSubmitActionInterface
-{
-    #[InjectAsReadonly]
-    protected PasswordResetService $resets;
+```twig
+{{ component('platform.forgot-password', {submitAction: 'platform.auth.forgot-password', signInHref: '/sign-in'}) }}
 
-    #[InjectAsMutable]
-    protected RateLimiter $limiter;
-
-    public function name(): string { return 'app.auth.forgot'; }
-
-    public function handle(UiFormSubmitActionContext $context): UiFormSubmitActionResult
-    {
-        // The service limits mail to one inbox; this limits one client asking for many.
-        if (!$this->limiter->attempt('password-reset', 5, 900)->allowed) {
-            return UiFormSubmitActionResult::rejected('Too many requests. Try again later.');
-        }
-
-        // The current site's tenant id, or null on a single-site install: with null,
-        // an address registered on two sites gets no link.
-        $this->resets->request((string) ($context->values['email'] ?? ''), $tenantId);
-
-        return UiFormSubmitActionResult::accepted('If that address has an account, a link is on its way.')->resettingForm();
-    }
-}
-
-#[AsService]
-#[AsFormSubmitAction('app.auth.reset')]
-final class ResetPasswordAction implements UiFormSubmitActionInterface
-{
-    #[InjectAsReadonly]
-    protected PasswordResetService $resets;
-
-    public function name(): string { return 'app.auth.reset'; }
-
-    public function handle(UiFormSubmitActionContext $context): UiFormSubmitActionResult
-    {
-        $result = $this->resets->reset((string) ($context->props['token'] ?? ''), (string) ($context->values['password'] ?? ''));
-
-        return match ($result->outcome) {
-            PasswordResetOutcome::Reset => UiFormSubmitActionResult::accepted('Password changed.')->redirectingTo('/sign-in'),
-            PasswordResetOutcome::PasswordRejected => UiFormSubmitActionResult::rejected('Choose another password.')
-                ->withFieldErrors(['password' => (string) $result->passwordProblem]),
-            PasswordResetOutcome::InvalidToken => UiFormSubmitActionResult::rejected('This link has expired or was already used. Ask for a new one.'),
-        };
-    }
-}
+{# the page the link opens: it reads token from the query #}
+{{ component('platform.reset-password', {submitAction: 'platform.auth.reset-password', token: token, signInHref: '/sign-in'}) }}
 ```
 
-The mailer is a `#[SatisfiesServiceContract(of: PasswordResetMailerInterface::class)]` class that sends the link, for example through `MailServiceInterface`. Until one is bound, `request()` throws for every address. The page that serves the reset form reads `token` from the query and passes it to `component('platform.reset-password', {submitAction: 'app.auth.reset', token: token})`.
+- `platform.auth.forgot-password` asks the service for a link for the address on the current site (the request's tenant; on a single-site install an address registered on two sites gets none), limits one client address to five requests in fifteen minutes, and answers the same whether or not the address has an account — in wording and in time: every answer takes at least `PLATFORM_USER_RESET_ANSWER_MS` (1500 ms). Behind a reverse proxy, set the trusted proxies, or every visitor shares the proxy's address and its limit. Owners (accounts with no site) reset from the root site. Without a mailer configured it says reset is not available.
+- `platform.auth.reset-password` checks the repeat, resets the password with the signed `token`, and after a reset sends the browser to `signInHref` when it is a path on this site (a full URL, `//host` or `/\host` is ignored). A used or expired link is refused with a prompt to ask for a new one. The token is in the page's form and its URL: serve that page with `Referrer-Policy: no-referrer`.
+
+A project that wants other wording or a step of its own still writes its own actions on `PasswordResetService`, the same way.
+
+The link goes out by mail (semitexa/mail) once `PLATFORM_USER_RESET_URL` says where it points: an absolute URL with `{token}` in it, such as `https://example.com/reset-password?token={token}`. The site's address is taken from there, never from the request's `Host` header, which the person asking controls. Until it is set, `request()` refuses every address alike. A mail that could not be sent is logged, without the token, and the form still answers as for any address. The mail is plain text, in English, valid for `PLATFORM_USER_RESET_TTL_SECONDS` (an hour by default); for other wording or language, or a multi-site install whose sites live on different hosts, bind your own `PasswordResetMailerInterface` (`#[SatisfiesServiceContract]`).
 
 - **What `request()` reveals:** nothing. An unknown address, a disabled account, an account over its limit and a mailer that fails all look like a sent link (a failure is logged, without the token).
 - **The link:** build it from the site's configured address, never from the request's `Host` header, and repeat `#[\SensitiveParameter]` on `$token` in the mailer. A queued mail keeps its rendered body, so the live link sits in the mail store until it expires.
