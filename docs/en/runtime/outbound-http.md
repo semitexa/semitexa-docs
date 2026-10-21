@@ -70,7 +70,7 @@ None unless asked: resending a request is a decision about the other side, and a
 - `RetryPolicy::linear(3, 500)` — 0.5 s, 1 s, 1.5 s.
 - `->allowingNonIdempotent()` — POST and PATCH too, for an API known to tolerate a repeat.
 
-A retry follows a transport failure worth another try (not `tls`, `too_large` or `protocol`) and the statuses 429, 500, 502, 503 and 504. A `Retry-After` header, in seconds or as a date, sets the wait, up to the cap. `$response->attempts` says how many it took.
+A retry follows a transport failure worth another try (not `tls`, `too_large` or `protocol`) and the statuses 429, 500, 502, 503, 504 and 529 (overloaded). A `Retry-After` header, in seconds or as a date, sets the wait, up to the cap. `$response->attempts` says how many it took.
 
 ## In tests
 
