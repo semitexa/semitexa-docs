@@ -258,6 +258,31 @@ search it. A match is listed under the screen's plural, by its `title()`. It ope
 edit dialog, or the view dialog for a visitor who may not edit. A screen with no searchable field
 is not searched.
 
+## A users screen
+
+`semitexa/platform-user`'s accounts come as a ready screen, `PlatformUsersCrud`. Declare it with your own route, layout and permission:
+
+```php
+use Semitexa\Crud\Application\Payload\Request\PlatformUsersCrud;
+use Semitexa\Crud\Attribute\AsCrud;
+use Semitexa\Platform\User\Application\Db\MySQL\Model\PlatformUserResourceModel;
+
+#[AsCrud(id: 'admin.users', path: '/admin/users', model: PlatformUserResourceModel::class,
+    label: 'User', permission: 'users', nav: 'Administration', icon: 'users')]
+final class UsersCrud extends PlatformUsersCrud
+{
+}
+```
+
+- It lists, searches and filters users, and edits a name, a role (owner, admin, editor) and a status (active or disabled; a disabled account's sessions end on its next request). The address and the site are shown, not edited.
+- What it holds is decided by who is signed in, not by the site the request names (one session can reach several sites): an owner holds every user; anyone else their own site's users, owners left out — by list, by address (`?edit=<id>`) and by row action; a visitor who is not a semitexa/platform-user account holds nobody.
+- Only an owner or an admin changes users; an editor holding `users.edit` still only reads. Nobody gives a role above their own, edits a user whose role is above theirs, or changes their own role or status (another administrator does, or `bin/semitexa`). An owner belongs to no site and a site's user is never made one: owners are made with `user:add --role=owner`, which refuses a `--tenant` for them.
+- A row action, **Send password reset link**, mails the user a link to choose a new password, through the same service and limits as the "forgot password" form; the administrator never sees the link. It needs `PLATFORM_USER_RESET_URL` (see [Components](components.md)).
+- Accounts are created with `bin/semitexa user:add`, where the password is chosen, and switched off rather than deleted: the screen allows neither, whatever permissions a visitor holds.
+- Permissions are `users.read` and `users.edit` (the prefix you pass); give them with stored roles, for example `role:create user-admin -p users.read -p users.edit --tenant=museum`. The screen's own rules above hold whoever has them.
+
+A screen of your own says the same with `allows()`: return false for `'create'`, `'edit'` or `'delete'` and the page offers no such control — no button, no edit dialog, no grid action of that operation (the built-in delete, an action that needs `edit`) — and the form and grid actions refuse it, whatever the visitor's permissions.
+
 ## Limits
 
 - **Owned relations** must be typed `array|RelationState` (the ORM refuses a plain array). A
