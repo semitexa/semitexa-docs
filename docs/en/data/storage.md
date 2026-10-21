@@ -81,7 +81,7 @@ The API has no listing, copy, move, append or signed-URL method. `put()` takes t
 
 ### Local
 
-Objects live under `var/uploads/` in the project root. The root comes from `PROJECT_ROOT` if it is set and from the process's working directory if it is not. No env key moves the root. `var/uploads/*` is git-ignored in a new project.
+Objects live under `var/uploads/` in the project root. The root is `PROJECT_ROOT` when it is set, and otherwise the project the code runs in (found from the working directory upwards), so a script started from a subdirectory writes to the same place. No env key moves the root. `var/uploads/*` is git-ignored in a new project.
 
 `url()` returns `STORAGE_LOCAL_PUBLIC_URL` with the key appended, or `''` when the variable is empty. The framework does not serve `var/uploads`. Set the variable only if something you run (a static mount, a CDN, a route of your own) actually serves that directory at that URL. Otherwise leave it empty and serve the bytes from a handler.
 
@@ -305,5 +305,4 @@ Every other limit sits below this one. A plain multipart route has no size limit
 - **Nested file field names keep their brackets.** `name="doc[avatar]"` arrives as `$request->getFiles('doc[avatar]')`, and `doc[photos][]` as a list under `doc[photos]`. A payload setter receives a file only under a flat name, so use flat names (or `name[]` for lists) for files a payload should take.
 - **The temp file dies with the request.** Swoole deletes `tmpPath` once the response is sent. Read or store the bytes inside the request. Never pass `tmpPath` to a queued handler or to anything that runs after the response.
 - **`getContents()` reads the whole file into memory**, and `put()` takes a string. With the default limit, a single upload can be up to 32 MiB of memory in one worker.
-- **The local root depends on the working directory** when `PROJECT_ROOT` is not set. A CLI script started from another directory writes to a different `var/uploads`. `storage:migrate-metadata --path` is the explicit way to name a root.
 - **Concurrent writers.** Drivers keep no mutable state and are safe across coroutines. Two processes writing the same key race, and the last write wins. Two processes writing colliding local keys (`report` and `report.json/x`) at the same moment can both persist their objects, while one of them still reports the collision.
