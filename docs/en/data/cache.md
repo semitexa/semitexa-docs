@@ -101,7 +101,7 @@ $this->cache->forget('rates:eur');
 - **Keys:** any non-empty string without a NUL byte. Colons are fine.
 - **TTL:** `null` means `CACHE_DEFAULT_TTL`. A negative TTL throws. `0` means forever and throws unless `CACHE_ALLOW_FOREVER=1`. An expired entry reads as a miss and is deleted when it is read.
 - **Values:** scalars, `null`, and arrays of those are stored as JSON. An object anywhere in the value — a `DateTimeImmutable`, an enum, a DTO inside an array — needs `CACHE_SIGNING_KEY`; without it `put()` throws `CacheSerializationException`. With it, the value is PHP-serialized and HMAC-signed, and a value whose signature does not match is refused on read. Rotating the key turns existing object entries into misses.
-- **A stored `null` cannot be told from a miss:** `get()` returns `$default` for both.
+- **A stored `null` and a miss look alike to `get($key)`:** pass a default you can recognise (`get($key, $missing)`) when the difference matters.
 
 ## remember() and concurrent misses
 
@@ -123,7 +123,7 @@ The guarantee has edges:
   }
   ```
 
-- **`null` is not cached.** A resolver that returns `null` runs again on the next call, and every waiter runs it again too.
+- **`null` is cached.** A resolver that returns `null` is not run again until the entry expires.
 - **Exceptions.** If the leader's resolver throws, the exception reaches the leader's caller; each waiter then runs the resolver itself.
 - **Outside a coroutine** (CLI, tests) there is nothing to coalesce: the resolver simply runs on a miss.
 - **A concurrent `put()` or `forget()`** from elsewhere can still race the leader's write.
@@ -215,7 +215,7 @@ They act on the root namespace of the current tenant unless told otherwise (`bin
 
 - **`array` in production.** Each worker has its own copy, a write in one is invisible to the others, and `forget()` only clears the worker that ran it.
 - **Expired entries in `array` stay in memory until something reads them** or a flush clears them; the worker's memory is the only limit.
-- **Caching `null`.** It reads back as a miss, so `remember()` recomputes it every time. Cache `false` or an empty array instead.
+- **`null` and `get()`.** `remember()` keeps a `null` its resolver returned, but `get($key)` cannot tell a stored `null` from a miss: pass a default you can recognise (`get($key, $missing)`) when the difference matters.
 - **Tagged writes during an outage.** If the tag index cannot be written, the entry is removed again (an entry no tag knows would survive every flush of its tags); the call itself does not fail. The outage is logged once, by the Redis circuit breaker, not once per write. Any other exception from a tag index is a bug and is thrown.
-- **`CACHE_DEFAULT_TTL=0`.** It is accepted, and every write without an explicit TTL then lives forever, whatever `CACHE_ALLOW_FOREVER` says.
+- **`CACHE_DEFAULT_TTL=0` means forever.** It is refused (every cache call fails, and `system:doctor` reports `cache.default-ttl`) unless `CACHE_ALLOW_FOREVER=1`.
 - **Booleans in CLI.** The console commands read `CACHE_ALLOW_FOREVER` and `CACHE_TAGS_ENABLED` as on only when the value is exactly `1`. Use `1` and `0`, not `true` and `false`.
