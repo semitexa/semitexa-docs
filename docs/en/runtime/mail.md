@@ -80,7 +80,7 @@ public function send(MailEnvelope $envelope, ?MailSendOptions $options = null): 
 |---|---|---|
 | `to`, `cc`, `bcc` | `list<MailRecipient>` | recipients. Bcc recipients get the mail but are not written into any header |
 | `from` | `?MailRecipient` | sender; `null` means `MAIL_FROM_EMAIL` / `MAIL_FROM_NAME` |
-| `replyTo` | `?MailRecipient` | `Reply-To`; only its address is kept, the name is dropped. `null` means `MAIL_REPLY_TO` |
+| `replyTo` | `?MailRecipient` | `Reply-To`, address and name. `null` means `MAIL_REPLY_TO` (an address, no name) |
 | `subject`, `htmlBody`, `textBody` | `?string` | inline content, used when `templateHandle` is `null` |
 | `templateHandle` | `?string` | a mail template (see [Templates](#templates-and-rendering)); replaces the three inline fields |
 | `variables` | `array` | Twig variables for the template |
@@ -257,7 +257,7 @@ A transport answers with a `MailTransportResult`: `status` (`MailTransportStatus
 
 - With `MAIL_ENCRYPTION` set to `ssl` it connects with implicit TLS (`ssl://`); with `tls` it connects in plain text and sends `STARTTLS` after `EHLO`. No value (or `none`) is plain text; case and spaces do not matter and `starttls` means `tls`. Any other value is refused with `config_error` before anything is sent, rather than sent in plain text. The server's certificate and host name are verified in both modes; a failed `STARTTLS` handshake fails the attempt instead of carrying on in plain text. `MAIL_VERIFY_PEER=false` turns verification off and accepts self-signed certificates, for a local test server only.
 - It sends `EHLO` with this machine's host name when that is a full domain, otherwise with the address literal of its end of the connection (`[10.0.0.5]`), falling back to `HELO`.
-- When both `MAIL_USERNAME` and `MAIL_PASSWORD` are set, it authenticates with `AUTH LOGIN`. No other mechanism is supported.
+- When both `MAIL_USERNAME` and `MAIL_PASSWORD` are set, it authenticates with `AUTH LOGIN`, or with `AUTH PLAIN` when the server's `EHLO` reply (the one after `STARTTLS`, with `tls`) offers PLAIN and not LOGIN. No other mechanism is supported.
 - It sends one `RCPT TO` for every to, cc and bcc address. One refused recipient fails the whole message.
 - The message gets a `Message-ID` of `<message id@sender's domain>` (the row's UUID), a `Date`, `MIME-Version`, and `multipart/alternative` when both bodies exist, `multipart/mixed` with attachments. Bodies are quoted-printable UTF-8, attachments base64.
 - `MAIL_TIMEOUT` is the connect timeout and the read timeout of each response.
@@ -284,8 +284,8 @@ A 4xx reply or no reply is returned as `Deferred`, a 5xx reply as `Failed`. A fa
 | `MAIL_DRIVER` | `smtp` | the transport key |
 | `MAIL_HOST` | `127.0.0.1` | SMTP server, and the name its certificate must carry |
 | `MAIL_PORT` | `1025` | SMTP port |
-| `MAIL_USERNAME` | none | `AUTH LOGIN` user |
-| `MAIL_PASSWORD` | none | `AUTH LOGIN` password |
+| `MAIL_USERNAME` | none | SMTP `AUTH` user |
+| `MAIL_PASSWORD` | none | SMTP `AUTH` password |
 | `MAIL_ENCRYPTION` | none | `tls` or `starttls` (STARTTLS), `ssl` (implicit TLS), any case; any other value is refused |
 | `MAIL_VERIFY_PEER` | `true` | `false`, `0`, `no` or `off` stops checking the server's certificate (local test servers only) |
 | `MAIL_FROM_EMAIL` | `noreply@localhost` | sender address when the envelope has no `from` |
@@ -347,7 +347,7 @@ Both tables come from ORM resource models; `bin/semitexa orm:sync` creates them,
 
 | Table | Holds |
 |---|---|
-| `mail_messages` | one row per message: status, driver, `mailer_key`, sender, recipients (`to_json`, `cc_json`, `bcc_json`), subject (up to 998 characters), rendered `html_body` and `text_body`, headers, tags, metadata, attachment references (inline contents base64), idempotency key, provider message id, last error, `last_attempt_at`, `created_at`, `updated_at`. Indexes: unique `(tenant_id, idempotency_key)`, `status`, `tenant_id` |
+| `mail_messages` | one row per message: status, driver, `mailer_key`, `reply_to` and `reply_to_name`, sender, recipients (`to_json`, `cc_json`, `bcc_json`), subject (up to 998 characters), rendered `html_body` and `text_body`, headers, tags, metadata, attachment references (inline contents base64), idempotency key, provider message id, last error, `last_attempt_at`, `created_at`, `updated_at`. Indexes: unique `(tenant_id, idempotency_key)`, `status`, `tenant_id` |
 | `mail_attempts` | one row per delivery attempt, indexed on `mail_message_id` |
 
 Rows are kept unless `MAIL_RETENTION_DAYS` is set; then `mail:work` deletes `sent` and `failed` messages last changed longer ago than that, with their attempts. `pending`, `queued`, `sending`, `deferred` and `enqueue_failed` rows are never deleted.
