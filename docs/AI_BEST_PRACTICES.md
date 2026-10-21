@@ -2768,6 +2768,35 @@ If the impact graph hasn't been refreshed recently, the `suggested_fix`
 field on every `semitexa.brokenFqcn` violation reminds you to run
 `bin/semitexa ai:review-graph:generate` before relying on Layer 1.
 
+### 23.3b Type errors on changed lines (`phpstan_types`)
+
+The `phpstan_di` target runs at level 0, which checks no argument or return
+types. In the same step it runs PHPStan again at level 5 on the same files
+and keeps what lands on a line the change touched (`git diff -U0 HEAD` in
+the file's own repository). Its diagnostics carry `check: phpstan_types`
+and the signal reads
+`phpstan_types → N error(s) on changed lines; first: argument.type path:line …`.
+
+- **Callers.** A changed declaration breaks lines that did not change. A
+  diagnostic on an unchanged line of an analysed file is kept when its
+  message names a method, property or constant declared on a changed line
+  (`::send()`, `::$queue`, `::LIMIT`). Callers in files the run does not
+  analyse are not seen: name them in `--files` when a signature changes.
+- **Whole files.** A file git does not track counts whole, and so does a
+  renamed one (the diff cannot pair it) and one whose changes git cannot
+  tell. The gate then reports too much rather than nothing.
+- **Left to `phpstan_di`.** Semitexa's own rules, and anything level 0
+  already reported, appear once, under `phpstan_di`.
+- **A deliberate exception** is an inline `@phpstan-ignore <identifier>` with
+  the reason beside it; the accepted-violations registry holds Semitexa rules
+  only.
+
+Why changed lines only: level 5 reports every older error in a touched file
+too, and touching a file must not mean owning its history. Why at all: a
+call that left out its first argument — a TypeError on the path meant only
+to log a warning — passed `phpstan_di` and was committed (2026-10-21);
+level 5 reported it at once.
+
 ### 23.4 Test-integrity guard (`lint:test-integrity`)
 
 A suite can be made green by deleting or loosening the test instead of
