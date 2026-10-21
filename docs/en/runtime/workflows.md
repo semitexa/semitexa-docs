@@ -190,7 +190,7 @@ $instance = $this->workflows->start(new StartWorkflowCommand(
 $instanceId = $instance->getId(); // a UUID string
 ```
 
-`start()` creates the instance in `initialState()` with status `active` and version 0, stores `payload` and `context` as JSON (`payload_json`, `context_json`; an empty array is stored as `NULL`), and dispatches `WorkflowStarted`. There is one instance per (workflow key, subject type, subject id): a second start throws `WorkflowAlreadyExistsException`, including when two starts race and the unique index rejects the loser. An unknown key throws `WorkflowDefinitionNotFoundException`.
+`start()` creates the instance in `initialState()` with status `active` and version 0, stores `payload` and `context` as JSON (`payload_json`, `context_json`; an empty array is stored as `NULL`), and dispatches `WorkflowStarted`. There is one instance per (workflow key, subject type, subject id, tenant): another tenant may run the same workflow for the same subject id (on a database created before this, once the old index is dropped — see [Upgrading](#upgrading-to-per-tenant-subjects)), and a second start in one tenant throws `WorkflowAlreadyExistsException`, including when two starts race and the unique index rejects the loser. An unknown key throws `WorkflowDefinitionNotFoundException`.
 
 `findBySubject('order', new OrderRef($orderId, $tenantId))` and `get($instanceId)` return the instance or `null`.
 
@@ -313,7 +313,7 @@ At most one of `WorkflowCompleted`, `WorkflowEnteredWaitingState` and `WorkflowM
 
 Both tables come from ORM resource models; `bin/semitexa orm:sync` creates them.
 
-**`workflow_instances`** (`WorkflowInstanceResourceModel`): `id` (UUID, binary 16), `workflow_key`, `subject_type`, `subject_id`, `tenant_id`, `current_state`, `status`, `version`, `active_transition_key`, `last_error_code`, `last_error_message`, `waiting_until`, `awaiting_manual_action`, `payload_json`, `context_json`, `created_at`, `updated_at`, `completed_at`. Indexes: unique `(workflow_key, subject_type, subject_id)`, `(tenant_id, status, waiting_until)`, `(workflow_key, current_state)`, `(awaiting_manual_action, updated_at)`.
+**`workflow_instances`** (`WorkflowInstanceResourceModel`): `id` (UUID, binary 16), `workflow_key`, `subject_type`, `subject_id`, `tenant_id`, `current_state`, `status`, `version`, `active_transition_key`, `last_error_code`, `last_error_message`, `waiting_until`, `awaiting_manual_action`, `payload_json`, `context_json`, `created_at`, `updated_at`, `completed_at`, `tenant_key` (`tenant_id`, or `''` for a global instance: a unique index lets any number of `NULL`s through). Indexes: unique `(workflow_key, subject_type, subject_id, tenant_key)`, `(tenant_id, status, waiting_until)`, `(workflow_key, current_state)`, `(awaiting_manual_action, updated_at)`.
 
 **`workflow_transition_history`** (`WorkflowTransitionHistoryResourceModel`): one row per applied, `invalid_transition` or `guard_denied` attempt, with `workflow_instance_id`, `transition_key`, `from_state`, `to_state` (`NULL` when rejected), `trigger_type`, `triggered_by_type`, `triggered_by_id`, `attempt` (rows already stored for this instance and transition key, plus one, rejections included), `result` (`applied`, `rejected_guard`, `rejected_invalid`), `guard_failures_json`, `created_at`. The columns `side_effect_failures_json` and `metadata_json` exist but nothing writes them.
 
@@ -325,7 +325,17 @@ The tenant of an instance is whatever `workflowTenantId()` returned at `start()`
 
 ## Commands
 
-The package has no console commands. Its timeout and retry jobs are scheduler runs, executed by `scheduler:work`.
+`workflow:backfill-tenant-key` fills `tenant_key` for instances started before the column existed (see [Upgrading](#upgrading-to-per-tenant-subjects)); safe to run again. Timeout and retry jobs are scheduler runs, executed by `scheduler:work`.
+
+### Upgrading to per-tenant subjects
+
+Instances used to be unique per (workflow key, subject type, subject id) for all tenants together. On an existing database:
+
+1. `bin/semitexa orm:sync` adds `tenant_key` (empty for existing rows) and the new unique index. Run it with the deploy: the new code writes `tenant_key`, and until the column exists every `start()` fails.
+2. `bin/semitexa workflow:backfill-tenant-key` copies each instance's `tenant_id` into it.
+3. `bin/semitexa orm:sync --allow-destructive` drops the old index `uniq_workflow_instance_subject`. It runs every other pending destructive change too: read `orm:sync --dry-run` first.
+
+Until step 3, the old index still refuses a second tenant's instance for a subject id another tenant holds (`WorkflowAlreadyExistsException`); a project that never runs step 3 keeps that behaviour. Before step 3, have every worker on the new code and run step 2 again: a row an old worker still wrote has an empty `tenant_key`, and after step 3 it lets a second instance of its subject into its tenant; a tenant row with an empty `tenant_key` also refuses a global instance of the same subject (`WorkflowAlreadyExistsException` for an instance that does not exist).
 
 ## Configuration
 
@@ -342,7 +352,7 @@ The package reads no environment keys of its own.
 - **Side-effect failures are logged, not stored.** The result is still `Applied`; the warning in the log is the only record. Make side effects idempotent: a retry runs again what may have half-succeeded.
 - **Any transition ends a wait.** A timer carries the instance's version when it was scheduled and does nothing once any transition has been applied since, as the engine itself already treats the instance as no longer waiting. A transition that should keep waiting (a reminder that loops back to the same state) needs its own `TimeoutPolicy`, which schedules a fresh timer. A timer is not removed from the scheduler, it just finds nothing to do.
 - **A denied or failing timeout is not tried again.** A guard that denies the timeout transition leaves the instance where it is, and the scheduler dispatches the job with one attempt, so a job that throws fails for good.
-- **Two tenants cannot share a subject id in one workflow.** The unique index `(workflow_key, subject_type, subject_id)` has no `tenant_id`, so tenant B starting a workflow for subject `42` that tenant A already has gets `WorkflowAlreadyExistsException`. Lookups by subject are filtered by the subject's tenant, so B never sees A's instance; `get($instanceId)` is not, so compare `$instance->getTenantId()` with the current tenant before applying a transition by an id that came from a request.
+- **`get($instanceId)` is not filtered by tenant.** Lookups by subject are filtered by the subject's tenant, so B never sees A's instance; `get($instanceId)` is not, so compare `$instance->getTenantId()` with the current tenant before applying a transition by an id that came from a request.
 - **Terminal means completed.** Every terminal state gives status `completed` and `WorkflowCompleted`, including a state you named `rejected` or `cancelled`. After that every `apply()` is `terminal_state`, so a transition listed out of a terminal state can never run.
 - **Declared but not enforced:** `states()` is never read (a `toState` missing from it is accepted), `TransitionDefinition::$triggerType` is never checked (a transition meant for the scheduler can be applied by any caller), and `ApplyTransitionCommand::$idempotencyKey` is ignored. `ScheduleWorkflowCheckCommand` and `WorkflowInstanceRepositoryInterface::findOverdueWaiting()` exist, but nothing uses them: there is no sweep of overdue `waiting` instances.
 - **A synchronous listener can fail `apply()` after the fact.** An exception from a `Sync` listener of `WorkflowTransitionApplied` propagates out of `apply()` after the state, history, side effects and timeout are all done, and the follow-up event is not dispatched. Use `Async` or `Queued` for anything that can fail.

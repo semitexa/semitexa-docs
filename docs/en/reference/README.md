@@ -16,7 +16,7 @@ verified_against: 2026.10.20.0340
 
 What each part of the public surface is, generated from the code itself.
 
-This installation exposes 141 attributes, 220 commands and 12 events.
+This installation exposes 141 attributes, 221 commands and 12 events.
 
 Reference says what a thing is. For when you would want it, see the guides under `en/`.
 
@@ -98,6 +98,7 @@ Reference says what a thing is. For when you would want it, see the guides under
 - [weave](commands-weave.md)
 - [webhook](commands-webhook.md)
 - [worker](commands-worker.md)
+- [workflow](commands-workflow.md)
 
 ## Events
 
