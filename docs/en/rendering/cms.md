@@ -250,7 +250,11 @@ return $resource->withPage($draft->title, $body);   // a method of your own Html
 - **`{{ cms_seo(ref) }}`** does the same from a template and prints nothing. Call it above the `meta()` calls. A handler is better: the document title is often rendered before a template function runs.
 - **`{{ cms_seo_head() }}`** prints the canonical link and the JSON-LD block for the ref that was applied, and nothing when no ref was applied. Stored JSON-LD that does not parse is dropped.
 
-**Blocks.** `ContentBlockCodec::decode()` never throws. A value that is not a blocks document (a page written before the format, or plain HTML) comes back as one text block holding exactly what was there, and is written in the new shape on its next save. A text block with the default layout renders as its HTML alone, so an old page renders unchanged. A block with a chosen layout is wrapped as `<div data-align="center" data-size="medium">…</div>`. An image block renders as `<figure data-align=… data-size=…><img src="/os/app/cms/media/<assetId>" alt="…"></figure>`. Alignment is `left`, `center` or `right`; size is `small`, `medium` or `full`; the default is `left`/`full`. The CMS ships no public CSS for these attributes: your skin styles `[data-align]` and `[data-size]`.
+**Blocks.** `ContentBlockCodec::decode()` never throws. A value that is not a blocks document (a page written before the format, or plain HTML) comes back as one text block holding exactly what was there, and is written in the new shape on its next save. A text block with the default layout renders as its HTML alone, so an old page renders unchanged. A block with a chosen layout is wrapped as `<div class="cms-block" data-align="center" data-size="medium">…</div>`. An image block renders as `<figure class="cms-block" data-align=… data-size=…><img src="/os/app/cms/media/<assetId>" alt="…"></figure>`. Alignment is `left`, `center` or `right`; size is `small`, `medium` or `full`; the default is `left`/`full`.
+
+A template can print the stored field directly with `{{ cms_blocks(body) }}`: it decodes and renders it (a page written before blocks prints as it was), and when a block carries a layout it requires the default block stylesheet `cms:css:content-blocks` — centred blocks, `small` (20rem) and `medium` (36rem) widths, `left`/`right` floats beside the text from 40rem up and on their own line below. Rendering in the handler, as above, add `{{ asset_require('cms:css:content-blocks') }}` to the template yourself. Every rule of that sheet sits in `:where()`, so any `.cms-block` rule of your skin overrides it whatever the order. Print the blocks inside an element with `display: flow-root`, or a float at the end of the page spills out of it.
+
+`cms_blocks()` prints the field as markup: the editor's sanitiser cleaned it when it was saved. Anything else that writes the field — an import, your module, a translation — must clean it the same way (`ContentHtmlSanitizer`). A blocks document this version cannot read (a newer editor's) is kept as it is and renders as nothing.
 
 **Images.** `GET /os/app/cms/media/{assetId}` is public. It answers only for assets in the `cms:content` collection (anything else is 404), redirects to the asset's URL, or serves the bytes itself when the storage has no public URL (the local driver without `STORAGE_LOCAL_PUBLIC_URL`). It asks for the `content` variant first and falls back to the original. Store the asset id, never the URL.
 
@@ -347,8 +351,7 @@ The comparison reports places gone, new, renamed, moved, with a changed verdict 
 - Removing a record does not delete its metadata row. The drain drops it only if the row is still due when the record is gone.
 - A blocks page has two block kinds, text and image. A blocks document with a kind this version does not know is kept as it was, shown as one raw text block.
 - Field values are strings only; there is no relation field.
-- The console's labels and messages are in Ukrainian and are not translated.
-- No styles ship for `data-align` and `data-size` on the public page.
+- The console speaks English and Ukrainian (`src/Application/View/locales`), following the OS language; another language falls back to English.
 - Metadata generation needs a working model provider; without one every due record fails five times and stops.
 
 ## Next steps
