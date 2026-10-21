@@ -233,7 +233,7 @@ All four come from ORM resource models; `bin/semitexa orm:sync` creates them.
 | `scheduler_locks` | overlap locks, unique on `lock_key`, each with an expiry |
 | `scheduler_run_history` | an append-only event log per run (`running`, `succeeded`, `retry_scheduled`, `failed`, `skipped_overlap`, `overlap_delayed`). A reclaim after an expired lease writes no entry |
 
-Locks are deleted when released and when they expire. Nothing deletes old rows from the other three tables.
+Locks are deleted when released and when they expire. Every `scheduler:work` process deletes runs in a final status (`succeeded`, `failed`, `skipped_overlap`, and the never-written `misfire_skipped` and `cancelled`) last changed more than `SCHEDULER_RETENTION_DAYS` ago, with their history: once when it starts, then at most once an hour, up to 10 000 runs each time, across all pools. Pending, claimed, running and retrying rows are never deleted, and definitions stay.
 
 ## How the worker container runs it
 
@@ -252,9 +252,10 @@ A pool name must be a single plain word (`A–Z a–z 0–9 . _ : / = -`). Any o
 | `SCHEDULER_POLL_INTERVAL` | 5 | seconds a worker sleeps when nothing is due |
 | `SCHEDULER_LEASE_TTL` | 300 | seconds a claim lasts; `renewLease()` resets it to now plus this |
 | `SCHEDULER_LOCK_TTL` | 300 | seconds an overlap lock lasts; `renewLease()` resets it to now plus this |
+| `SCHEDULER_RETENTION_DAYS` | 30 | days a finished run and its history are kept; `0` keeps them forever |
 | `WORKER_REPLICAS` | 1 | worker containers |
 
-`SCHEDULER_MAX_ATTEMPTS`, `SCHEDULER_RETRY_BACKOFF` and `SCHEDULER_RETENTION_DAYS` are read into `SchedulerConfig`, but nothing uses them. Attempts and backoff come from the attribute or the dispatch call, both defaulting to `1` and `0`, and no retention sweep exists.
+`SCHEDULER_MAX_ATTEMPTS` and `SCHEDULER_RETRY_BACKOFF` are read into `SchedulerConfig`, but nothing uses them. Attempts and backoff come from the attribute or the dispatch call, both defaulting to `1` and `0`.
 
 ## Watch out for
 
