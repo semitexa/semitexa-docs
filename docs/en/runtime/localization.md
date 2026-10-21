@@ -192,14 +192,14 @@ With `LOCALE_URL_PREFIX=true`:
 - **A stored preference redirects.** A `GET`/`HEAD` page request (its `Accept` contains `text/html`) on an unprefixed path, carrying a `locale` cookie with a supported, non-default code, is answered with `302` to the prefixed URL and `Vary: Cookie, Accept`. Requests without the cookie (crawlers) are not redirected. This check reads the cookie even when `LOCALE_COOKIE_ENABLED` is not set.
 - **`url('route.name')`** and `RouteUrlBuilder::to()` prefix the current locale, unless it is the default.
 - **`locale_url(path, locale)`** prefixes `path` with `locale` (the current one by default), unless it is the default.
-- **`locale_switch_url(locale)`** strips any prefix from the current path, drops the query string, and prefixes the target.
+- **`locale_switch_url(locale)`** strips any prefix from the current path, drops the query string, and prefixes the target. As a plain link it is bounced back by the preference redirect when it targets the default language and the visitor's cookie says otherwise; use the switcher below. `locale_switch_url(<default>)` is also the unprefixed current path the switcher needs.
 - **Handler redirects**: `$resource->setRedirect('/account')` becomes `/uk/account` while serving `uk`. Absolute URLs and paths that already start with a supported locale are left alone.
 
 With prefixing off, all of these return the path unchanged and nothing is redirected. The sitemap emits per-locale alternates only when prefixing is on.
 
 ### A language switcher
 
-Because of the preference redirect, a plain link to the default-language page bounces a visitor whose cookie says otherwise straight back. Change the cookie in the same step as the navigation, and switch the current locale before redirecting: a bare `setRedirect()` path is prefixed with the locale being served, so after `setLocale()` it lands in the new language. This works for a `GET` link and a `POST` form alike:
+Because of the preference redirect, a plain link to the default-language page bounces a visitor whose cookie says otherwise straight back. Change the cookie in the same step as the navigation, and switch the current locale before redirecting: a bare `setRedirect()` path is prefixed with the locale being served, so after `setLocale()` it lands in the new language. This works for a `GET` link and a `POST` form alike; register the route for both if you use both, and, as with any `POST`, send the `_csrf` field for a signed-in visitor:
 
 ```php
 use Semitexa\Core\Attribute\InjectAsMutable;
@@ -207,7 +207,7 @@ use Semitexa\Core\Cookie\CookieJarInterface;
 use Semitexa\Core\Http\Response\ResourceResponse;
 use Semitexa\Locale\Context\LocaleContextStore;
 
-// Handler for /language, fields: locale, path (unprefixed, e.g. "/catalog")
+// Handler for /language, fields: locale, path (e.g. "/catalog")
 #[InjectAsMutable]
 protected CookieJarInterface $cookies;
 
@@ -221,11 +221,18 @@ public function handle(SwitchLanguagePayload $payload, ResourceResponse $resourc
     $this->cookies->set('locale', $locale, ['path' => '/', 'maxAge' => 31536000, 'sameSite' => 'lax']);
     LocaleContextStore::setLocale($locale);
 
-    return $resource->setRedirect('/' . ltrim($payload->getPath(), '/'));
+    // A path that still carries a locale is left alone by the redirect, so the
+    // page would stay in the old language: drop the prefix here.
+    $segments = explode('/', ltrim($payload->getPath(), '/'), 2);
+    if (in_array($segments[0], LocaleContextStore::getSupportedLocales(), true)) {
+        $segments = [$segments[1] ?? ''];
+    }
+
+    return $resource->setRedirect('/' . implode('/', $segments));
 }
 ```
 
-A `GET` to `/language` from a visitor whose cookie names another language is first redirected to `/uk/language?…`; the handler still runs, and the redirect it answers with uses the new locale, not the cookie's.
+A browser `GET` to `/language` from a visitor whose cookie names a supported language other than the default is first redirected to `/uk/language?…` (query kept); the handler still runs, and its redirect uses the new locale, not the cookie's. A `GET` switch is a state change any link can trigger, which here only changes a visitor's language.
 
 ## The locale under Swoole
 
