@@ -195,6 +195,18 @@ $orm->getTransactionManager()->run(function (DatabaseAdapterInterface $tx) {
 Nesting creates savepoints. All transaction state is per-coroutine
 (`CoroutineLocal`) — safe under Swoole concurrency.
 
+Raw SQL in a store that may run inside someone else's `run()` belongs on
+`$orm->getQueryAdapter()`: it joins the transaction open in this coroutine
+and is the pooled adapter otherwise. Under Swoole's pool, `$orm->getAdapter()`
+takes a connection of its own and autocommits even inside a transaction —
+nothing it writes is rolled back, and every coroutine that holds a
+transaction and calls it takes a second connection from the pool. In a CLI
+process (one shared connection) and on SQLite it joins the transaction
+instead, so it is not a way to commit on your own: a lock or lease that
+other workers must see at once needs to run outside any transaction. Use
+`getAdapter()` for dialect checks (`instanceof MysqlAdapter`):
+`getQueryAdapter()` is a decorator.
+
 The engine's `ResourceChangedEvent` auto-publish is commit-gated: a
 repository write that nests inside your `run()` buffers its signal on the
 TransactionManager and it flushes after YOUR commit (and is dropped on
