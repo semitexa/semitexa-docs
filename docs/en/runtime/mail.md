@@ -89,7 +89,7 @@ public function send(MailEnvelope $envelope, ?MailSendOptions $options = null): 
 | `headers` | `array<string, string>` | extra headers |
 | `tenantId` | `?string` | stored on the row; scopes the idempotency key |
 | `idempotencyKey` | `?string` | see [Idempotency](#idempotency) |
-| `mailerKey` | `?string` | passed to the config resolver on a send. The worker does not pass it (see [Watch out for](#watch-out-for)) |
+| `mailerKey` | `?string` | passed to the config resolver on a send, and stored on the row, so the worker resolves the same mailer |
 | `tags`, `metadata` | arrays | stored on the row as JSON; nothing else reads them |
 | `mailKey` | `string` | not read anywhere |
 
@@ -207,7 +207,7 @@ The queue name is `MailerConfig::$queue`, which is `MAIL_QUEUE`, default `mail`.
 bin/semitexa mail:work [transport] [queue]
 ```
 
-`transport` defaults to `QueueConfig::defaultTransport()`, `queue` to the literal `mail`. The command consumes until it is killed. For each queue message, `MailWorker`:
+`transport` defaults to `QueueConfig::defaultTransport()`, `queue` to the mailer config's queue (`MAIL_QUEUE`, `mail` by default), the one `send()` publishes to. The command consumes until it is killed. For each queue message, `MailWorker`:
 
 1. ignores a payload that is not JSON or whose `type` is not `mail` (the queue message is consumed and dropped),
 2. loads the row by id, without a tenant scope. A missing row is logged and dropped; a row already `sent` is skipped,
@@ -253,11 +253,11 @@ A transport answers with a `MailTransportResult`: `status` (`MailTransportStatus
 
 `SmtpMailTransport` opens a new connection for every message:
 
-- With `MAIL_ENCRYPTION` set to `ssl` it connects with implicit TLS (`ssl://`); with `tls` it connects in plain text and sends `STARTTLS` after `EHLO`. Any other value, including none, stays in plain text. The server's certificate and host name are verified in both modes; a failed `STARTTLS` handshake fails the attempt instead of carrying on in plain text. `MAIL_VERIFY_PEER=false` turns verification off and accepts self-signed certificates, for a local test server only.
-- It sends `EHLO <MAIL_HOST>`, falling back to `HELO`.
+- With `MAIL_ENCRYPTION` set to `ssl` it connects with implicit TLS (`ssl://`); with `tls` it connects in plain text and sends `STARTTLS` after `EHLO`. No value (or `none`) is plain text; case and spaces do not matter and `starttls` means `tls`. Any other value is refused with `config_error` before anything is sent, rather than sent in plain text. The server's certificate and host name are verified in both modes; a failed `STARTTLS` handshake fails the attempt instead of carrying on in plain text. `MAIL_VERIFY_PEER=false` turns verification off and accepts self-signed certificates, for a local test server only.
+- It sends `EHLO` with this machine's host name when that is a full domain, otherwise with the address literal of its end of the connection (`[10.0.0.5]`), falling back to `HELO`.
 - When both `MAIL_USERNAME` and `MAIL_PASSWORD` are set, it authenticates with `AUTH LOGIN`. No other mechanism is supported.
 - It sends one `RCPT TO` for every to, cc and bcc address. One refused recipient fails the whole message.
-- The message gets a `Message-ID` of `<message id>` (the row's UUID), a `Date`, `MIME-Version`, and `multipart/alternative` when both bodies exist, `multipart/mixed` with attachments. Bodies are quoted-printable UTF-8, attachments base64.
+- The message gets a `Message-ID` of `<message id@sender's domain>` (the row's UUID), a `Date`, `MIME-Version`, and `multipart/alternative` when both bodies exist, `multipart/mixed` with attachments. Bodies are quoted-printable UTF-8, attachments base64.
 - `MAIL_TIMEOUT` is the connect timeout and the read timeout of each response.
 
 An SMTP error is turned into an error code:
@@ -280,11 +280,11 @@ A 4xx reply or no reply is returned as `Deferred`, a 5xx reply as `Failed`. A fa
 | Key | Default | Used for |
 |---|---|---|
 | `MAIL_DRIVER` | `smtp` | the transport key |
-| `MAIL_HOST` | `127.0.0.1` | SMTP server, and the name sent in `EHLO` |
+| `MAIL_HOST` | `127.0.0.1` | SMTP server, and the name its certificate must carry |
 | `MAIL_PORT` | `1025` | SMTP port |
 | `MAIL_USERNAME` | none | `AUTH LOGIN` user |
 | `MAIL_PASSWORD` | none | `AUTH LOGIN` password |
-| `MAIL_ENCRYPTION` | none | `tls` (STARTTLS) or `ssl` (implicit TLS); anything else is plain text |
+| `MAIL_ENCRYPTION` | none | `tls` or `starttls` (STARTTLS), `ssl` (implicit TLS), any case; any other value is refused |
 | `MAIL_VERIFY_PEER` | `true` | `false`, `0`, `no` or `off` stops checking the server's certificate (local test servers only) |
 | `MAIL_FROM_EMAIL` | `noreply@localhost` | sender address when the envelope has no `from` |
 | `MAIL_FROM_NAME` | none | sender name when the envelope has no `from` |
@@ -338,11 +338,11 @@ Every attempt through a transport writes one `mail_attempts` row: `attempt_no` (
 
 ## Tables
 
-Both tables come from ORM resource models; `bin/semitexa orm:sync` creates them. Both are `#[TenantScoped]` on `tenant_id`. The package reads and writes rows by id through a system (cross-tenant) view; the idempotency lookup is scoped to the tenant, or, for mail with no tenant, reads the rows with no tenant through the system view.
+Both tables come from ORM resource models; `bin/semitexa orm:sync` creates them, and adds new columns (such as `mailer_key`) on an upgrade. Run it before the new code serves: until then every `send()` fails on the missing column. Both are `#[TenantScoped]` on `tenant_id`. The package reads and writes rows by id through a system (cross-tenant) view; the idempotency lookup is scoped to the tenant, or, for mail with no tenant, reads the rows with no tenant through the system view.
 
 | Table | Holds |
 |---|---|
-| `mail_messages` | one row per message: status, driver, sender, recipients (`to_json`, `cc_json`, `bcc_json`), subject (up to 998 characters), rendered `html_body` and `text_body`, headers, tags, metadata, attachment references (inline contents base64), idempotency key, provider message id, last error, `last_attempt_at`, `created_at`, `updated_at`. Indexes: unique `(tenant_id, idempotency_key)`, `status`, `tenant_id` |
+| `mail_messages` | one row per message: status, driver, `mailer_key`, sender, recipients (`to_json`, `cc_json`, `bcc_json`), subject (up to 998 characters), rendered `html_body` and `text_body`, headers, tags, metadata, attachment references (inline contents base64), idempotency key, provider message id, last error, `last_attempt_at`, `created_at`, `updated_at`. Indexes: unique `(tenant_id, idempotency_key)`, `status`, `tenant_id` |
 | `mail_attempts` | one row per delivery attempt, indexed on `mail_message_id` |
 
 Nothing deletes rows from either table.
@@ -395,7 +395,6 @@ See also [Requests and Fakes](../testing/requests-and-fakes.md).
 ## Watch out for
 
 - **The default settings send nowhere.** `MAIL_DRIVER` defaults to `smtp` on `127.0.0.1:1025`, and the default stack runs no mail server there, so every send fails with `network_error`. Point `MAIL_HOST` at a server, or set `MAIL_DRIVER` to `null` to drop mail on purpose.
-- **`MAIL_ENCRYPTION` must be exactly `tls` or `ssl`.** `TLS`, `starttls` or a typo connect in plain text, and with a username and password set, the credentials go out in plain text too.
 - **Without async events nothing is retried by itself.** With `EVENTS_ASYNC=0` (the default), a queued mail is sent inside `send()`; a temporary failure leaves the row `deferred` until `send()` is called again under its key.
 - **A mail can be sent twice.** A worker that dies after the server accepted a message, before it marked the row `sent`, sends it again on redelivery. So does a server that stored the message but whose reply to `DATA` timed out: that counts as `network_error` and is retried. A failing `QUIT` after the server's `250` is not a failure.
 - **A retry from `send()` on a transport that cannot hold messages back goes out at once.** The worker waits `retryDelay` before re-publishing; `send()` does not, so behind such a transport (for example `EVENTS_TRANSPORT=dual`) a greylisted mail is tried again immediately and uses up one retry.
@@ -403,11 +402,8 @@ See also [Requests and Fakes](../testing/requests-and-fakes.md).
 - **Turning certificate checks on is new.** A `MAIL_HOST` that is an IP address or an alias the certificate does not name, or a relay with a self-signed certificate, now fails with `config_error`. Point `MAIL_HOST` at the name on the certificate, or set `MAIL_VERIFY_PEER=false` for a local test server.
 - **Text templates compiled before the upgrade stay HTML-escaped** until `bin/semitexa cache:clear`: Twig keeps the escaping it compiled with.
 - **An unknown `MAIL_DRIVER` fails the mail.** The row becomes `failed` with `config_error`, in `send()` and in the worker; fix the setting and `send()` again under the key.
-- **The worker ignores `mailerKey` and reads the config at delivery time.** A queued mail is delivered with the resolver's answer for its tenant alone, as it is when the worker runs. The sender address and bodies were fixed when it was sent.
-- **`mail:work` run by hand reads `mail`.** Without a `queue` argument it does not use `MAIL_QUEUE`. The worker container passes the right queue.
+- **The worker reads the config at delivery time.** A queued mail is delivered with the resolver's answer for its tenant and `mailerKey` as it is when the worker runs, not when it was sent. The sender address and bodies were fixed when it was stored.
 - **Large inline attachments fail late.** Inline contents over 256 KB are stored and queued, then fail on delivery with `attachment_missing`. Use a storage path.
-- **A bad custom header name is retried.** `MimeBuilder` throws for a header name that is not printable ASCII without a colon, the SMTP transport reports that as `network_error`, and the worker tries it four times before failing it.
-- **Nothing checks that there is a recipient.** A message with no `to`, `cc` or `bcc` reaches the SMTP server and is refused there.
+- **A mail needs a recipient.** With no `to`, `cc` or `bcc`, `send()` returns `Failed` with `invalid_recipient` and stores nothing.
 - **`send()` inside a database transaction publishes before the commit.** The queue message goes out right after the row is written, so a worker may look for the row before it is committed (it then drops the message as not found), and a rollback leaves a queue message for a row that never existed.
-- **Registering `smtp` or `null` before the first send does not stick.** The registry adds its own `smtp` and `null` transports on the first `get()`, over any you registered under those keys before. Register a replacement after the first `get()`, or use another key.
 - **The tables grow without limit.** Every rendered body and every inline attachment stays in `mail_messages`. Delete old rows yourself, for example from a [scheduled job](scheduler.md).
