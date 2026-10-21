@@ -13,6 +13,8 @@ keywords:
   - factory
   - seed
   - test data
+  - RollsBackDatabase
+  - RefreshesTables
 ---
 
 # Test Data Factories
@@ -43,3 +45,49 @@ The factory reads the model's column metadata, so it needs no definition per mod
 A `uuid` key is left empty and filled by the write; an `auto` key is left to the database and comes back filled; a `manual` key is generated. A soft-delete column stays null and a `#[Version]` column starts at 0 unless a state sets them. A tenant-scoped model needs `forTenant()` before `create()`.
 
 Without `seed()` every call draws fresh values and numbers its rows on from the previous call, so two `createOne()` calls never collide on a unique column. With `seed()` the call gives the same rows every run — uuid foreign keys included. A property no column has is refused. `create($orm)` writes through the ORM's aggregate write engine and returns the models as written. Relations are not created for you: create the parent first and pass its key in `state()`.
+
+## Leave the database clean
+
+`RollsBackDatabase` (semitexa/testing) runs each test inside a transaction that is rolled back after it. The rows the test writes — and the rows the code it calls writes, through a repository, `new OrmManager()` or a route called with `CallsRoutes` — are gone when the next test starts:
+
+```php
+use Semitexa\Testing\Traits\RollsBackDatabase;
+
+final class PlaceOrderTest extends TestCase
+{
+    use RollsBackDatabase;
+    use CallsRoutes;
+
+    public function test_an_order_is_stored(): void
+    {
+        ResourceModelFactory::for(CustomerResourceModel::class)->createOne(new OrmManager());
+        $this->postJson('/api/orders', ['sku' => 'A-1'])->assertStatus(201);
+    }
+}
+```
+
+The transaction opens before `setUp()` and is rolled back after `tearDown()`. Every ORM manager in the test process joins it, and a `TransactionManager::run()` inside the test becomes a savepoint, so nothing commits. That has two consequences:
+
+- Resource-changed signals never fire, for any write in the test, with a transaction of its own or without: inside the test transaction every write waits for a commit that never comes. Listeners on them (a site map refresh, cache invalidation) are not exercised; assert on rows, or test those listeners with `RefreshesTables`.
+- It refuses an in-memory SQLite database (one per connection: the test's would be empty) and Swoole coroutine hooks turned on inside the test (a coroutine pool would commit outside the transaction).
+- On MySQL, DDL (`CREATE`, `ALTER`, `DROP`) and `TRUNCATE` commit the transaction on their own. The test then fails after it ends, naming the cause, instead of leaving rows behind. Create tables in `setUpBeforeClass()`.
+
+The default connection is rolled back; override `connectionsToRollBack()` to add named ones. The trait refuses to start under the Swoole coroutine runtime (inside a coroutine, or with hooks enabled), where connections are pooled per coroutine and cannot join one transaction.
+
+A test that cannot run inside a transaction — the code under test commits on purpose, runs coroutines, or changes the schema — empties its tables instead, with `RefreshesTables`:
+
+```php
+use Semitexa\Testing\Traits\RefreshesTables;
+
+final class ImportCatalogueTest extends TestCase
+{
+    use RefreshesTables;
+
+    protected function tablesToRefresh(): array
+    {
+        return [ProductResourceModel::class, 'import_log'];   // a resource's table, or a table name
+    }
+}
+```
+
+The tables are emptied before every test; `refreshTables(...)` empties them on demand. On MySQL they are truncated with foreign key checks off, so `AUTO_INCREMENT` starts again; inside a `RollsBackDatabase` test they are emptied with `DELETE`, which the rollback undoes. On SQLite rows are deleted and `AUTOINCREMENT` counters reset. Both traits work on the database the test run is configured with: `bin/semitexa test:run` uses the test database (`DB_TEST_DATABASE`), never the one you develop against.

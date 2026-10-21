@@ -56,7 +56,7 @@ Every call returns a `TestResponse`:
 - `assertStatus(201)`, `assertOk()`, `assertHeader('Content-Type', 'application/json')`, `assertJsonPath('data.items.0.id', 7)`, `assertSee('Welcome')`, `assertDontSee('Error')` — each returns the response, so they chain; a failure shows the start of the body.
 - `status()`, `body()`, `header($name)`, `json()` and `json('data.id')` read it.
 
-The requests run against the database and services the test environment is configured with, and their writes stay. See [Factories](factories.md) for building the rows a test needs.
+The requests run against the database and services the test environment is configured with, and their writes stay unless the test rolls them back. See [Factories](factories.md) for building the rows a test needs and [leaving the database clean](factories.md#leave-the-database-clean).
 
 ## Fake the events
 
