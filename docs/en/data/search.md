@@ -3,7 +3,7 @@ id: data/search
 section: data
 slug: search
 title: Search
-summary: Declare a search index over a table, run free-text and filtered searches through SearchManagerInterface, and know what SQL LIKE matching, page-local ranking, tenant scoping and the planner hook really do.
+summary: Declare a search index over a table, run free-text and filtered searches through SearchManagerInterface, and know what SQL LIKE matching, page-local ranking, tenant scoping and the LLM planner really do.
 order: 130
 locale: en
 status: canonical
@@ -245,21 +245,18 @@ A `tenantId` set on the request is used as given: nothing checks that it matches
 
 ## The planner
 
-The package has a hook for rewriting a query before it runs ("cheap red lamps" → query `lamp`, filters `colour: red`, sort by price), and the pieces of an LLM planner. The hook is not connected to an LLM.
+The planner rewrites a natural-language query before it runs ("cheap red lamps" → query `lamp`, filters `colour: red`, sort by price) with a language model.
 
-When the hook runs: `SEARCH_PLANNER_ENABLED=1`, **and** the index has `plannerEnabled: true`, **and** the request has a query. All three; otherwise it is skipped. Both switches are off by default, and setting either back to off turns it off.
+When it runs: `SEARCH_PLANNER_ENABLED=1`, **and** the index has `plannerEnabled: true`, **and** the request has a query. All three; otherwise it is skipped. Both switches are off by default, and setting either back to off turns it off.
 
-What runs: `SearchManager` always uses `NoOpSearchQueryPlanner`, which returns the request unchanged. It has no injection point, so there is currently no way to plug in another `SearchQueryPlannerInterface` through the manager, and no class in the package implements one that calls a model.
+What runs: `SearchManager` gets its `SearchQueryPlannerInterface` injected; the package binds `LlmSearchQueryPlanner`. It renders the catalog prompt `search.query-planner` (inspect it with `bin/semitexa prompt:show --id=search.query-planner`) with the index name, document type, field list and allowed operators, sends it through `LlmPlannerBridgeInterface`, takes the JSON object out of the answer (a fenced code block or prose around it is fine) and checks it with `LlmPlannerSchemaValidator`: unknown or non-filterable filter fields, unknown or non-sortable sort fields, bad directions and a confidence outside 0–1 are refused. The model chosen is the one `semitexa/llm` resolves from `LLM_BACKEND`, through the shipped bridge `LlmProviderPlannerBridge`; `semitexa/llm` is only a suggested dependency, and without it every plan falls back.
 
-The building blocks, for a planner you write and call yourself:
+Anything that goes wrong (no `semitexa/llm`, a failed model call, an answer that is not JSON, a refused field or value) leaves the query as typed, and the reason is logged as a warning on the `search` channel. To use another planner or another model, bind your own `SearchQueryPlannerInterface` or `LlmPlannerBridgeInterface` (see [Resolving Service Contracts](../di/contract-resolution.md)).
 
-- `SearchQueryPlannerInterface::plan(SearchIndexDefinition, SearchRequest, SearchPlannerPolicy): SearchPlanningResult`.
-- `LlmPlannerBridgeInterface::execute(string $prompt, int $timeoutMs): string` — the call to a provider, returning raw JSON. Nothing implements it; `semitexa/llm` is only a suggested dependency.
-- `LlmPlannerPromptBuilder::build($definition, $userQuery, $policy)` renders the catalog prompt `search.query-planner` (channel `search`) with the index name, document type, field list and allowed operators. Inspect it with `bin/semitexa prompt:show --id=search.query-planner`.
-- `LlmPlannerSchemaValidator::validate($parsed, $definition, $policy)` returns violations for unknown or non-filterable filter fields, unknown or non-sortable sort fields, bad directions, and confidence outside 0–1. It does not check operators.
-- `SearchPlannerPolicy`: `minConfidence` (0.5), `timeoutMs` (3000), `allowedOperators` (`=`, `in`, `between`, `like`). The manager fills the first two from `SEARCH_PLANNER_MIN_CONFIDENCE` and `SEARCH_PLANNER_TIMEOUT_MS`; it does not enforce the timeout itself.
+- `SearchPlannerPolicy`: `minConfidence` (0.5), `timeoutMs` (3000), `allowedOperators` (`=`, `in`, `between`, `like`). The manager fills the first two from `SEARCH_PLANNER_MIN_CONFIDENCE` and `SEARCH_PLANNER_TIMEOUT_MS`. The shipped bridge asks `semitexa/llm`'s decider model with `timeoutMs` (rounded up to whole seconds), no retries, a 512-token answer and no thinking, on every provider that supports limits (`withLimits()`). One that does not, the local Ollama provider (`LLM_BACKEND=local`, the default) among them, is not asked at all: the planner falls back, so pick another backend for it.
+- The validator does not check operators.
 
-How the manager applies a plan, should one ever be wired: a planner that throws, reports confidence below the minimum, or returns any warning leaves the request unchanged. A usable plan replaces the query (a `null` query from the planner keeps the old one), merges its filters over the request's (after the request's own filters were validated, so the planner's are not), and replaces the sort when it returns one. The trace is attached to the `SearchRequest` and does not appear in the `SearchResult`.
+How the manager applies a plan: a planner that throws, reports confidence below the minimum, or returns any warning leaves the request unchanged. A usable plan replaces the query (a `null` query from the planner means "by its filters alone" and clears the text, unless the plan adds no filter the request did not already have, which keeps the text), adds its filters under the request's own (a filter the request already sets keeps the request's value), and supplies the sort only when the request has none. The planner's filters go through the same normalizer as a caller's; a value of the wrong type or shape makes the planner fall back. The trace is attached to the `SearchRequest` and does not appear in the `SearchResult`; a fallback is also logged as a warning on the `search` channel.
 
 ## Providing the backend
 
@@ -288,7 +285,7 @@ When you write `whereAnyLike()`: it is one parenthesised group of `column LIKE p
 | `SEARCH_MAX_RESULT_LIMIT` | `100` | factory rejects a larger limit |
 | `SEARCH_MAX_QUERY_LENGTH` | `500` | factory rejects a longer query (characters); must be ≥ 1 |
 | `SEARCH_MAX_FILTER_COUNT` | `20` | factory rejects more filter fields; must be ≥ 1 |
-| `SEARCH_PLANNER_ENABLED` | `0` | `1` lets the planner hook run (see above) |
+| `SEARCH_PLANNER_ENABLED` | `0` | `1` lets the planner run (see above) |
 | `SEARCH_PLANNER_TIMEOUT_MS` | `3000` | passed to the planner in its policy |
 | `SEARCH_PLANNER_MIN_CONFIDENCE` | `0.5` | plans below it are discarded; must be 0.0…1.0 |
 | `SEARCH_OBSERVABILITY_ENABLED` | `1` | read, but nothing uses it yet |
@@ -324,4 +321,5 @@ If you need word-level matching, stemming or ranking across the whole match set 
 - **Hand-built requests skip the limits.** `new SearchRequest(limit: 100000)` passed to `search()` is not checked against `SEARCH_MAX_RESULT_LIMIT`. Build requests from user input through `SearchRequestFactory`.
 - **Sorts on unknown or non-sortable fields vanish** instead of failing. And once a request has any sort, `defaultSort` is not used, even if every clause was skipped.
 - **A backend of your own must send the escape character.** The translator escapes `%`, `_` and `\` with a backslash; the shipped `TableSearchQuery` adds `ESCAPE` for MySQL and SQLite (which has no default), and a query object of your own must do the same.
-- **Turning the planner on changes nothing yet.** `SEARCH_PLANNER_ENABLED=1` with `plannerEnabled: true` runs the no-op planner; results are identical.
+- **The planner calls a model on every search with a query.** With both switches on, each such search waits for the model (up to `SEARCH_PLANNER_TIMEOUT_MS`) and pays for it; nothing caches plans. Turn it on per index, for searches typed by people.
+- **The user's text goes into the planner's prompt.** It is placed there as it is (between quotes, but not escaped), so a crafted query can steer the model. What the model answers is checked against the index (fields, types, ranges) and never overrides the request's own filters or tenant, so the worst it does is search the right data differently.
