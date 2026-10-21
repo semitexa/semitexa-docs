@@ -66,9 +66,9 @@ SEMITEXA_REMOTE_DEPLOY_DOMAIN=my-project.example.com
 | `SEMITEXA_REMOTE_DEPLOY_SSH_PORT` | `22` | a value outside 1–65535 falls back to `22` |
 | `SEMITEXA_REMOTE_DEPLOY_DOMAIN` | none | written into the generated `.env` and into the deployment marker. Nothing else uses it. |
 | `SEMITEXA_REMOTE_DEPLOY_SSH_IDENTITY_FILE` | none | a private key passed to `ssh` and `scp` as `-i`. Read from the process environment only; the `.env` fallback of the other settings does not apply. |
-| `SEMITEXA_REMOTE_DEPLOY_USE_PASSWORD` | `false` | read, but it changes nothing: the command always tries key authentication first. |
+| `SEMITEXA_REMOTE_DEPLOY_USE_PASSWORD` | `false` | `true` asks for the SSH password at once and offers no key (it needs `sshpass` locally); otherwise a key is tried first and the password is asked only when the server wants one. |
 
-A host is letters, digits, dots and dashes. An IPv6 address is refused.
+A host is letters, digits, dots and dashes, or an IPv6 address in brackets: `deploy@[2001:db8::10]`. A link-local address with a zone (`fe80::1%eth0`) is not accepted.
 
 Then run it from a terminal:
 
