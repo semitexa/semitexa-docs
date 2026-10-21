@@ -290,6 +290,8 @@ Each attempt:
 
 The wait before a retry is `initialBackoffSeconds × 2^(attempt − 1)`, give or take 25 % jitter, at least 1 s and at most `maxBackoffSeconds`. `Retry-After` is not read.
 
+Stopping the worker container sends SIGTERM: `webhook:work` sends and records the delivery in hand, then exits (with `pcntl`, which the scaffold image has). One cut off anyway is claimed again once its lease runs out.
+
 When the lease has run out before the result is written, another worker may already have claimed the row; this worker discards its result and logs "lost lease". Delivery is therefore at least once: a receiver must expect the same request twice.
 
 `bin/semitexa webhook:show attempts <outbox-id>` shows the history of one delivery; the outcomes appear as `delivery_attempt`, `retry_scheduled`, `failed_permanent_4xx`, `failed_attempts_exhausted`, `failed_blocked_target` and `replayed`.

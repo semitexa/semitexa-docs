@@ -187,7 +187,7 @@ The worker does **not** renew the lease while a job runs. A job that can take lo
 
 ### When a worker dies
 
-Stopping the worker container, or killing the process any other way, ends `scheduler:work` mid-job. The job does not get to finish, and the worker does not release its lease or lock. Once the lease expires, the next pass of any worker sets the run back to `pending`, and it runs again from the start as a new attempt; a run whose attempts are used up (the dead attempt counts) becomes `failed` instead, so a job that crashes its worker does not run forever. Until the lock's own TTL runs out, a run of the same schedule with `skip` becomes `skipped_overlap`. Delivery is **at least once**, so write jobs that are safe to run twice.
+Stopping the worker container sends SIGTERM, and `scheduler:work` lets the run in hand finish and be recorded before it exits (it needs the `pcntl` extension, which the scaffold image has; see [Queued handlers](../events/queued.md) for the grace period). A run that outlasts the grace period, a second signal, or killing the process any other way ends it mid-job: the job does not get to finish, and the worker does not release its lease or lock. Once the lease expires, the next pass of any worker sets the run back to `pending`, and it runs again from the start as a new attempt; a run whose attempts are used up (the dead attempt counts) becomes `failed` instead, so a job that crashes its worker does not run forever. Until the lock's own TTL runs out, a run of the same schedule with `skip` becomes `skipped_overlap`. Delivery is **at least once**, so write jobs that are safe to run twice.
 
 ### Run statuses
 
