@@ -16,7 +16,7 @@ verified_against: 2026.10.20.0340
 
 What each part of the public surface is, generated from the code itself.
 
-This installation exposes 141 attributes, 221 commands and 12 events.
+This installation exposes 141 attributes, 226 commands and 12 events.
 
 Reference says what a thing is. For when you would want it, see the guides under `en/`.
 
@@ -77,6 +77,7 @@ Reference says what a thing is. For when you would want it, see the guides under
 - [prompt](commands-prompt.md)
 - [queue](commands-queue.md)
 - [registry](commands-registry.md)
+- [role](commands-role.md)
 - [routes](commands-routes.md)
 - [scaffold](commands-scaffold.md)
 - [scheduler](commands-scheduler.md)
