@@ -13,6 +13,7 @@ keywords:
   - StaticLoggerBridge
   - LOG_SINK
   - LOG_CHANNELS
+  - LOG_REMOTE
   - LOG_LEVEL
   - LOG_FILE
   - logs:app
@@ -55,6 +56,7 @@ Each line is written when it is logged, by the coroutine that logged it. While o
 | `LOG_LEVEL` | `info` in dev, `warning` otherwise | lines below it are not written |
 | `LOG_SINK` | `file` | `file`, `stderr` or `both` |
 | `LOG_CHANNELS` | none | per-channel destinations, see [Routing channels](#routing-channels) |
+| `LOG_REMOTE` | none | `udp://<IPv4 address>:<port>`: a copy of every written line to a collector, see [To another machine](#to-another-machine-udp) |
 | `LOG_FILE` | `var/log/app.log` | relative to the project root (a leading `/` is ignored); `logs:app` and the Observatory read it there |
 | `LOG_MAX_BYTES` | 33554432 (32 MiB) | when the file passes this it is renamed aside with a timestamp suffix; `0` lets it grow |
 | `LOG_RETENTION_DAYS` | 14 | rotated files older than this are removed when the next rotation happens; `0` keeps them |
@@ -72,7 +74,23 @@ LOG_CHANNELS=audit=var/log/audit.log,security=both,sql=off
 - A route that is none of these (a typo such as `of`, a path outside `var/log/`, one with `..`, `var/log/swoole.log`, `var/log/error.log` or `LOG_FILE` itself) is ignored with one warning in the error log per worker, and that channel follows `LOG_SINK`.
 - Each file and stderr get their lines in the order they were logged, whichever routes write them.
 - `logs:app` and the Observatory read `LOG_FILE` only, not a channel's own file.
-- There is no syslog or network route. A log shipper reading stderr (`LOG_SINK=stderr`) or the files is the way to a remote collector.
+- There is no syslog route. The dependable way to a remote collector is a log shipper reading stderr (`LOG_SINK=stderr`) or the files; for a lighter, lossy copy, see [To another machine](#to-another-machine-udp).
+
+## To another machine: UDP
+
+```dotenv
+LOG_REMOTE=udp://10.0.0.5:5140
+```
+
+Every line the logger writes — to a file, to stderr, by `LOG_SINK` or by a channel's route — is also sent to that address as one UDP datagram holding the same JSON. A channel routed `off` is not sent. Point it at a log collector that accepts JSON over UDP.
+
+- UDP, because the send never waits: the datagram is handed to the kernel and the worker carries on. A syslog socket or a TCP connection to a slow collector would hold the worker, during a drain past its grace.
+- The price is UDP's: a line the network or a busy collector drops is gone. The next line that gets through carries `"remote_dropped": N`, the lines this worker could not hand over — a lower bound: what the network loses after that is not counted.
+- An entry over 60 000 bytes goes as a stub with its time, level, channel, request id, the start of its message and `truncated`. A datagram that large travels in many fragments, and many collectors cap UDP messages far lower: keep lines short.
+- An IPv4 address only (`udp://<address>:<port>`): a host name would be looked up on the first send, and the coroutine runtime opens UDP sockets as IPv4. Anything else is ignored, with a note in the PHP error log.
+- An address that cannot be opened is reported once in the PHP error log and tried again a minute later.
+- Plain UDP: every line, context included, crosses the network unencrypted, and anyone who can reach the collector can send it lines. Use it on a private network, or to a collector on the same host.
+- It is a copy: keep a file or stderr as well, for `logs:app` and for what UDP loses.
 
 ## In a container: stderr
 
