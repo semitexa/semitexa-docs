@@ -122,9 +122,13 @@ A `Queued` send is published to a queue only when the queue can reach another pr
 | publishing threw | `EnqueueFailed` | `queue_unavailable` | `enqueue_failed` |
 | delivered now, an attachment could not be loaded | `Failed` | `attachment_missing` | `failed` |
 | delivered now, the transport accepted it | `Sent` | | `sent` |
-| delivered now, the transport refused or deferred it | `Failed` | the transport's code | `failed` or `deferred` |
+| delivered now, no transport is registered under the driver name | `Failed` | `config_error` | `failed` |
+| delivered now, the transport refused it | `Failed` | the transport's code | `failed` |
+| delivered now, the transport deferred it, and a worker reads the queue | `Queued` | the transport's code | `deferred`, with the first retry queued |
+| delivered now, deferred, and the retry could not be queued | `Failed` | the transport's code | `enqueue_failed` |
+| delivered now, deferred, with the in-process queue (`EVENTS_ASYNC=0`) | `Failed` | the transport's code | `deferred` |
 
-`send()` does not catch everything. A driver name that no transport is registered under, and any database error while saving the row, are thrown to the caller.
+`send()` does not catch everything: a database error while saving the row is thrown to the caller.
 
 ### Attachments
 
@@ -144,7 +148,7 @@ new AttachmentReference(
 
 The contents are loaded when the mail is delivered, not when it is sent. `inlineContents` wins over `storagePath`. Inline contents are stored base64-encoded in the row and may be at most 256 KB (`AttachmentReference::MAX_INLINE_SIZE`). A storage path is read with `StorageDriverInterface::get()`. A reference with neither, a storage file that is not there, or inline contents over the limit fail the message with `attachment_missing`.
 
-A part is written as `Content-Disposition: inline` with a `Content-ID` only when `disposition` is `'inline'` and `contentId` is set; otherwise it is an attachment.
+A part is written as `Content-Disposition: inline` with a `Content-ID` only when `disposition` is `'inline'` and `contentId` is set; otherwise it is an attachment. The file name is quoted with control characters dropped (a non-ASCII name is also sent RFC 2231-encoded), a MIME type that is not `type/subtype` becomes `application/octet-stream`, and a `Content-ID` keeps only letters, digits and `.@_+=-`.
 
 ## Templates and rendering
 
@@ -300,7 +304,7 @@ To choose a mailer per tenant or per `mailerKey`, register your own resolver wit
 When the envelope has an `idempotencyKey`, `send()` first looks for a message with that key: of the same tenant, or, without a `tenantId`, among the messages with no tenant. The same key is the same mail:
 
 - already `sent`: nothing is rendered or sent, and the result is `Sent` with the existing id;
-- still on its way (`pending`, `queued`, `sending`), or `deferred` (a retry is already queued): the result is `Queued` with the existing id;
+- still on its way (`pending`, `queued`, `sending`), or `deferred` with a retry on the queue: the result is `Queued` with the existing id. With the in-process queue a `deferred` mail has no retry, and it is sent again instead;
 - `failed` with `invalid_recipient` or `provider_5xx` (the server refused it for good): nothing is sent, and the result is `Failed` with the stored error;
 - any other `failed`, or `enqueue_failed`: the stored message (its rendered subject and bodies and its stored attachments, not the new envelope's) is queued or sent again under the same id.
 
@@ -310,13 +314,13 @@ The worker has its own guard: a redelivered queue message whose row is already `
 
 ## Retries and attempts
 
-Only the worker retries. A failed attempt is retried when its error code is one of `network_error`, `timeout`, `rate_limited` or `provider_4xx`, or, for an error code the package does not know, when the transport said `Deferred`. It is retried while `attempts < maxRetries`, so one `send()` is delivered at most four times (the first try plus `maxRetries: 3`). Calling `send()` again under the same key after it failed starts a new count.
+The worker retries. A failed attempt is retried when its error code is one of `network_error`, `timeout`, `rate_limited` or `provider_4xx`, or, for an error code the package does not know, when the transport said `Deferred`. It is retried while `attempts < maxRetries`, so one `send()` is delivered at most four times (the first try plus `maxRetries: 3`). Calling `send()` again under the same key after it failed starts a new count.
 
-To retry, the worker **sleeps `retryDelay` seconds (60) inside the consumer**, publishes a copy of the queue message with `attempts + 1`, and sets the row to `deferred`. Both numbers are fixed in `QueuedMailMessage`; nothing configures them. While it sleeps, that worker delivers nothing else.
+To retry, the worker sets the row to `deferred` and publishes a copy of the queue message with `attempts + 1`, held back `retryDelay` seconds (60). The database and NATS transports hold it back themselves (`DelayedQueueTransportInterface`; not when wrapped by `dual`), so the worker goes straight on to the next mail; on a transport that cannot, the worker waits before publishing. Both numbers are fixed in `QueuedMailMessage`; nothing configures them. If the retry cannot be published, the row becomes `enqueue_failed` with `queue_unavailable`, and `send()` under its key sends it again.
 
 Any other failure sets the row to `failed` with the error code and message.
 
-A delivery that happens inside `send()` (sync mode, or the in-process queue) is tried once. A `Deferred` result there leaves the row `deferred` and the result `Failed`; nothing tries it again.
+A delivery that happens inside `send()` (sync mode, or the in-process queue) is tried once there. A `Deferred` result is handed to the queue as the first retry when a worker reads it, and `send()` returns `Queued` with the error; with the in-process queue (`EVENTS_ASYNC=0`) nothing holds a retry, the row stays `deferred` and the result is `Failed`, and `send()` again under its key sends it again.
 
 Every attempt through a transport writes one `mail_attempts` row: `attempt_no` (the number of earlier attempts plus one), driver, transport status, start and finish time, provider message id and status, provider response and error. A message that fails before the transport is called (config error, missing attachment) gets no attempt row.
 
@@ -328,7 +332,7 @@ Every attempt through a transport writes one `mail_attempts` row: `attempt_no` (
 | `queued` | published to the queue |
 | `sending` | a delivery is in progress |
 | `sent` | the transport accepted it |
-| `deferred` | a temporary failure; retried only if the worker re-queued it |
+| `deferred` | a temporary failure, with its retry on the queue (or, with the in-process queue, waiting for `send()` under its key) |
 | `failed` | final |
 | `enqueue_failed` | publishing to the queue failed; final |
 
@@ -392,17 +396,15 @@ See also [Requests and Fakes](../testing/requests-and-fakes.md).
 
 - **The default settings send nowhere.** `MAIL_DRIVER` defaults to `smtp` on `127.0.0.1:1025`, and the default stack runs no mail server there, so every send fails with `network_error`. Point `MAIL_HOST` at a server, or set `MAIL_DRIVER` to `null` to drop mail on purpose.
 - **`MAIL_ENCRYPTION` must be exactly `tls` or `ssl`.** `TLS`, `starttls` or a typo connect in plain text, and with a username and password set, the credentials go out in plain text too.
-- **Without async events nothing is retried.** With `EVENTS_ASYNC=0` (the default), a queued mail is sent inside `send()`; a temporary failure leaves the row `deferred` for good. The same holds for every `MailSendMode::Sync` send.
-- **A mail can be sent twice.** If the server accepted the message but the final `QUIT` fails or the connection drops, the attempt counts as `network_error` and the worker sends it again. A worker that dies after the server accepted a message, before it marked the row `sent`, also sends it again on redelivery.
-- **A retry blocks the worker for 60 seconds.** The worker sleeps inside the consumer before re-queueing, so one failing mail holds up every mail behind it.
-- **A failed re-queue strands the mail.** If publishing the retry fails, the error is logged, the row is set to `deferred` anyway, and no queue message is left to deliver it.
+- **Without async events nothing is retried by itself.** With `EVENTS_ASYNC=0` (the default), a queued mail is sent inside `send()`; a temporary failure leaves the row `deferred` until `send()` is called again under its key.
+- **A mail can be sent twice.** A worker that dies after the server accepted a message, before it marked the row `sent`, sends it again on redelivery. So does a server that stored the message but whose reply to `DATA` timed out: that counts as `network_error` and is retried. A failing `QUIT` after the server's `250` is not a failure.
+- **A retry from `send()` on a transport that cannot hold messages back goes out at once.** The worker waits `retryDelay` before re-publishing; `send()` does not, so behind such a transport (for example `EVENTS_TRANSPORT=dual`) a greylisted mail is tried again immediately and uses up one retry.
 - **A row stuck in `pending` or `sending` answers `Queued` for good.** A crash between storing and publishing, or an unknown driver (below), leaves such a row; `send()` under its key then reports it queued and never delivers it. Delete the row, or send under a new key.
 - **Turning certificate checks on is new.** A `MAIL_HOST` that is an IP address or an alias the certificate does not name, or a relay with a self-signed certificate, now fails with `config_error`. Point `MAIL_HOST` at the name on the certificate, or set `MAIL_VERIFY_PEER=false` for a local test server.
 - **Text templates compiled before the upgrade stay HTML-escaped** until `bin/semitexa cache:clear`: Twig keeps the escaping it compiled with.
-- **An unknown `MAIL_DRIVER` throws.** `send()` throws `InvalidArgumentException` and the row stays `sending`. In the worker the exception goes back to the queue transport, which redelivers and eventually gives up, and the row stays `sending`.
+- **An unknown `MAIL_DRIVER` fails the mail.** The row becomes `failed` with `config_error`, in `send()` and in the worker; fix the setting and `send()` again under the key.
 - **The worker ignores `mailerKey` and reads the config at delivery time.** A queued mail is delivered with the resolver's answer for its tenant alone, as it is when the worker runs. The sender address and bodies were fixed when it was sent.
 - **`mail:work` run by hand reads `mail`.** Without a `queue` argument it does not use `MAIL_QUEUE`. The worker container passes the right queue.
-- **Attachment file names are written into the MIME headers unchanged.** A quote or line break in a name, for example from an uploaded file, breaks the part's headers, and non-ASCII names are not encoded.
 - **Large inline attachments fail late.** Inline contents over 256 KB are stored and queued, then fail on delivery with `attachment_missing`. Use a storage path.
 - **A bad custom header name is retried.** `MimeBuilder` throws for a header name that is not printable ASCII without a colon, the SMTP transport reports that as `network_error`, and the worker tries it four times before failing it.
 - **Nothing checks that there is a recipient.** A message with no `to`, `cc` or `bcc` reaches the SMTP server and is refused there.
