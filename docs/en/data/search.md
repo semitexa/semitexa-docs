@@ -27,7 +27,7 @@ keywords:
 
 Use it when people type text and expect ranked matches across several columns. For a lookup by one known column, a repository query is shorter to write and cheaper to run. It is not a full-text engine: there is no tokenising, stemming or inverted index (see [Performance](#performance)).
 
-**Before you start:** as shipped, the ORM backend has no query factory wired in, so every `search()` call fails with `SearchBackendException: Backend does not support index '…' (backend: 'orm')`. A project has to supply the backend itself; [Providing the backend](#providing-the-backend) shows how.
+**Before you start:** give each index an `entityClass` that is a resource model with `#[FromTable]`; the shipped ORM backend searches that table. An index without one fails with `SearchBackendException` naming what is missing. For anything else (another store, joins, a search engine), see [Providing the backend](#providing-the-backend).
 
 ## Declaring an index
 
@@ -57,7 +57,8 @@ final class ProductSearchIndex
                 new SearchFieldDefinition('created', SearchFieldType::Date, filterable: true, sortable: true, column: 'created_at'),
             ],
             scopeMode: SearchScope::Tenant,   // the default
-            defaultSort: ['created_at'],
+            entityClass: ProductResource::class, // a resource model with #[FromTable]: the table searched
+            defaultSort: ['created_at', 'id'], // ends on a unique column: stable pages
         );
     }
 }
@@ -72,7 +73,7 @@ final class ProductSearchIndex
 | `fields` | — | at least one `SearchFieldDefinition`; duplicate names throw |
 | `scopeMode` | `SearchScope::Tenant` | see [Tenants](#tenants) |
 | `backend` | `'orm'` | the backend name; the shipped backend only accepts `'orm'` |
-| `repositoryClass`, `entityClass` | `null` | stored, but nothing in the package reads them |
+| `repositoryClass`, `entityClass` | `null` | `entityClass`: a resource model with `#[FromTable]`, the table the shipped backend searches. `repositoryClass` is stored, but nothing reads it |
 | `defaultSort` | `[]` | **column** names, always ascending, used only when the request has no sort |
 | `plannerEnabled` | `false` | allows the planner for this index (see [The planner](#the-planner)) |
 
@@ -235,8 +236,8 @@ Ranking happens **after `LIMIT`/`OFFSET`**. It orders the 20 rows of this page, 
 
 `SearchScope` has two cases, `Tenant` and `Global`. The index's `scopeMode` decides what happens to the request:
 
-- **Tenant index** (the default). The request's scope is forced to `Tenant`. If the request carries no `tenantId`, the current tenant from `semitexa/tenancy` is used, and `default` when there is no tenant context. The backend then adds `where('tenant_id', '=', $tenantId)`. The column is always `tenant_id`; it cannot be renamed.
-- **Global index.** The request is left as it is. A request with scope `Tenant` (the default) and a `tenantId` gets the same `tenant_id` predicate; any other gets none.
+- **Tenant index** (the default). The request's scope is forced to `Tenant`. If the request carries no `tenantId`, the current tenant from `semitexa/tenancy` is used, and `default` when there is no tenant context. The backend then adds `where('tenant_id', '=', $tenantId)`; the shipped backend maps `tenant_id` to a `#[TenantScoped]` model's own tenant column, and a backend of your own receives `tenant_id`.
+- **Global index.** The request is left as it is. A request with scope `Tenant` (the default) and a `tenantId` gets the same `tenant_id` predicate; any other gets none. The shipped backend refuses a Global index over a `#[TenantScoped]` model.
 
 The translator checks this again: a request for a tenant index that reaches it with scope `Global` or without a `tenantId` (a backend called directly, not through `SearchManager`) throws `LogicException` instead of searching every tenant.
 
@@ -271,9 +272,11 @@ search(SearchIndexDefinition $definition, SearchRequest $request): SearchResult
 
 `OrmSearchQueryInterface`, which your query object implements, has `where`, `orWhere`, `whereAnyLike` (one parenthesised group of `column LIKE pattern` joined by `OR`, ANDed with the rest — the text match), `whereIn`, `whereBetween`, `orderBy`, `limit`, `offset`, `fetchAll` and `count`.
 
-The shipped `OrmSearchBackend` needs an `OrmSearchQueryFactoryInterface`, but its property carries no injection attribute and the package has no implementation of that interface, so it always reports `supports() === false`. Bind your own backend with `#[SatisfiesServiceContract(of: SearchBackendInterface::class)]`. `OrmSearchTranslator` and `OrmRankingStrategy` are plain classes with no constructor; your backend can reuse them by implementing `OrmSearchQueryInterface` (`where`, `orWhere`, `whereIn`, `whereBetween`, `orderBy`, `limit`, `offset`, `fetchAll`, `count`) over your repository's query.
+The shipped `OrmSearchBackend` gets its `OrmSearchQueryFactoryInterface` injected. The package's own, `OrmTableSearchQueryFactory`, returns a `TableSearchQuery` over the index's `#[FromTable]` table: parameterised SQL through `OrmManager::getQueryAdapter()` (so a search inside a transaction sees its writes), `SELECT *` with every column checked as a plain identifier and quoted, the operators `=`, `!=`, `<>`, `<`, `<=`, `>`, `>=` and `LIKE`, and `COUNT(*)` over the same conditions for the total. A row's `id` (or `uuid`) becomes the hit's document id.
 
-Two implementations now exist for one contract. Run `bin/semitexa contracts:list` and check that yours is the active one; [Resolving Service Contracts](../di/contract-resolution.md) explains how the winner is chosen and how to pick it with a generated resolver.
+To search something else, implement the factory (or `SearchBackendInterface`) yourself and bind it with `#[SatisfiesServiceContract(of: OrmSearchQueryFactoryInterface::class)]`. `OrmSearchTranslator` and `OrmRankingStrategy` are plain classes with no constructor; a backend of your own can reuse them by implementing `OrmSearchQueryInterface` over your repository's query.
+
+Two implementations then exist for one contract. Run `bin/semitexa contracts:list` and check that yours is the active one; [Resolving Service Contracts](../di/contract-resolution.md) explains how the winner is chosen and how to pick it with a generated resolver.
 
 When you write `whereAnyLike()`: it is one parenthesised group of `column LIKE pattern` conditions joined by `OR`, ANDed with everything before it, so the tenant predicate and the filters still hold for text matches. `ResourceModelQuery::whereAnyLike()` builds that group for a single pattern; with one pattern per column, build the group yourself.
 
@@ -308,8 +311,10 @@ If you need word-level matching, stemming or ranking across the whole match set 
 
 ## Watch out for
 
-- **The backend is not wired.** Out of the box every search throws `SearchBackendException` ("Backend does not support index"). Bind a backend first.
-- **No tenant context means tenant `default`.** A tenant index searched from a CLI command or a job without a tenant context searches `tenant_id = 'default'`, which is usually empty. Run it under the tenant (`bin/semitexa tenant:run <tenant> …`).
+- **The shipped backend searches one table with `LIKE`.** No joins, no full-text index, no stemming: a large table is scanned. Bind your own factory or backend for more.
+- **It follows the model, as a repository would.** A `#[SoftDelete]` model's deleted rows are never found; a `#[TenantScoped]` model is filtered on its own tenant column, and a Global index over one is refused. A Tenant index over a table with no tenant column fails with a database error. Only the default connection is searched (`#[Connection]` is not followed).
+- **Set a sort with a unique last column for stable pages.** Without one (or `defaultSort`), `LIMIT`/`OFFSET` pages can repeat or skip rows.
+- **No tenant context means tenant `default`.** A tenant index searched from a CLI command or a job without a tenant context searches `tenant_id = 'default'`: rows written under no tenant (`''` or `NULL`) are not found. Run it under the tenant (`bin/semitexa tenant:run <tenant> …`).
 - **A non-numeric value on a `Number` filter is refused.** `price:abc` (or `'price' => 'abc'`) throws `SearchValidationException` naming the field.
 - **Relevance orders only the page, and only without a sort.** With a query and no `SortClause`, the relevance score reorders the rows of the current page (after `LIMIT`/`OFFSET`), so page 2 is not ranked against page 1. An explicit `SortClause` is kept as given.
 - **`column` is used twice.** It is the SQL column and the key looked up in each fetched row. If your row's `toArray()` returns camelCase keys (`createdAt`) while the column is `created_at`, ranking reads nothing (score `0`) and the field is missing from `hits[].fields`. An object without `toArray()` is cast with `(array)`, where private and protected properties get mangled keys and are never found.
@@ -318,5 +323,5 @@ If you need word-level matching, stemming or ranking across the whole match set 
 - **`searchText()` ignores `SEARCH_DEFAULT_LIMIT`.** Its own `$limit` defaults to 20 and is always passed on; a value above `SEARCH_MAX_RESULT_LIMIT` throws `SearchValidationException`.
 - **Hand-built requests skip the limits.** `new SearchRequest(limit: 100000)` passed to `search()` is not checked against `SEARCH_MAX_RESULT_LIMIT`. Build requests from user input through `SearchRequestFactory`.
 - **Sorts on unknown or non-sortable fields vanish** instead of failing. And once a request has any sort, `defaultSort` is not used, even if every clause was skipped.
-- **The escaping assumes `\` is the `LIKE` escape character.** No `ESCAPE` clause is sent. Many databases use it by default, not all; on one that has no default escape character, a user's `%` or `_` becomes a literal backslash plus a wildcard.
+- **A backend of your own must send the escape character.** The translator escapes `%`, `_` and `\` with a backslash; the shipped `TableSearchQuery` adds `ESCAPE` for MySQL and SQLite (which has no default), and a query object of your own must do the same.
 - **Turning the planner on changes nothing yet.** `SEARCH_PLANNER_ENABLED=1` with `plannerEnabled: true` runs the no-op planner; results are identical.
