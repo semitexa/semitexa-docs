@@ -43,7 +43,7 @@ These commands move the framework packages. None of them brings your own code (`
 `bin/semitexa` runs every command except `server:*` inside the `app` container: `docker compose exec` when the stack is up, a one-off container when it is not. Three things follow:
 
 - Settings are read from the container's environment first, then from `.env.default` and `.env`. The container's environment is fixed when the container is created. After changing a value the container already had, recreate it with `bin/semitexa server:restart app`.
-- A health-check URL is fetched from inside the container.
+- The health check of `update:packages:auto` is fetched from inside the container; the systemd wrapper's, after its restart, from the host. A URL both can reach is the published one, such as `http://127.0.0.1:9502/health` with your `SWOOLE_PORT`.
 - Only tools in the image are available. The scaffold image has `composer`, `git` and `tar`. It has no SSH client and no Docker CLI.
 
 `bin/semitexa` also runs the containers as the uid of whoever calls it, unless `SEMITEXA_UID` and `SEMITEXA_GID` are set (under rootless Docker, as `0`). Run every command on a server as the same user.
@@ -175,7 +175,7 @@ When auto-deploy is off it ends with status `skipped`. With no newer release it 
 5. Compares every `semitexa/*` package in `composer.lock` with `vendor/composer/installed.json` and fails if one is missing or at another version. A `require-dev` package is not counted as missing: `--no-dev` takes it out of `vendor/` while `composer.lock` keeps it.
 6. Runs `orm:sync`, then `cache:clear`. When the server runs in the same container, `cache:clear` also reloads its workers.
 7. Restarts: with `SEMITEXA_AUTO_DEPLOY_RESTART_COMMAND`, that command. Otherwise `docker compose restart`, but only when `docker-compose.yml` and the Docker CLI exist and the command is not running inside a container. Otherwise nothing, and the result says `restart_required: true`.
-8. Fetches `SEMITEXA_AUTO_DEPLOY_HEALTHCHECK_URL` when it is set.
+8. Fetches `SEMITEXA_AUTO_DEPLOY_HEALTHCHECK_URL` when it is set; a failure fails the deploy and rolls it back. After a restart in step 7 it tries four times, three seconds apart. Without one (inside the `app` container) it asks the workers `cache:clear` reloaded on the new `vendor/`. It is the only health check that can roll a deploy back: the systemd wrapper's check after its restart only reports.
 
 After step 5, when composer installed none of the newer releases (a constraint, or a pinned package a newer one needs, held them back) and `composer.lock` did not change, the run ends as `noop` there: no sync, no restart, and the reason says so. Composer still runs on each such tick until the constraints move.
 
@@ -227,7 +227,7 @@ journalctl -u semitexa-auto-deploy.service -n 100 --no-pager
 
 ## When a deploy fails
 
-Any failure after the lock is taken ends the run as `failed`, with the error as its `reason`. When `composer update` had already succeeded, the run then rolls back:
+Any failure after the lock is taken ends the run as `failed`, with the error as its `reason`. When `composer update` itself failed before changing `composer.lock` (the repository unreachable, an expired token), there is nothing to roll back: `rollback` says `not needed`, and nothing restarts. Otherwise — a later step failed, or composer failed after rewriting the lock — the run rolls back:
 
 1. It writes the saved `composer.json` and `composer.lock` back. If there was no lock before, the new one is deleted.
 2. It runs `composer install --prefer-dist --no-dev --no-interaction --optimize-autoloader`.
@@ -241,11 +241,11 @@ Any failure after the lock is taken ends the run as `failed`, with the error as 
 | `partial` | files and `vendor/` are back, but the restart failed: restart by hand |
 | `FAILED` | the files could not be written, or `composer install` failed: `vendor/` is still on the new versions |
 
-The rollback does not undo schema changes `orm:sync` made, does not run `cache:clear` again, and does not repeat the health check. A failure inside `composer update` itself has no rollback step.
+The rollback does not undo schema changes `orm:sync` made, does not run `cache:clear` again, and does not repeat the health check.
 
 Each run is recorded in two places:
 
-- **Deployment log.** One JSON file per run in `var/log/deployments/`, named by UTC time (`2026-10-21T091500Z.json`). It holds the same fields as the `--json` output. It is written on every run, `skipped` and `noop` included, and nothing removes old files. If it cannot be written, the result says `deployment_log: unavailable: …` and the run's outcome stays as it was.
+- **Deployment log.** One JSON file per run in `var/log/deployments/`, named by UTC time (`2026-10-21T091500Z.json`). It holds the same fields as the `--json` output. It is written on every run, `skipped` and `noop` included; the newest 200 are kept and older ones removed (the `remote-bootstrap-*.json` logs in the same directory are not counted). If it cannot be written, the result says `deployment_log: unavailable: …` and the run's outcome stays as it was.
 - **Run journal.** A row in `platform_update_run_journal` with kind `auto-deploy`, written only when a deploy is attempted. Its package deltas are what `vendor/` holds after a successful run (a package composer held back is left out) and what was attempted for a failed one. When the database is unreachable the row is skipped. Read it with `bin/semitexa update:history`.
 
 ## Exact versions: `update:packages:materialize`
