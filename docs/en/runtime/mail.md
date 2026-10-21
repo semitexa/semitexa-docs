@@ -327,7 +327,7 @@ Any other failure sets the row to `failed` with the error code and message.
 
 A delivery that happens inside `send()` (sync mode, or the in-process queue) is tried once there. A `Deferred` result is handed to the queue as the first retry when a worker reads it, and `send()` returns `Queued` with the error; with the in-process queue (`EVENTS_ASYNC=0`) nothing holds a retry, the row stays `deferred` and the result is `Failed`, and `send()` again under its key sends it again.
 
-Every attempt through a transport writes one `mail_attempts` row: `attempt_no` (the number of earlier attempts plus one), driver, transport status, start and finish time, provider message id and status, provider response and error. A message that fails before the transport is called (config error, missing attachment) gets no attempt row.
+Every attempt through a transport writes one `mail_attempts` row: `attempt_no` (the number of earlier attempts plus one; two workers on one redelivered message can both write the same number, which only labels the rows), driver, transport status, start and finish time, provider message id and status, provider response and error. A message that fails before the transport is called (config error, missing attachment) gets no attempt row.
 
 ### Message statuses
 
@@ -401,7 +401,8 @@ See also [Requests and Fakes](../testing/requests-and-fakes.md).
 
 - **The default settings send nowhere.** `MAIL_DRIVER` defaults to `smtp` on `127.0.0.1:1025`, and the default stack runs no mail server there, so every send fails with `network_error`. Point `MAIL_HOST` at a server, or set `MAIL_DRIVER` to `null` to drop mail on purpose.
 - **Without async events nothing is retried by itself.** With `EVENTS_ASYNC=0` (the default), a queued mail is sent inside `send()`; a temporary failure leaves the row `deferred` until `send()` is called again under its key.
-- **A mail can be sent twice.** A worker that dies after the server accepted a message, before it marked the row `sent`, sends it again on redelivery. So does a server that stored the message but whose reply to `DATA` timed out: that counts as `network_error` and is retried. A failing `QUIT` after the server's `250` is not a failure.
+- **Two workers on one redelivered message do not undo each other's `sent`.** The slower one's `sending`, `deferred`, `enqueue_failed` or `failed` is written only while the row is not `sent`; finding it sent, the worker stops and queues no retry. Both may still have delivered it (below).
+- **A mail can be sent twice.** Two workers on one redelivered message can both deliver it. A worker that dies after the server accepted a message, before it marked the row `sent`, sends it again on redelivery. So does a server that stored the message but whose reply to `DATA` timed out: that counts as `network_error` and is retried. A failing `QUIT` after the server's `250` is not a failure.
 - **A retry from `send()` on a transport that cannot hold messages back goes out at once.** The worker waits `retryDelay` before re-publishing; `send()` does not, so behind such a transport (for example `EVENTS_TRANSPORT=dual`) a greylisted mail is tried again immediately and uses up one retry.
 - **A row stuck in `pending` or `sending` answers `Queued` for good.** A crash between storing and publishing, or an unknown driver (below), leaves such a row; `send()` under its key then reports it queued and never delivers it. Delete the row, or send under a new key.
 - **Turning certificate checks on is new.** A `MAIL_HOST` that is an IP address or an alias the certificate does not name, or a relay with a self-signed certificate, now fails with `config_error`. Point `MAIL_HOST` at the name on the certificate, or set `MAIL_VERIFY_PEER=false` for a local test server.
