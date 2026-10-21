@@ -199,7 +199,7 @@ With prefixing off, all of these return the path unchanged and nothing is redire
 
 ### A language switcher
 
-Because of the preference redirect, a plain link to the default-language page bounces a visitor whose cookie says otherwise straight back. Change the cookie in the same step as the navigation: a `POST` to an unprefixed path (a `POST` is never redirected by the locale phase, and on an unprefixed path the current locale is the default, so `setRedirect()` adds no prefix):
+Because of the preference redirect, a plain link to the default-language page bounces a visitor whose cookie says otherwise straight back. Change the cookie in the same step as the navigation, and switch the current locale before redirecting: a bare `setRedirect()` path is prefixed with the locale being served, so after `setLocale()` it lands in the new language. This works for a `GET` link and a `POST` form alike:
 
 ```php
 use Semitexa\Core\Attribute\InjectAsMutable;
@@ -207,26 +207,25 @@ use Semitexa\Core\Cookie\CookieJarInterface;
 use Semitexa\Core\Http\Response\ResourceResponse;
 use Semitexa\Locale\Context\LocaleContextStore;
 
-// Handler for POST /language, fields: locale, path (unprefixed, e.g. "/catalog")
+// Handler for /language, fields: locale, path (unprefixed, e.g. "/catalog")
 #[InjectAsMutable]
 protected CookieJarInterface $cookies;
 
 public function handle(SwitchLanguagePayload $payload, ResourceResponse $resource): ResourceResponse
 {
     $locale = $payload->getLocale();
-    $supported = LocaleContextStore::getSupportedLocales();
-    if (!in_array($locale, $supported, true)) {
+    if (!in_array($locale, LocaleContextStore::getSupportedLocales(), true)) {
         $locale = LocaleContextStore::getDefaultLocale();
     }
 
     $this->cookies->set('locale', $locale, ['path' => '/', 'maxAge' => 31536000, 'sameSite' => 'lax']);
+    LocaleContextStore::setLocale($locale);
 
-    $path = '/' . ltrim($payload->getPath(), '/');
-    $target = $locale === LocaleContextStore::getDefaultLocale() ? $path : '/' . $locale . $path;
-
-    return $resource->setRedirect($target);
+    return $resource->setRedirect('/' . ltrim($payload->getPath(), '/'));
 }
 ```
+
+A `GET` to `/language` from a visitor whose cookie names another language is first redirected to `/uk/language?…`; the handler still runs, and the redirect it answers with uses the new locale, not the cookie's.
 
 ## The locale under Swoole
 
@@ -274,7 +273,7 @@ Values are read once per worker; restart after changing them. A tenant's pack (p
 - **Catalog edits need a worker restart.** So do `LOCALE_*` changes.
 - **With `LOCALE_URL_PREFIX=true`, `Accept-Language` and the cookie resolver are ignored.** A first-time visitor gets the default language on an unprefixed URL; only a `locale` cookie your application wrote triggers the preference redirect.
 - **The preference redirect beats a plain link.** A visitor with `locale=uk` who follows a link to `/catalog` is sent to `/uk/catalog`. Switch languages by updating the cookie (above), not by linking to the bare path.
-- **A locale-switch `GET` on an unprefixed path is redirected before your handler runs** when the request carries a non-default `locale` cookie, and the handler then runs in that locale, so its `setRedirect()` gains that prefix. Use `POST`.
+- **A redirect follows the locale being served.** `setRedirect('/catalog')` on a Ukrainian page goes to `/uk/catalog`. A language switcher must call `LocaleContextStore::setLocale()` with the new locale first (see above).
 - **`locale_url()` replaces a prefix that is already there.** `locale_url('/uk/a', 'de')` is `/de/a`. A first segment that is not a supported locale (`/ukraine/a`) is kept.
 - **Supported codes must be spelled as the header resolver normalizes them.** It compares `pt-BR`, so `LOCALE_SUPPORTED=pt-br` never matches a full tag. Only the primary subtag fallback can, and only when `pt` is in the list too.
 - **`Accept-Language: uk;q=0` never selects `uk`.** A zero quality excludes the language; a weight that is not a number (`q=x`) counts as `1`.
