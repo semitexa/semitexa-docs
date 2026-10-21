@@ -210,9 +210,24 @@ other workers must see at once needs to run outside any transaction. Use
 The engine's `ResourceChangedEvent` auto-publish is commit-gated: a
 repository write that nests inside your `run()` buffers its signal on the
 TransactionManager and it flushes after YOUR commit (and is dropped on
-rollback). If you call `bufferEvent()` yourself, wire a dispatcher with
-`setEventDispatcher()` first — flushing with no dispatcher discards
-silently.
+rollback, including a rolled-back savepoint's). If you call `bufferEvent()`
+yourself, wire a dispatcher with `setEventDispatcher()` first — flushing
+with no dispatcher discards silently.
+
+For an effect a rollback cannot undo — a mail sent, a message published, a
+call to another service — hold it back until the commit:
+
+```php
+$orm->getTransactionManager()->afterCommit(fn () => $this->notifyWarehouse($orderId));
+```
+
+Outside a transaction it runs at once. Inside, it runs once the outermost
+transaction commits, after the connection is back in the pool; a rollback
+(or the rolled-back savepoint it was asked for in) drops it, so a
+`runWithRetry()` replay does not do it twice. A failure after the commit is
+logged and does not undo the committed write; outside a transaction the
+work's exception reaches you as from any call. It needs no event dispatcher. Inside a
+test transaction it never runs.
 
 ## Wiring a store
 

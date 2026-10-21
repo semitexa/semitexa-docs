@@ -59,7 +59,7 @@ final readonly class Customer implements NotifiableInterface
 }
 ```
 
-- **The tenant id and the recipient id together identify the recipient.** The inbox and the preferences are keyed by both, because a recipient id alone is not unique across tenants. Each id is at most 64 bytes and cannot start or end with a space.
+- **The tenant id and the recipient id together identify the recipient.** The inbox and the preferences are keyed by both, because a recipient id alone is not unique across tenants. Each id is at most 64 characters and cannot start or end with a space.
 - **They are compared exactly**, including letter case and accents: `abc`, `ABC` and `abç` are three recipients, on MySQL as well as SQLite. Control characters are not allowed in either id.
 - **`null` as the tenant is one shared bucket.** Every recipient with that id and no tenant shares one inbox and one set of preferences, stored under the empty tenant id. In a multi-tenant project, always return the tenant.
 - **`notificationLocale()`** is the locale the notification is written in, as the site spells it (`uk`, `en`). See [Locale](#locale).
@@ -152,8 +152,8 @@ For each recipient, `send()`:
 | `Failed` | `invalid_channel` | `via()` returned something that is not a valid channel name |
 | `Failed` | `channel_unavailable` | the channel class could not be built, or two classes claim its name |
 | `Failed` | `preferences_unavailable` | the preferences could not be read, so nothing was sent |
-| `Failed` | `invalid_recipient` | an empty, padded or oversized id, a recipient whose methods threw, something that is not a `NotifiableInterface`, or a recipient list that threw while it was being read |
-| `Failed` | `invalid_notification` | a malformed `type()`, or a `type()` or `via()` that threw |
+| `Failed` | `invalid_recipient` | an empty, padded or oversized id (over 64 characters), a recipient whose methods threw (except `notificationLocale()`, below), something that is not a `NotifiableInterface`, or a recipient list that threw while it was being read |
+| `Failed` | `invalid_notification` | a malformed `type()`, a `type()` or `via()` that threw, or a recipient's `notificationLocale()` that threw (reported on channel `*`) |
 
 `NotificationReport` has `sent()`, `skipped()`, `failed()` and `hasFailures()`. It also has:
 
@@ -174,14 +174,15 @@ The locale is set exactly as given, so return it as the site spells it: `uk`, no
 
 ### Inside a database transaction
 
-`send()` may run inside your own `TransactionManager::run()` or `runWithRetry()`. A deadlock, a lock-wait timeout or a lost connection there means the server has rolled your transaction back. Reporting a failure and carrying on would continue on a transaction that no longer exists.
+`send()` may run inside your own `TransactionManager::run()` or `runWithRetry()`. A deadlock or a lost connection there means your transaction is gone. After a lock-wait timeout MySQL by default rolls back only the statement that waited, but the write the channel needed did not happen. Reporting a failure and carrying on would continue on a transaction that is gone or incomplete.
 
 So, while a transaction is open, `send()` rethrows `DeadlockException`, `LockWaitTimeoutException` and `ConnectionLostException` from any channel. It finds them even when a channel wrapped them. `runWithRetry()` then replays your whole unit, `send()` included, so make the notification [idempotent](#retrying-safely) if it can run twice. Outside a transaction, these three are channel failures like any other, and they are the only exceptions `send()` ever lets through.
 
 What the built-in channels write also belongs to your transaction:
 
 - **`database`:** the inbox row is written through the ORM's query adapter, so it commits or rolls back with your transaction. After a rollback the row is gone, although the report said `Sent`.
-- **`mail`:** the `mail_messages` row joins your transaction too, but the queue message is published at once, before your commit. After a rollback the mail is never sent: the worker finds no row and drops the message. A transaction that stays open longer than about 30 seconds after `send()` can lose the mail even when it commits. See the transaction note in [Sending Mail](mail.md#watch-out-for).
+- **`mail`:** the `mail_messages` row joins your transaction too, and the mail leaves only after your commit: queued for the worker, or, when `EVENTS_ASYNC=0`, sent as the transaction commits. After a rollback nothing is sent, and a replay by `runWithRetry()` sends it once. See the transaction note in [Sending Mail](mail.md#watch-out-for).
+- **Your own channel** runs in the call. Hold back an effect a rollback cannot undo (a chat message, a push) with `TransactionManager::afterCommit()`.
 
 Send after the commit when the notification must survive a rollback.
 
@@ -205,7 +206,7 @@ final readonly class OrderShipped implements IdempotentNotificationInterface, Ma
 
 The key names the event, not the attempt, so it must stay the same across retries. It is combined with the type and the recipient, so it only needs to be unique per type. With a key:
 
-- **`mail`** passes a per-recipient key to `MailEnvelope::idempotencyKey`. `semitexa/mail` stores one mail per key, so sending again does not mail the recipient twice, and a mail that failed earlier is retried (see [Idempotency](mail.md#idempotency)). Three parts of that behaviour arrive with the next `semitexa/mail` release and are untagged today: the lookup for a mail without a tenant, the resend of a failed mail, and the answer when two sends of one key race. With an older mail release, a retry under an existing key can fail the `mail` channel: the mail service tries to store a second row, its unique index refuses it, and `send()` there throws. For a recipient without a tenant, the key is not looked up at all, so the mail is stored and sent again.
+- **`mail`** passes a per-recipient key to `MailEnvelope::idempotencyKey`. `semitexa/mail` stores one mail per key, so sending again does not mail the recipient twice, and a mail that failed earlier is retried (see [Idempotency](mail.md#idempotency)). Three parts of that behaviour arrive with the next `semitexa/mail` release and are untagged today: the lookup for a mail without a tenant, the resend of a failed mail, and the answer when two sends of one key race. With an older mail release, a retry under an existing key can fail the `mail` channel: the mail service tries to store a second row, its unique index refuses it, and `send()` there throws. For a recipient without a tenant, the key is not looked up at all, so the mail is stored and sent again. Even with the next release, two retries of a tenantless recipient running at the same moment can both store the mail: the mail table's unique index lets rows without a tenant through. And a mail whose worker died mid-send stays `pending` or `sending`; a retry then reports `Sent`, but nothing re-sends it (see [Sending Mail](mail.md#watch-out-for)).
 - **`database`** stores the key with the inbox row. A second row with the same key for the same recipient is not stored, and the outcome is `Sent` with the reason `duplicate`. This also holds when the first row was committed by another request after your own transaction began: the unique index answers, not a lookup your transaction's snapshot might not see.
 
 Retrying a partly failed send is then simply calling `send()` again with the same notification and recipients. Channels that delivered before report `Sent` (or `duplicate`), and the rest try again. A project channel can read `idempotencyKey()` the same way, and throw `NotificationAlreadyDeliveredException` to report a duplicate.
@@ -222,7 +223,7 @@ The notification must implement `MailNotificationInterface`, and the recipient m
 - the idempotency key of an idempotent notification,
 - `notification_type` in the metadata and the `notification` tag.
 
-It calls `MailServiceInterface::send()` with no options, so the mail is stored and queued the way `MailService` sends by default. Inside a transaction, the stored row is part of it (see [Inside a database transaction](#inside-a-database-transaction)). **Sent** therefore means that the mail service accepted the mail. Delivery, retries and the record in `mail_messages` are the mail worker's (see [Sending Mail](mail.md)). A `MailDispatchResult` whose `succeeded()` is `false` fails the channel.
+It calls `MailServiceInterface::send()` with no options, so the mail is stored and queued the way `MailService` sends by default (sent in the call when `EVENTS_ASYNC=0`). Inside a transaction on the mail's connection, the stored row is part of it and the mail leaves after the commit (see [Inside a database transaction](#inside-a-database-transaction)). **Sent** therefore means that the mail service accepted the mail. Delivery, retries and the record in `mail_messages` are the mail worker's (see [Sending Mail](mail.md)). A `MailDispatchResult` whose `succeeded()` is `false` fails the channel.
 
 ### `database`
 
@@ -321,7 +322,7 @@ bin/semitexa notifications:prune               # uses NOTIFICATIONS_RETENTION_DA
 |---|---|---|
 | `--days` | `NOTIFICATIONS_RETENTION_DAYS` | delete rows created more than this many days ago; `0` deletes nothing |
 | `NOTIFICATIONS_RETENTION_DAYS` | `0` | the default for `--days`; `0` or unset keeps everything |
-| `--batch-size` | `1000` | rows deleted per statement |
+| `--batch-size` | `1000` | rows deleted per statement, at most 10000 |
 
 The command prints a count only. Run it from the [scheduler](scheduler.md) or cron. Preferences are never pruned. A pruned idempotent notification no longer counts as delivered, so a retry after the retention window stores it again.
 
@@ -377,7 +378,7 @@ See also [Requests and Fakes](../testing/requests-and-fakes.md).
 ## Watch out for
 
 - **"Sent" on `mail` means queued.** The mail service accepted the mail. Whether it reached the recipient is in `mail_messages` and `mail_attempts`.
-- **"Sent" inside a transaction means "unless it rolls back".** Both built-in channels write into the caller's transaction, and a deadlock there is rethrown rather than reported.
+- **"Sent" inside a transaction means "unless it rolls back".** Both built-in channels write into the caller's transaction, and a deadlock there is rethrown rather than reported. A mail leaves only after the commit.
 - **Unreadable preferences mean nothing is sent.** If the preferences cannot be read, for example because the table is missing before `orm:sync`, every channel of that recipient fails with `preferences_unavailable`. Sending what the recipient may have switched off would be worse. Mandatory notifications do not read preferences and still go out.
 - **A tenantless recipient shares one bucket.** `null` and `''` are the same tenant.
 - **`notifications:prune` deletes unread rows too.** Retention is by age only.

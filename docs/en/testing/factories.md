@@ -68,7 +68,7 @@ final class PlaceOrderTest extends TestCase
 
 The transaction opens before `setUp()` and is rolled back after `tearDown()`. Every ORM manager in the test process joins it, and a `TransactionManager::run()` inside the test becomes a savepoint, so nothing commits. That has two consequences:
 
-- Resource-changed signals never fire, for any write in the test, with a transaction of its own or without: inside the test transaction every write waits for a commit that never comes. Listeners on them (a site map refresh, cache invalidation) are not exercised; assert on rows, or test those listeners with `RefreshesTables`.
+- Resource-changed signals never fire, for any write in the test, with a transaction of its own or without: inside the test transaction every write waits for a commit that never comes. Listeners on them (a site map refresh, cache invalidation) are not exercised; assert on rows, or test those listeners with `RefreshesTables`. The same holds for work held back with `TransactionManager::afterCommit()`, such as a mail leaving: it never runs.
 - It refuses an in-memory SQLite database (one per connection: the test's would be empty). Database work inside a coroutine is not supported while it is open: one connection cannot be shared between coroutines, so a coroutine asking a pool for a connection is refused rather than given one that commits outside the transaction.
 - On MySQL, DDL (`CREATE`, `ALTER`, `DROP`) and `TRUNCATE` commit the transaction on their own. The test then fails after it ends, naming the cause, instead of leaving rows behind. Create tables in `setUpBeforeClass()`.
 

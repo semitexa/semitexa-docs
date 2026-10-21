@@ -106,7 +106,7 @@ use Semitexa\Mail\Domain\Model\MailSendOptions;
 $this->mail->send($envelope, new MailSendOptions(mode: MailSendMode::Sync));
 ```
 
-A `Queued` send is published to a queue only when the queue can reach another process. When it is the in-process queue (`EVENTS_ASYNC=0`, the default), it is delivered at once, as if it were `Sync`. See [Queueing](#queueing-and-the-mail-worker).
+A `Queued` send is published to a queue only when the queue can reach another process. When it is the in-process queue (`EVENTS_ASYNC=0`, the default), it is delivered at once, as if it were `Sync`. See [Queueing](#queueing-and-the-mail-worker). Inside a database transaction either mode waits for the commit and answers `Queued` (see [Watch out for](#watch-out-for)).
 
 ### What `send()` returns
 
@@ -120,6 +120,7 @@ A `Queued` send is published to a queue only when the queue can reach another pr
 | an inline attachment is over 256 KB | `Failed` | `attachment_missing` | none |
 | a message with the same idempotency key was already sent | `Sent` | | the existing one; its id is returned |
 | a message with the same idempotency key is still on its way (`pending`, `queued`, `sending`) | `Queued` | | the existing one; its id is returned |
+| inside a transaction on the mail's connection: held until the commit | `Queued` | | `pending`; after the commit, as the rows below |
 | published to the queue | `Queued` | | `queued` |
 | publishing threw | `EnqueueFailed` | `queue_unavailable` | `enqueue_failed` |
 | delivered now, an attachment could not be loaded | `Failed` | `attachment_missing` | `failed` |
@@ -391,7 +392,7 @@ A `PreparedMailMessage` has `messageId`, `from`, `replyTo`, `to`, `cc`, `bcc`, `
 
 Points to keep in mind:
 
-- The fake only sees mail delivered in the test's own process: a sync send, or a queued send while the queue is in-process (`EVENTS_ASYNC=0`). With an async queue, a queued mail reaches it only when a `mail:work` in that same process delivers it, so send with `MailSendMode::Sync` where it matters.
+- The fake only sees mail delivered in the test's own process: a sync send, or a queued send while the queue is in-process (`EVENTS_ASYNC=0`), and only once its transaction commits. Under `RollsBackDatabase` nothing commits, so the fake sees nothing: assert on the stored row. With an async queue, a queued mail reaches it only when a `mail:work` in that same process delivers it, so send with `MailSendMode::Sync` where it matters.
 - `MailService` still writes to `mail_messages` and `mail_attempts`, so the test needs the database, or its own implementations of `MailRepositoryInterface` and `MailAttemptRepositoryInterface`.
 - The registry is static. Put `MAIL_DRIVER` back in `tearDown()`, and call `MailTransportRegistry::reset()` if the next test must not see your transport.
 
@@ -411,5 +412,5 @@ See also [Requests and Fakes](../testing/requests-and-fakes.md).
 - **The worker reads the config at delivery time.** A queued mail is delivered with the resolver's answer for its tenant and `mailerKey` as it is when the worker runs, not when it was sent. The sender address and bodies were fixed when it was stored.
 - **A large inline attachment is refused by `send()`.** Inline contents over 256 KB make `send()` return `Failed` with `attachment_missing` before anything is stored. Use a storage path.
 - **A mail needs a recipient.** With no `to`, `cc` or `bcc`, `send()` returns `Failed` with `invalid_recipient` and stores nothing.
-- **`send()` inside a database transaction publishes before the commit.** On the database or NATS transport, a worker that finds no row for a queue message less than 30 seconds old looks again 3 seconds later, so a slow commit only delays the mail (on a transport that cannot hold a message back, it is dropped at once, as before). After a rollback the row never appears, and the message is dropped once it is 30 seconds old. A transaction that stays open longer than that before committing loses the mail: send from outside long transactions.
+- **`send()` inside a database transaction delivers after the commit.** A transaction on the mail's own connection (the default one), in the same coroutine: one on another connection, or a coroutine spawned inside it, does not hold the mail back. The row joins the transaction; the queue message is published, or with `EVENTS_ASYNC=0` the mail is sent, only once the outermost transaction commits (`TransactionManager::afterCommit()`). `send()` then answers `queued`. After a rollback nothing is sent, so `runWithRetry()` replaying the unit sends the mail once. Inside a test transaction (`RollsBackDatabase`) nothing commits, so nothing is sent: assert on the stored row. A failure after the commit is in the row and the `mail` log channel, not in what `send()` returned. If the process dies between the commit and the delivery, the row stays `pending` and a resend of its key answers `Queued`: nothing sweeps such rows yet.
 - **The tables grow unless you set `MAIL_RETENTION_DAYS`.** Every rendered body and every inline attachment stays in `mail_messages` until the retention sweep deletes it.
