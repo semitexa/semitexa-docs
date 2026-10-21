@@ -44,7 +44,7 @@ These commands move the framework packages. None of them brings your own code (`
 
 - Settings are read from the container's environment first, then from `.env.default` and `.env`. The container's environment is fixed when the container is created. After changing a value the container already had, recreate it with `bin/semitexa server:restart app`.
 - The health check of `update:packages:auto` is fetched from inside the container; the systemd wrapper's, after its restart, from the host. A URL both can reach is the published one, such as `http://127.0.0.1:9502/health` with your `SWOOLE_PORT`.
-- Only tools in the image are available. The scaffold image has `composer`, `git` and `tar`. It has no SSH client and no Docker CLI.
+- Only tools in the image are available. The scaffold image has `composer`, `git`, `tar` and the SSH client (`ssh`, `scp`). It has no Docker CLI and no `sshpass`.
 
 `bin/semitexa` also runs the containers as the uid of whoever calls it, unless `SEMITEXA_UID` and `SEMITEXA_GID` are set (under rootless Docker, as `0`). Run every command on a server as the same user.
 
@@ -65,7 +65,7 @@ SEMITEXA_REMOTE_DEPLOY_DOMAIN=my-project.example.com
 | `SEMITEXA_REMOTE_DEPLOY_PATH` | `/srv/semitexa/<project directory name>` | the directory on the server. `--path` overrides it. |
 | `SEMITEXA_REMOTE_DEPLOY_SSH_PORT` | `22` | a value outside 1–65535 falls back to `22` |
 | `SEMITEXA_REMOTE_DEPLOY_DOMAIN` | none | written into the generated `.env` and into the deployment marker. Nothing else uses it. |
-| `SEMITEXA_REMOTE_DEPLOY_SSH_IDENTITY_FILE` | none | a private key passed to `ssh` and `scp` as `-i`. Read from the process environment only; the `.env` fallback of the other settings does not apply. |
+| `SEMITEXA_REMOTE_DEPLOY_SSH_IDENTITY_FILE` | none | a private key passed to `ssh` and `scp` as `-i`. Read like the other settings, `.env` included. |
 | `SEMITEXA_REMOTE_DEPLOY_USE_PASSWORD` | `false` | `true` asks for the SSH password at once and offers no key (it needs `sshpass` locally); otherwise a key is tried first and the password is asked only when the server wants one. |
 
 A host is letters, digits, dots and dashes, or an IPv6 address in brackets: `deploy@[2001:db8::10]`. A link-local address with a zone (`fe80::1%eth0`) is not accepted.
@@ -76,7 +76,9 @@ Then run it from a terminal:
 bin/semitexa update:packages:bootstrap-remote
 ```
 
-It needs an interactive TTY and `ssh`, `scp` and `tar` on the machine that runs it; password authentication also needs `sshpass`. Through `bin/semitexa` that machine is the `app` container, and the scaffold image has no SSH client, so the command stops at `Missing local prerequisites: ssh, scp`.
+It needs an interactive TTY and `ssh`, `scp` and `tar` on the machine that runs it; password authentication also needs `sshpass`. Through `bin/semitexa` that machine is the `app` container, which has `ssh` and `scp`. An older project gets them with `bin/semitexa update`, which replaces a `Dockerfile` you never changed (a changed one gets `Dockerfile.new` to merge by hand), and `bin/semitexa server:restart`, which rebuilds the image. The container runs as your user's uid; when the image has no account for it, the command adds one, since `ssh` refuses to run without.
+
+There is no `sshpass` and no SSH agent in the container, so authenticate with a key that has no passphrase. Name it with `SEMITEXA_REMOTE_DEPLOY_SSH_IDENTITY_FILE`; it must be readable inside the container and `chmod 600`, or `ssh` ignores it. Under the project directory, `.ssh/` is the place: it is in `.gitignore` and never packed into the artifact. Host keys the command accepts are kept in `var/ssh/known_hosts`, also never packed; the first connection to a server trusts its key (`StrictHostKeyChecking=accept-new`).
 
 ### What it does
 
