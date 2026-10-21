@@ -275,7 +275,7 @@ A 4xx reply or no reply is returned as `Deferred`, a 5xx reply as `Failed`. A fa
 
 ### Configuration
 
-`EnvMailerConfigResolver`, the default `MailerConfigResolverInterface`, reads the process environment with `getenv()` on every call, so a change applies to the next send. It ignores the tenant id and mailer key it is given: every tenant gets the same mailer.
+`EnvMailerConfigResolver`, the default `MailerConfigResolverInterface`, reads each key on every call, from the process environment first and then the project's `.env` files (`Environment::getEnvValue()`), so a change to the process environment applies to the next send. The `.env` files are read when the process starts: after editing them, restart `mail:work` or the server. It ignores the tenant id and mailer key it is given: every tenant gets the same mailer.
 
 | Key | Default | Used for |
 |---|---|---|
@@ -291,6 +291,7 @@ A 4xx reply or no reply is returned as `Deferred`, a 5xx reply as `Failed`. A fa
 | `MAIL_REPLY_TO` | none | `Reply-To` when the envelope has no `replyTo` |
 | `MAIL_TIMEOUT` | `30` | seconds, see SMTP above |
 | `MAIL_QUEUE` | `mail` | the queue mail is published to, and the one the worker container reads |
+| `MAIL_RETENTION_DAYS` | `0` | days a `sent` or `failed` mail and its attempts are kept. `0` keeps everything. Only `mail:work` deletes (an install that sends in-process never does), after a message, at most once an hour and about two seconds or 10 000 rows at a time, so a large backlog takes hours. It is also the idempotency window: once a mail is deleted, its key sends again |
 | `EVENTS_ASYNC`, `EVENTS_TRANSPORT` | `0`, none | the queue transport, see [Which queue](#which-queue) |
 
 For the five keys without a default, an empty value counts as unset. For the others, an empty value is used as it is.
@@ -307,6 +308,8 @@ When the envelope has an `idempotencyKey`, `send()` first looks for a message wi
 - still on its way (`pending`, `queued`, `sending`), or `deferred` with a retry on the queue: the result is `Queued` with the existing id. With the in-process queue a `deferred` mail has no retry, and it is sent again instead;
 - `failed` with `invalid_recipient` or `provider_5xx` (the server refused it for good): nothing is sent, and the result is `Failed` with the stored error;
 - any other `failed`, or `enqueue_failed`: the stored message (its rendered subject and bodies and its stored attachments, not the new envelope's) is queued or sent again under the same id.
+
+A key lasts as long as its row: with `MAIL_RETENTION_DAYS` set, a key whose mail was deleted sends again.
 
 `mail_messages` has a unique index on `(tenant_id, idempotency_key)`. When two `send()` calls with the same key race and the second insert is refused, the second one answers from the first one's row as above. The index does not cover mail with no tenant (the database lets any number of `NULL` tenants through), so two tenant-less sends racing with one key can both be stored and sent.
 
@@ -345,7 +348,7 @@ Both tables come from ORM resource models; `bin/semitexa orm:sync` creates them,
 | `mail_messages` | one row per message: status, driver, `mailer_key`, sender, recipients (`to_json`, `cc_json`, `bcc_json`), subject (up to 998 characters), rendered `html_body` and `text_body`, headers, tags, metadata, attachment references (inline contents base64), idempotency key, provider message id, last error, `last_attempt_at`, `created_at`, `updated_at`. Indexes: unique `(tenant_id, idempotency_key)`, `status`, `tenant_id` |
 | `mail_attempts` | one row per delivery attempt, indexed on `mail_message_id` |
 
-Nothing deletes rows from either table.
+Rows are kept unless `MAIL_RETENTION_DAYS` is set; then `mail:work` deletes `sent` and `failed` messages last changed longer ago than that, with their attempts. `pending`, `queued`, `sending`, `deferred` and `enqueue_failed` rows are never deleted.
 
 ## Commands
 
