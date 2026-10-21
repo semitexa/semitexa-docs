@@ -39,6 +39,10 @@ Replay an inbound webhook delivery by ID
 bin/semitexa webhook:replay:inbound "<id>"
 ```
 
+| option | takes a value |
+|---|---|
+| `--force` | no |
+
 ## `webhook:replay:outbound`
 
 Reset an outbound delivery to pending for redelivery
