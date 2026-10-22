@@ -136,7 +136,7 @@ SEMITEXA_AUTO_DEPLOY_HEALTHCHECK_URL=http://127.0.0.1:8080/health
 | `SEMITEXA_AUTO_DEPLOY_CHANNEL` | `stable` | the only channel; any other value becomes `stable` |
 | `SEMITEXA_AUTO_DEPLOY_SOURCE` | `packagist` | `packagist`, `private` or `mixed`; any other value becomes `packagist` |
 | `SEMITEXA_AUTO_DEPLOY_PRIVATE_REPOSITORY_URL` | none | a git repository whose newest stable tag counts as a release (`private` and `mixed` only) |
-| `SEMITEXA_AUTO_DEPLOY_HEALTHCHECK_URL` | none | fetched after the restart; anything but a 2xx answer within 10 seconds fails the deploy |
+| `SEMITEXA_AUTO_DEPLOY_HEALTHCHECK_URL` | none | fetched after the restart; anything but a 2xx answer fails the deploy; each request waits up to 10 seconds, and the wrapper tries for about a minute and a half |
 | `SEMITEXA_AUTO_DEPLOY_RESTART_COMMAND` | none | a shell command run from the project root instead of the built-in restart |
 | `SEMITEXA_AUTO_DEPLOY_HOME` | none | exported as `HOME` for the commands the deploy runs |
 | `SEMITEXA_AUTO_DEPLOY_COMPOSER_HOME` | none | exported as `COMPOSER_HOME` |
@@ -197,7 +197,7 @@ sudo vendor/semitexa/update/tools/install-auto-deploy-systemd.sh /srv/semitexa/m
 sudo systemctl enable --now semitexa-auto-deploy.timer
 ```
 
-The installer needs `bin/semitexa` in that directory and an existing user to run as. It writes `semitexa-auto-deploy.service` and `semitexa-auto-deploy.timer`, copies the wrapper script to `<project>/tools/run-auto-deploy-systemd.sh`, and runs `systemctl daemon-reload`. The copy in `tools/` is not refreshed when the package updates; run the installer again to refresh it.
+The installer needs `bin/semitexa` in that directory and an existing user to run as. It writes `semitexa-auto-deploy.service` and `semitexa-auto-deploy.timer`, copies the wrapper script to `<project>/tools/run-auto-deploy-systemd.sh` (and the install.sh refresh script to `<project>/tools/refresh-install-sh.sh`), and runs `systemctl daemon-reload`. A run that takes longer than 30 minutes is stopped. A project path with a double quote, a backslash or a newline is refused; `%` and `$` in one are escaped for systemd. The copy in `tools/` is not refreshed when the package updates; run the installer again to refresh it.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -215,9 +215,9 @@ The installer also writes `semitexa-refresh-install-sh.service` and `.timer`. Th
 
 Each tick runs the wrapper, which:
 
-1. Runs `./bin/semitexa update:packages:auto --json` and stops with its exit code when that fails.
+1. Runs `./bin/semitexa update:packages:auto --json`. When that fails, it stops with its exit code; first, if the deploy was rolled back and the result says `restart_required: true`, it runs `./bin/semitexa server:restart`, so every container goes back onto the restored release. A rollback that `FAILED` restarts nothing: `vendor/` is half-written then.
 2. Reads `status` and `restart_required` from that JSON. It needs no PHP on the host, only `curl` (which the bootstrap installs).
-3. When the status is `updated` and `restart_required` is true, runs `./bin/semitexa server:restart`: it builds the image, then takes every container down and starts them again, so the `worker` container (the queue, scheduler and mail workers) runs the new code too. The app is down until it boots. Then it fetches the health-check URL from the host and wants a 2xx answer, trying six times, five seconds apart, up to about a minute and a half. A failure there exits `1`; it prints the URL without its query string or credentials. Nothing is rolled back at this point.
+3. When the status is `updated` and `restart_required` is true, runs `./bin/semitexa server:restart`, holding the update lock (`var/lock/semitexa-update.lock`, with `flock`), so a `bin/semitexa update` started meanwhile is refused as "already in progress" rather than having its container stopped mid-composer: it builds the image, then takes every container down and starts them again, so the `worker` container (the queue, scheduler and mail workers) runs the new code too. The app is down until it boots. Then it fetches the health-check URL from the host and wants a 2xx answer, trying six times, five seconds apart, up to about a minute and a half. A failure there exits `1`; it prints the URL without its query string or credentials, and passes it to `curl` on standard input, not on its command line. Nothing is rolled back at this point, and the next tick finds nothing newer to deploy: the site stays on the release that failed until you act.
 
 Check and trigger it:
 
@@ -229,21 +229,21 @@ journalctl -u semitexa-auto-deploy.service -n 100 --no-pager
 
 ## When a deploy fails
 
-Any failure after the lock is taken ends the run as `failed`, with the error as its `reason`. When `composer update` itself failed before changing `composer.lock` (the repository unreachable, an expired token), there is nothing to roll back: `rollback` says `not needed`, and nothing restarts. Otherwise — a later step failed, or composer failed after rewriting the lock — the run rolls back:
+Any failure after the lock is taken ends the run as `failed`, with the error as its `reason`. When `composer update` itself failed before changing `composer.lock` or `vendor/` (the repository unreachable, an expired token), there is nothing to roll back: `rollback` says `not needed`, and nothing restarts. Otherwise — a later step failed, or composer failed after rewriting the lock — the run rolls back:
 
 1. It writes the saved `composer.json` and `composer.lock` back. If there was no lock before, the new one is deleted.
 2. It runs `composer install --prefer-dist --no-dev --no-interaction --optimize-autoloader`.
-3. It restarts the same way step 7 does.
+3. It restarts the same way step 7 does. Where nothing restarts (inside the `app` container), it runs `cache:clear` instead, so the workers reload onto the restored `vendor/`, and the result says `restart_required: true` for the wrapper, which then restarts the stack.
 
 `rollback` in the result says how far it got:
 
 | Value starts with | Meaning |
 |---|---|
 | `performed` | files and `vendor/` are back on the previous versions, and the restart ran |
-| `partial` | files and `vendor/` are back, but the restart failed: restart by hand |
+| `partial` | files and `vendor/` are back, but nothing restarted: the restart failed, or there was none to run (inside the `app` container the workers were reloaded with `cache:clear`). The systemd wrapper restarts the stack; without it, restart by hand |
 | `FAILED` | the files could not be written, or `composer install` failed: `vendor/` is still on the new versions |
 
-The rollback does not undo schema changes `orm:sync` made, does not run `cache:clear` again, and does not repeat the health check.
+The rollback does not undo schema changes `orm:sync` made and does not repeat the health check. The saved files are kept in memory only: a run killed mid-update has nothing to roll back from.
 
 Each run is recorded in two places:
 
