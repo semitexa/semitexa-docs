@@ -259,23 +259,25 @@ A transport answers with a `MailTransportResult`: `status` (`MailTransportStatus
 
 - With `MAIL_ENCRYPTION` set to `ssl` it connects with implicit TLS (`ssl://`); with `tls` it connects in plain text and sends `STARTTLS` after `EHLO`. No value (or `none`) is plain text; case and spaces do not matter and `starttls` means `tls`. Any other value is refused with `config_error` before anything is sent, rather than sent in plain text. The server's certificate and host name are verified in both modes; a failed `STARTTLS` handshake fails the attempt instead of carrying on in plain text. `MAIL_VERIFY_PEER=false` turns verification off and accepts self-signed certificates, for a local test server only.
 - It sends `EHLO` with this machine's host name when that is a full domain, otherwise with the address literal of its end of the connection (`[10.0.0.5]`), falling back to `HELO`.
-- When both `MAIL_USERNAME` and `MAIL_PASSWORD` are set, it authenticates with `AUTH LOGIN`, or with `AUTH PLAIN` when the server's `EHLO` reply (the one after `STARTTLS`, with `tls`) offers PLAIN and not LOGIN. No other mechanism is supported.
+- When both `MAIL_USERNAME` and `MAIL_PASSWORD` are set, it authenticates with `AUTH LOGIN`, or with `AUTH PLAIN` when the server's `EHLO` reply (the one after `STARTTLS`, with `tls`) offers PLAIN and not LOGIN. No other mechanism is supported. Without `MAIL_ENCRYPTION` it signs in only to a local relay — `localhost`, `127.0.0.1`, `::1` or a one-word host such as a compose service — and refuses any other host with `config_error`, before the password is sent: set `MAIL_ENCRYPTION`, or `MAIL_ALLOW_PLAINTEXT_AUTH=1` on a network you trust.
+- A recipient the server answers `251` (it will forward) counts as accepted.
 - It sends one `RCPT TO` for every to, cc and bcc address. One refused recipient fails the whole message.
 - The message gets a `Message-ID` of `<message id@sender's domain>` (the row's UUID), a `Date`, `MIME-Version`, and `multipart/alternative` when both bodies exist, `multipart/mixed` with attachments. Bodies are quoted-printable UTF-8, attachments base64.
-- `MAIL_TIMEOUT` is the connect timeout and the read timeout of each response.
+- `MAIL_TIMEOUT` is the connect timeout and the read timeout of each response, except the reply to the end of the message, which is given four minutes (or `MAIL_TIMEOUT`, if longer): a content filter can take that long, and a queue hands an unacknowledged message to another worker after five (RFC 5321 allows ten). A mail sent at once, inside a request, holds the request that long too. No reply at all then fails the mail with `unknown_transport_error`, and it is not retried: the server may have delivered it, so check before resending it by hand.
 
 An SMTP error is turned into an error code:
 
 | SMTP reply | `errorCode` | Retried by the worker |
 |---|---|---|
-| no reply (connection refused, closed, timed out) | `network_error` | yes |
+| no reply (connection refused, closed, timed out), or the connection lost while the message was being sent | `network_error` | yes |
+| no reply to the end of a message the server received whole | `unknown_transport_error` | no: it may have been delivered |
 | 421 | `rate_limited` | yes |
 | 534, 535 | `auth_error` | no |
 | 550–553 | `invalid_recipient` | no |
 | any other 4xx (greylisting answers 450, 451) | `provider_4xx` | yes |
 | any other 5xx | `provider_5xx` | no |
 
-A 4xx reply or no reply is returned as `Deferred`, a 5xx reply as `Failed`. A failed TLS handshake (an untrusted certificate, a host name that does not match it) is returned as `Failed` with `config_error`, which is not retried, and the message says why. Any other non-SMTP exception inside `deliver()` is returned as `Failed` with `network_error`.
+A 4xx reply or no reply is returned as `Deferred`, a 5xx reply or no reply to the end of the message as `Failed`. A failed TLS handshake (an untrusted certificate, a host name that does not match it) is returned as `Failed` with `config_error`, which is not retried, and the message says why. Any other non-SMTP exception inside `deliver()` is returned as `Failed` with `network_error`.
 
 ### Configuration
 
@@ -294,6 +296,7 @@ A 4xx reply or no reply is returned as `Deferred`, a 5xx reply as `Failed`. A fa
 | `MAIL_FROM_NAME` | none | sender name when the envelope has no `from` |
 | `MAIL_REPLY_TO` | none | `Reply-To` when the envelope has no `replyTo` |
 | `MAIL_TIMEOUT` | `30` | seconds, see SMTP above |
+| `MAIL_ALLOW_PLAINTEXT_AUTH` | off | `1` lets SMTP sign in without TLS to a host that is not a local relay |
 | `MAIL_QUEUE` | `mail` | the queue mail is published to, and the one the worker container reads |
 | `MAIL_RETENTION_DAYS` | `0` | days a `sent` or `failed` mail and its attempts are kept. `0` keeps everything. Only `mail:work` deletes (an install that sends in-process never does), after a message, at most once an hour and about two seconds or 10 000 rows at a time, so a large backlog takes hours. It is also the idempotency window: once a mail is deleted, its key sends again |
 | `EVENTS_ASYNC`, `EVENTS_TRANSPORT` | `0`, none | the queue transport, see [Which queue](#which-queue) |
@@ -404,7 +407,7 @@ See also [Requests and Fakes](../testing/requests-and-fakes.md).
 - **The default settings send nowhere.** `MAIL_DRIVER` defaults to `smtp` on `127.0.0.1:1025`, and the default stack runs no mail server there, so every send fails with `network_error`. Point `MAIL_HOST` at a server, or set `MAIL_DRIVER` to `null` to drop mail on purpose.
 - **Without async events nothing is retried by itself.** With `EVENTS_ASYNC=0` (the default), a queued mail is sent inside `send()`; a temporary failure leaves the row `deferred` until `send()` is called again under its key.
 - **Two workers on one redelivered message do not undo each other's `sent`.** The slower one's `sending`, `deferred`, `enqueue_failed` or `failed` is written only while the row is not `sent`; finding it sent, the worker stops and queues no retry. Both may still have delivered it (below).
-- **A mail can be sent twice.** Two workers on one redelivered message can both deliver it. A worker that dies after the server accepted a message, before it marked the row `sent`, sends it again on redelivery. So does a server that stored the message but whose reply to `DATA` timed out: that counts as `network_error` and is retried. A failing `QUIT` after the server's `250` is not a failure.
+- **A mail can be sent twice.** Two workers on one redelivered message can both deliver it. A worker that dies after the server accepted a message, before it marked the row `sent`, sends it again on redelivery. A server that stored the message but never replied to its end is not retried (see SMTP above). Neither is a mail whose attempt row could not be written after it was sent: its status is written first. A failing `QUIT` after the server's `250` is not a failure.
 - **A retry from `send()` on a transport that cannot hold messages back goes out at once.** The worker waits `retryDelay` before re-publishing; `send()` does not, so behind such a transport (for example `EVENTS_TRANSPORT=dual`) a greylisted mail is tried again immediately and uses up one retry.
 - **A row stuck in `pending` or `sending` is taken over after 15 minutes.** A crash between storing and publishing, a worker killed mid-send, or a process that died between a commit and the delivery leaves such a row. For 15 minutes after it last changed, `send()` under its key answers `Queued`, because a worker may still be on it. After that the next `send()` under the key takes the row over and delivers it, and only one of two concurrent resends does; a mail held back for a commit that a resend took over meanwhile is not delivered again. Without a resend nothing picks it up. It is sent twice when the worker was killed after the server accepted it (see above), or when a worker still alive after 15 minutes finishes its send. A row stuck in `queued` (the process died while publishing, or the broker lost the message) is not taken over: a long backlog keeps rows `queued` too. Delete it, or send under a new key. A project's own `MailRepositoryInterface` gets the takeover, and the guard on a held-back mail, only by also implementing `MailRecoveryInterface`.
 - **Turning certificate checks on is new.** A `MAIL_HOST` that is an IP address or an alias the certificate does not name, or a relay with a self-signed certificate, now fails with `config_error`. Point `MAIL_HOST` at the name on the certificate, or set `MAIL_VERIFY_PEER=false` for a local test server.
