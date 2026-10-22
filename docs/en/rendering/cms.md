@@ -296,7 +296,7 @@ In the OS console, in the **Content** app at `/os/app/cms`. With no ref it lists
 | `/os/app/cms/media` | POST (multipart) | console |
 | `/os/app/cms/media/{assetId}` | GET | public |
 
-The console routes are content surfaces: when the console requires sign-in, Owner and Admin open them, and so does an **Editor**, who can open content surfaces only — the CMS and any other surface a package marks as content — and not the rest of the console.
+The console routes are content surfaces: when the console requires sign-in, Owner and Admin open them, and so does an **Editor**, who can open content surfaces only — the CMS and any other surface a package marks as content — and not the rest of the console. An Admin or Editor is bound to one site and opens the console on that site only: on another site's address, and on the root site, the console refuses them and so does its sign-in form (the console's data follows the site of the request). An Owner opens it everywhere. With path or query tenancy the console's own requests (`/os/...`) carry no site and count as the root site, so only Owners can use it there; give sites their own host or subdomain for site Admins and Editors.
 
 A page opens by its ref without the map: the console asks each editor of the tenant to `load()` it. The map is needed for collections (a list opens only from its node), for the chooser shown with no ref, for opening a page by `name` and for `content-list`. Build it (below) before authors start.
 
