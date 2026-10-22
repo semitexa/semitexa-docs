@@ -57,7 +57,7 @@ $reply = $this->llm->route('chat')->complete($request);           // Opus, then 
 $pick  = $this->llm->deciderRoute('chat')->complete($decision);   // Haiku, then Gemini's decider
 ```
 
-Each member is `<backend>` or `<backend>:<model>`; a name `LlmBackend` does not know is left out, not read as `local`. A route nobody configured is `LLM_BACKEND` with the `LLM_FALLBACK` reserves behind it:
+Each member is `<backend>` or `<backend>:<model>`; a name `LlmBackend` does not know is left out, not read as `local`, and logged as `llm.route_unknown_backend` (once per worker). One model at one address is asked once, also when it is named twice or as `gemini` beside `gemini:<its default model>`. A route nobody configured is `LLM_BACKEND` with the `LLM_FALLBACK` reserves behind it:
 
 ```dotenv
 LLM_BACKEND=anthropic
@@ -94,14 +94,14 @@ It is asked on every `route()`, `deciderRoute()` and `routeSpecs()` call, before
 
 - **The answer names who gave it.** `LlmResponse::$servedBy` is `<provider>:<model>` (`anthropic:claude-opus-5-5`); `name()` and `model()` of a route name its first choice. A route of one model is that provider itself, which sets no `servedBy`: log `$response->servedBy ?? $provider->name() . ':' . $provider->model()`.
 - **Failures have a kind.** `LlmResponse::$failure` is an `LlmFailure`: `Unconfigured`, `Unauthorized`, `NoCredit`, `RateLimited`, `QuotaExhausted` (a daily quota), `Timeout`, `Network`, `ServerError`, `BadRequest`, `Refused` or `Malformed`. The HTTP status decides first; only a 400 or 403 is read further, from the API's own error fields. Every failure moves on to the next model, a refusal too: a model that declined is not asked to decide for the others. When all fail, the last failure comes back, its `error` listing every model's reason.
-- **What will repeat is set aside.** No key, a refused key, no credit, a reached spend cap or a used-up daily quota (`LlmFailure::isLasting()`) sets that model aside for `LLM_BENCH_SECONDS` (300 by default, `0` never). A model that does not answer at all (a timeout, an unreachable host) is set aside for `LLM_BENCH_TRANSIENT_SECONDS` (30 by default), so the next calls do not each wait out the same timeout. A 429 per minute or a 5xx is not set aside: the next call may pass. A provider of your own that sets no `failure` is never set aside.
+- **What will repeat is set aside.** No key, a refused key, no credit, a reached spend cap or a used-up daily quota (`LlmFailure::isLasting()`) sets that model aside for `LLM_BENCH_SECONDS` (300 by default, `0` never). A model that does not answer at all (a timeout, an unreachable host) is set aside for `LLM_BENCH_TRANSIENT_SECONDS` (30 by default), so the next calls do not each wait out the same timeout; a timeout under a caller's own `withLimits()` sets nothing aside, since it was that caller's budget. Gemini's `FAILED_PRECONDITION` (billing not enabled, a region not served) counts as `Unconfigured`, and so does a remote Ollama with no `LLM_REMOTE_OLLAMA_URL`. A member that throws instead of answering counts as `Malformed`, and the next one is asked. While a worker drains, a call that got no answer (a timeout, a network failure) is returned as it is: the drain cancelled it, so nothing is set aside and no reserve is asked. A 429 per minute or a 5xx is not set aside: the next call may pass. A provider of your own that sets no `failure` is never set aside.
 - **One list for every worker.** Under the server the set-aside list is shared; `LlmProviderResolver::resetBenches()` called in a request (after a key or credit is fixed) asks every model again in every worker. Called from a console command it clears only that command's process.
 - **When every model is set aside, all are asked anyway**, in order.
 - **A request with tools goes only to models that take tools** (Gemini, Claude): a text-only model would answer with text the caller reads as a tool call. `routeSupportsTools('chat')` is true only when every model of the route takes tools; otherwise ask for JSON in text, and every reserve can answer.
 - **Each failure is logged** as `llm.failover` (from, failure, error, seconds set aside); an answer after a failover as `llm.failover.served`.
 - **The time adds up.** A reserve is asked only after the model before it gave up, its timeout included. For a live chat, keep the first model's timeout short.
 
-A `FailoverProvider` can also be built by hand: `new FailoverProvider([$claude, $gemini], $health, $logger)`. Its `withLimits()` reaches every member that takes limits; its `withModel()` switches the first choice only.
+A `FailoverProvider` can also be built by hand: `new FailoverProvider([$claude, $gemini], $health, $logger)`. Its `withLimits()` reaches every member that takes limits, with the retries given to the last member only, so the others still hand over at their first failure; its `withModel()` switches the first choice only.
 
 ### Configuration
 
