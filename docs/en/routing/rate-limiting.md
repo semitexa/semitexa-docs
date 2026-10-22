@@ -70,7 +70,7 @@ A limit is only a limit if every worker counts into the same place. `RATE_LIMIT_
 | `table` | a `Swoole\Table` created before the workers fork, `RATE_LIMIT_TABLE_SIZE` rows (65536) | every worker of this server |
 | `memory` | each worker's own memory | one worker only: 4 workers admit 4 times a limit |
 
-When the store cannot count — Redis unreachable, the table full — the request is let through. A rate limit that takes the site down with Redis would be the bigger outage. `bin/semitexa system:doctor` (`rate-limit.store`) warns when the configuration cannot hold a limit for the whole server.
+When Redis is unreachable, the request is let through: a rate limit that takes the site down with Redis would be the bigger outage. A full table first deletes the counters of finished windows, and what it still cannot hold is counted in the worker that took the request (a subject stays there for the rest of its window), so a limit holds per worker until the table frees up. Only once that worker also holds 100 000 counters is a request let through uncounted. The log says so once a minute; raise `RATE_LIMIT_TABLE_SIZE` or use Redis. Worker 0 sweeps the table every five seconds. `bin/semitexa system:doctor` (`rate-limit.store`) warns when the configuration cannot hold a limit for the whole server.
 
 ## The client address behind a proxy
 

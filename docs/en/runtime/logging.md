@@ -89,7 +89,7 @@ Every line the logger writes — to a file, to stderr, by `LOG_SINK` or by a cha
 - An entry over 60 000 bytes goes as a stub with its time, level, channel, request id, the start of its message and `truncated`. A datagram that large travels in many fragments, and many collectors cap UDP messages far lower: keep lines short.
 - An IPv4 address only (`udp://<address>:<port>`): a host name would be looked up on the first send, and the coroutine runtime opens UDP sockets as IPv4. Anything else is ignored, with a note in the PHP error log.
 - An address that cannot be opened is reported once in the PHP error log and tried again a minute later.
-- Plain UDP: every line, context included, crosses the network unencrypted, and anyone who can reach the collector can send it lines. Use it on a private network, or to a collector on the same host.
+- Plain UDP: every line crosses the network unencrypted, and anyone who can reach the collector can send it lines. Use it on a private network, or to a collector on the same host. In the copy that is sent, the value under a key that names a secret — `password`, `passwd`, `passphrase`, `pass`, `secret`, a key ending in `token`, `authorization`, `cookie`, `api_key`, `credential`, `private_key`, `signature`, `dsn`, at any depth of the context — reads `[redacted]`, whatever it holds (a header list, a cookie map, a number). `prompt_tokens` and `passenger` are not secrets and stay. The file and stderr keep the line as logged. Anything else in a message or context, a database error quoting its values included, is sent as written.
 - It is a copy: keep a file or stderr as well, for `logs:app` and for what UDP loses.
 
 ## In a container: stderr

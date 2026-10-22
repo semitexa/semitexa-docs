@@ -53,7 +53,7 @@ $rates = $response->json();
 | `timeout` | 30 s | the whole attempt |
 | `connectTimeout` | 5 s | |
 | `maxResponseBytes` | 16 MiB | counted as the body arrives; a body the server compresses anyway is inflated no further than this, so a gzip bomb is `too_large`, not a full memory |
-| `truncateOversized` | off | keep the first `maxResponseBytes` of a larger body and succeed — for a body you only log |
+| `truncateOversized` | off | keep the first `maxResponseBytes` of a larger body and succeed — for a body you only log. A compressed body is inflated up to `maxResponseBytes` and cut there |
 | `decodeContent` | on | off returns an encoded body as sent, for a store that keeps an object's own `Content-Encoding` |
 | `followRedirects` | off | when on, at most 5 hops; a hop to another origin keeps only `Accept`, `Accept-Language` and `User-Agent` — never `Authorization`, cookies or API keys. Refused together with `pinnedResolve` |
 | `noProxy` | off | ignore `HTTP(S)_PROXY` from the environment |
@@ -70,7 +70,7 @@ None unless asked: resending a request is a decision about the other side, and a
 - `RetryPolicy::linear(3, 500)` — 0.5 s, 1 s, 1.5 s.
 - `->allowingNonIdempotent()` — POST and PATCH too, for an API known to tolerate a repeat.
 
-A retry follows a transport failure worth another try (not `tls`, `too_large` or `protocol`) and the statuses 429, 500, 502, 503, 504 and 529 (overloaded). A `Retry-After` header, in seconds or as a date, sets the wait, up to the cap. `$response->attempts` says how many it took.
+A retry follows a transport failure worth another try (not `tls`, `too_large` or `protocol`) and the statuses 429, 500, 502, 503, 504 and 529 (overloaded). A `Retry-After` header, in seconds or as a date, sets the wait: never shorter than the policy's own backoff, and one longer than the cap is not waited for at all — the response (the 429 or 503, with its `Retry-After`) is returned to you. `$response->attempts` says how many it took.
 
 ## In tests
 
@@ -95,6 +95,8 @@ $http->assertSent(fn (HttpRequest $r) => $r->header('x-api-key') === 'test-key')
 ## Under Swoole
 
 Curl is hooked by the server (`SWOOLE_HOOK_ALL`). The hook speaks HTTP/1.1 only and refuses curl options it does not implement, so the client uses only options the hook accepts; `CurlHttpClientCoroutineTest` runs it against a Swoole server to keep it that way. Calling `curl_*` yourself works too, with traps the client already avoids: the hook offers gzip unless told otherwise, a `CURLOPT_WRITEFUNCTION` then receives the body still compressed, and it is called before the header callback has seen the status. So under the server `onChunk` receives the body in one piece once the call succeeds; in the CLI it receives it as it arrives. A header value with a line break is refused when the request is built.
+
+The hook also checks no certificate unless told to, and ignores `CURLOPT_SSL_VERIFYHOST`: an HTTPS call through bare `curl_*` inside the server takes a self-signed, expired or wrong-host certificate. The client turns both checks on for every call, peer and host name; `CurlHttpClientTlsTest` shows it three certificates to keep it that way. Code that calls `curl_*` itself inside the server must set `CURLOPT_SSL_VERIFYPEER` and still gets no host-name check: use the client.
 
 ## In a trace
 
