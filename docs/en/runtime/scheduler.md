@@ -183,7 +183,7 @@ The worker does **not** renew the lease while a job runs. A job that can take lo
 
 ### Retries
 
-`maxAttempts` counts every attempt. After a failed attempt `n`, if `n < maxAttempts`, the run becomes `retry_scheduled` with `available_at = now + retryBackoffSeconds × 2^(n−1)`. Otherwise it becomes `failed`. For example, `maxAttempts: 3, retryBackoffSeconds: 60` waits 60 s, then 120 s, then fails. With a backoff of `0`, the retry is due immediately.
+`maxAttempts` counts every attempt. After a failed attempt `n`, if `n < maxAttempts`, the run becomes `retry_scheduled` with `available_at = now + retryBackoffSeconds × 2^(n−1)`. Otherwise it becomes `failed`. For example, `maxAttempts: 3, retryBackoffSeconds: 60` waits 60 s, then 120 s, then fails. With a backoff of `0`, the retry is due immediately. The doubling stops at a day, or at `retryBackoffSeconds` when that is longer.
 
 ### When a worker dies
 
@@ -220,7 +220,7 @@ For a run with a `tenant_id`, whether it came from `per_tenant`, `dispatchAt(ten
 | `scheduler:work` | `[pool]`, which defaults to `SCHEDULER_DEFAULT_POOL` or `default`. Runs until killed |
 | `scheduler:run-now` | `<schedule-key>`, `--tenant` / `-t <id>`, `--inline` |
 
-`scheduler:run-now` creates a run for an existing definition that is due now, using the definition's pool, attempts, backoff and the same lock key a planned run would get. Without `--inline`, a worker for that pool picks it up. With `--inline`, the run is saved already claimed under the command's own lease, so no worker can claim it while the command holds it. The command runs it in its own process through the same overlap, executor and retry path, and exits non-zero unless a success was recorded. `renewLease()` works there as it does in a worker. A retry or an overlap delay it schedules goes to the workers, and so does a run whose lease ran out, because the job outlived it or the command was killed.
+`scheduler:run-now` creates a run for an existing definition that is due now, using the definition's pool, attempts, backoff and the same lock key a planned run would get. Without `--inline`, a worker for that pool picks it up. With `--inline`, the run is saved already claimed under the command's own lease, so no worker can claim it while the command holds it. The command runs it in its own process through the same overlap, executor and retry path, and exits non-zero unless a success was recorded. `renewLease()` works there as it does in a worker. A retry or an overlap delay it schedules goes to the workers, and so does a run whose lease ran out, because the job outlived it or the command was killed. A `per_tenant` schedule needs `--tenant` once the install has tenants, and `--tenant` must name one that exists; the command refuses otherwise.
 
 ## Tables
 
@@ -268,5 +268,6 @@ A pool name must be a single plain word (`A–Z a–z 0–9 . _ : / = -`). Any o
 - **A mistyped policy stops that schedule.** `overlapPolicy`, `misfirePolicy` and `tenantMode` are not checked when synced. A value outside the enum makes `scheduler:plan` report that schedule and pass over it on every pass; the other schedules are planned as usual. Its planning cursor does not move, so once the value is fixed, the occurrences missed meanwhile go through the misfire policy like an outage.
 - **`scheduler:list` and `scheduler:run-now` read the table, not the code.** A new job appears only after the next `scheduler:plan`.
 - **`explicit_tenant` is refused.** Use `per_tenant`, or dispatch with a `tenantId`.
+- **A cron that never matches is refused.** `0 0 31 2 *` parses, but there is no 31 February. The sync refuses it as it refuses one that does not parse; a row edited by hand to such a value is reported and passed over by `scheduler:plan`, and the other schedules are planned as usual.
+- **A job at a time of day runs once when the clocks go back.** In a row whose `timezone` has daylight saving, `30 3 * * *` runs at the first 03:30 of the repeated hour, not at both. A job whose minute or hour is a wildcard or a step (`0 * * * *`, `*/15 3 * * *`) keeps every tick of the repeated hour. In spring, a time the clocks skip runs an hour late, once. The attribute writes `UTC`, which has no such change.
 - **New schedules do not backfill, and `run_once` runs late.** A daily 03:00 job with `run_once` whose planner was down until 09:00 runs once at 09:00. With `skip` it does not run that day. With `catch_up` and no `maxCatchUpRuns`, it runs every missed occurrence.
-- **The tables grow without limit.** Delete old `scheduler_runs` and `scheduler_run_history` rows yourself, for example from a scheduled job.
