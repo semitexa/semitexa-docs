@@ -170,7 +170,7 @@ The auth pages are components on `platform.form`. The project names the `#[AsFor
 | `platform.forgot-password` | email | answer the same whether or not the address exists |
 | `platform.reset-password` | password + repeat | `token` rides the form's **signed** props: the action reads `$context->props['token']` |
 
-A sign-in action writes the session (for example `AuthSessionWriter::setAuthenticated()`, which rotates the session id) and answers `redirectingTo(...)`. A wrong password is best a field error that does not say which half failed.
+A sign-in action writes the session (for example `AuthSessionWriter::setAuthenticated()`, which rotates the session id; pass the user's `credentialStamp`, see below) and answers `redirectingTo(...)`. A wrong password is best a field error that does not say which half failed.
 
 ### Password reset
 
@@ -192,7 +192,7 @@ The link goes out by mail (semitexa/mail) once `PLATFORM_USER_RESET_URL` says wh
 
 - **What `request()` reveals:** nothing. An unknown address, a disabled account, an account over its limit and a mailer that fails all look like a sent link (a failure is logged, without the token).
 - **The link:** build it from the site's configured address, never from the request's `Host` header, and repeat `#[\SensitiveParameter]` on `$token` in the mailer. A queued mail keeps its rendered body, so the live link sits in the mail store until it expires.
-- **After a reset:** the account's failed sign-ins and lock are cleared and its other links stop working. Every new password raises `PlatformUser::getCredentialVersion()`, so OS console sessions signed in with the old one end on their next request. A project that signs platform users in through its own session stores the version at sign-in and compares it the same way.
+- **After a reset:** the account's failed sign-ins and lock are cleared and its other links stop working. Every new password raises `PlatformUser::getCredentialVersion()`, and with it two things end: every session signed in with the old one, on its next request (the OS console, and any session `SessionAuthHandler` reads — the platform user's principal is a `CredentialStampedInterface`), and every link sent before it, however the password was set (the console, `user:password`, another link). Pass `credentialStamp: $principal->credentialStamp()` to `AuthSessionWriter::setAuthenticated()` when you sign a user in; without one, the writer asks the user provider for it. After a password change in your own handler, sign the user in again with the new stamp, or their own session ends with the old one.
 - **Limits:** `PLATFORM_USER_RESET_TTL_SECONDS` (3600), `PLATFORM_USER_RESET_MAX_REQUESTS` (3) per `PLATFORM_USER_RESET_WINDOW_SECONDS` (900). The limit protects one inbox from floods; it is not a lock. A client asking for many addresses is limited in the action, with `RateLimiter` as above (see [Rate Limiting](../routing/rate-limiting.md)).
 - **Schema:** `orm:sync` creates `platform_user_password_reset`.
 

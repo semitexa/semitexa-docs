@@ -43,7 +43,7 @@ bin/semitexa role:delete curator --tenant=museum
 ```
 
 - `role:create` must be told whose role it is: `--tenant=<id>` for a site's own, or `--shared` for one every site's users can hold.
-- A site's role is given only to that site's users, and grants only on that site: on a request for another site (one session can reach several, by path, query or a cookie on the parent domain), the user has the shared roles and that site's own. On the root site, where data is not filtered by tenant, only the shared roles count. Without tenancy at all (a single-site install, the CLI), the user's own site counts.
+- A site's role is given only to that site's users, and grants only on that site. A user bound to a site holds nothing on a request for another site (one session can reach several, by path, query or a cookie on the parent domain), nor on the root site, where data is not filtered by tenant: their shared roles count on their own site only. An owner (no site) holds the shared roles on every site and on the root site. Without tenancy at all (a single-site install, the CLI), the user's own site counts.
 - `role:assign` takes the user's site's own role of that name, else the shared one; `--shared` names the shared one when both exist.
 - `role:grant` and `role:delete` must be told which role: `--tenant=<id>` or `--shared`.
 - Role names are lower-case letters, digits and `. _ -`; permission slugs, granted or revoked, are lower-cased and may also hold `:` (`orders.manage`, `reports:read`).
