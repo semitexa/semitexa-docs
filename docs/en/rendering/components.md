@@ -170,7 +170,7 @@ The auth pages are components on `platform.form`. The project names the `#[AsFor
 | `platform.forgot-password` | email | answer the same whether or not the address exists |
 | `platform.reset-password` | password + repeat | `token` rides the form's **signed** props: the action reads `$context->props['token']` |
 
-A sign-in action writes the session (for example `AuthSessionWriter::setAuthenticated()`, which rotates the session id; pass the user's `credentialStamp`, see below) and answers `redirectingTo(...)`. A wrong password is best a field error that does not say which half failed.
+A sign-in action writes the session (for example `AuthSessionWriter::setAuthenticated()`, which rotates the session id; pass the user's `credentialStamp`, see below) and answers `redirectingTo(...)`. A wrong password is best a field error that does not say which half failed. Count failed sign-ins per client address in the action too, with `RateLimiter::attempt()` (`#[InjectAsMutable]`, the limiter `platform.auth.forgot-password` uses too), and release the attempt when the sign-in succeeds: the account lockout counts guesses at one account, not one client guessing across many. The OS login allows 10 failures a minute and 50 an hour per address.
 
 ### Password reset
 

@@ -548,11 +548,18 @@ Applies to: class. Repeatable.
 | `bucket` | `string` | no |
 
 ```php
-#[RateLimit(2, 60)]
-final class LimitedPingPayload
+#[RateLimit(5, 300, by: RateLimitKey::User)]
+#[AsProtectedPayload(
+    path: '/os/password',
+    methods: ['POST'],
+    responseWith: ResourceResponse::class,
+    consumes: ['application/json'],
+    produces: ['application/json'],
+)]
+final class PasswordChangePayload implements ValidatablePayloadInterface, OsContentSurfaceInterface
 ```
 
-— `vendor/semitexa/core/tests/Fixtures/RateLimitDemo/Payload/LimitedPingPayload.php`
+— `vendor/semitexa/os/src/Application/Payload/Request/PasswordChangePayload.php`
 
 ## `#[RequiresSignedUrl]`
 
