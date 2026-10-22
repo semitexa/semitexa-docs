@@ -225,7 +225,7 @@ if (!$result->isApplied()) {
 | `RejectedGuard` | `guard_denied` | at least one guard denied; details in `guardFailures` (`guard`, `code`, `message`) | yes | `WorkflowTransitionRejected` |
 | `RejectedConflict` | `version_conflict` | another apply saved first | no | none |
 
-`scheduledFollowUp` is true when the call scheduled a timeout or a side-effect retry. `triggerType`, `triggeredByType` and `triggeredById` are written to the history row; `idempotencyKey` is accepted and ignored.
+`scheduledFollowUp` is true when the call scheduled a timeout or a side-effect retry. Inside your own transaction (below) nothing is scheduled yet: it then says whether the transition has a `TimeoutPolicy` or a `RetryPolicy`. `triggerType`, `triggeredByType` and `triggeredById` are written to the history row; `idempotencyKey` is accepted and ignored.
 
 An applied transition, in order:
 
@@ -235,6 +235,8 @@ An applied transition, in order:
 4. runs the side effects and, if a `RetryPolicy` is set, schedules retries of the failed ones;
 5. schedules the timeout job if the transition has a `TimeoutPolicy`;
 6. dispatches the events.
+
+Steps 1–3 join a database transaction you have open around `apply()` (or `start()`). Steps 4–6 wait for it: they run once your outermost transaction commits, and not at all if it rolls back, so no mail goes out and no event is heard for a transition that was undone. Without a transaction of yours they run inside `apply()`, as listed. A listener that throws is logged and the events after it still go out; `apply()` does not throw for it. A listener therefore never runs inside your transaction: one that writes (a projection) commits on its own, after yours. Inside a test transaction (`RollsBackDatabase`) nothing commits, so side effects, timers and workflow events never run: assert on the stored state, or use `RefreshesTables`. A timeout that cannot be scheduled (the scheduler unreachable) is logged as an error: the transition stands, and the instance waits until a transition is applied by hand.
 
 ### Instance status
 
@@ -257,7 +259,7 @@ A `TimeoutPolicy` on a transition schedules a `WorkflowTimeoutJob` when that tra
 new TimeoutPolicy(afterSeconds: 3600, transitionKey: 'expire', pool: 'default');
 ```
 
-The engine calls `SchedulerInterface::dispatchAt()` with `runAt` = now + `afterSeconds`, the policy's `pool`, the instance's tenant id and the lock key `workflow_timeout_{instanceId}_{transitionKey}`. When the scheduler runs it, the job loads the instance, does nothing if it is gone or its status is terminal, and otherwise applies `transitionKey` with `TriggerType::Scheduled`, `triggeredByType: 'scheduler'`, `triggeredById` and `context['schedulerRunId']` set to the scheduler run id. A timeout transition that is no longer valid from the current state is rejected like any other (`invalid_transition`, with a history row) and the job ends normally.
+The engine calls `SchedulerInterface::dispatchAt()` with `runAt` = now + `afterSeconds`, the policy's `pool`, the instance's tenant id, the lock key `workflow_timeout_{instanceId}_{transitionKey}` and three attempts, 30 s apart (the job itself failing on a lost connection, not the transition being rejected). Side-effect retry jobs get the same three attempts. When the scheduler runs it, the job loads the instance, does nothing if it is gone or its status is terminal, and otherwise applies `transitionKey` with `TriggerType::Scheduled`, `triggeredByType: 'scheduler'`, `triggeredById` and `context['schedulerRunId']` set to the scheduler run id. A timeout transition that is no longer valid from the current state is rejected like any other (`invalid_transition`, with a history row) and the job ends normally.
 
 The job runs only where a `scheduler:work` reads its pool. The scheduler package always runs one for `default` and one for `SCHEDULER_DEFAULT_POOL`; `WorkflowWorkerProcesses` (an `#[AsWorkerProcessSource]`) adds one for every other pool a `TimeoutPolicy` names. In a project started with `bin/semitexa server:start` these run in the `worker` container; `bin/semitexa worker:processes` lists them. See [Workers & Scheduling](../cli/workers-scheduling.md).
 
