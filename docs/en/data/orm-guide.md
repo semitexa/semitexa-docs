@@ -227,7 +227,9 @@ transaction commits, after the connection is back in the pool; a rollback
 `runWithRetry()` replay does not do it twice. A failure after the commit is
 logged and does not undo the committed write; outside a transaction the
 work's exception reaches you as from any call. It needs no event dispatcher. Inside a
-test transaction it never runs.
+test transaction it never runs. A coroutine started inside the transaction
+(`go()`) has no transaction of its own: what it asks for runs at once, even if
+the transaction then rolls back.
 
 ## Wiring a store
 
