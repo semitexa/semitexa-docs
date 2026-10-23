@@ -35,6 +35,7 @@ One request over a limit answers **429** with `Retry-After` (seconds) and `RateL
 
 - **`by`:** `RateLimitKey::Ip` (default) counts per client address. An IPv6 client counts with its whole /64, so rotating addresses inside it does not help. `RateLimitKey::User` counts per signed-in user; a guest is counted by address.
 - **`bucket`:** requests counted together. It defaults to the payload class, so two routes never share a counter by accident. Give two routes the same bucket to limit them as one.
+- **Tenant and application:** a signed-in user is counted within the current tenant, so user `42` of one tenant is not user `42` of another. An address is counted across all tenants of the application, so a client cannot get a fresh limit by moving to another tenant's host. Applications sharing one Redis count apart: the application is told by a key derived from `APP_SECRET`, the same on every server of one application. Rotating `APP_SECRET` starts every counter over, and while servers move to the new secret, the ones on the old secret and the ones on the new count separately.
 - **Several limits:** each must hold. A request refused by one is taken back from the others, so a client blocked for a minute does not use up its hour.
 - **When it runs:** after authorization, before CSRF and the handler. A request refused for permissions is not counted. Neither is a request that fails validation, since the payload is built first.
 - **Live regions:** re-rendering a region for an already served request is not a new request and is not counted.
