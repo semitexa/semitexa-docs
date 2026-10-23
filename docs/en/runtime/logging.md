@@ -96,7 +96,7 @@ Every line the logger writes — to a file, to stderr, by `LOG_SINK` or by a cha
 
 Container runtimes collect what a process writes to stderr. With `LOG_SINK=stderr` every line goes there, one JSON line per entry, and no file is written: `docker compose logs app`, or your platform's log viewer, shows them, and a log shipper can parse them as JSON. `LOG_SINK=both` writes the file as well.
 
-- Each write (one line, or a batch of lines logged at the same moment) up to 4 KiB arrives whole. A longer one (a large context, a long stack trace, a burst) can interleave with another worker's write.
+- Lines logged at the same moment are written in runs of whole lines of up to 4 KiB, and each run arrives whole. A single line longer than 4 KiB (a large context, a long stack trace) is written alone, and it can interleave with another worker's write.
 - If the log collector stops reading, the write waits, and lines logged meanwhile wait in memory behind it. A collector that can fall behind should be set not to block (Docker: `log-opts: mode: non-blocking`).
 - PHP errors and the framework's last-resort messages go to `var/log/error.log` outside dev, not to stderr.
 - In a console command, the lines appear in your terminal. Queue and scheduler lines are in the `worker` container's logs.
