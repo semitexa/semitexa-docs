@@ -48,7 +48,7 @@ if ($this->flags->isEnabled('checkout.new-flow')) { ... }
 {% if feature('checkout.new-flow') %} … {% endif %}
 ```
 
-The answer is for the current request's site and signed-in user. A job or a command asks for someone explicitly: `$flags->forSubject($tenantId, $userId)->isEnabled(...)`. A check never throws: when the store of overrides cannot be read, the declared default answers.
+The answer is for the current request's site and signed-in user. A job or a command asks for someone explicitly: `$flags->forSubject($tenantId, $userId)->isEnabled(...)`. Outside a request, `feature()` in a template answers as the injected service does there: for the site that work runs under, and without a user. A queue worker has no site, so that is the "every site" setting. A mail is the exception: `feature()` in its templates answers for the mail's `tenantId` (every site when it names none), and for no user, also when the mail is sent during a request. To render something else for one site, wrap the render in `CurrentFeatureFlags::forSubjectDuring($tenantId, $userId, fn () => ...)`. A check never throws: when the store of overrides cannot be read, the declared default answers.
 
 ## Switch
 
@@ -66,7 +66,7 @@ The most specific setting wins: **user**, then **site**, then **every site**, th
 ## How it behaves
 
 - **Where it is kept:** `semitexa/platform-settings`, module `feature_flags`, one row per flag and scope. "Every site" is the `default` tenant's row; on a single-site install that is also the site row.
-- **How fast:** a change reaches every worker within 2 seconds (the settings snapshot's lifetime); a user's flags are read once per request. Not a kill switch for something that must stop within the second.
+- **How fast:** a change reaches every worker within 2 seconds (the settings snapshot's lifetime); a user's flags are read once per request (a `feature()` outside the route pipeline, such as on an error page, reads them on each call). Not a kill switch for something that must stop within the second.
 - **Rollouts:** a user is in or out by a hash of the flag and their id, so they get the same answer on every request and every worker; raising the share only adds users. A guest is decided by site. Changing the share moves users at the margin only.
 - **Without platform-settings:** core answers the declarations alone.
 - **In tests:** `new InMemoryFeatureFlags(['checkout.new-flow' => true])` wherever `FeatureFlagsInterface` is expected.
