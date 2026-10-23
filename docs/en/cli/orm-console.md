@@ -21,7 +21,7 @@ Framework credibility also lives in operations. The ORM CLI should tell you what
 
 ## How it works
 
-`orm:status` shows database capabilities and whether the schema is in sync. `orm:diff` lists code-versus-database differences without applying them. `orm:sync --dry-run` builds the execution plan as reviewable output, and `--output` exports it to a SQL file for audit trails. `orm:seed` runs `defaults()` upserts for seedable resources to make local and demo environments reproducible.
+`orm:status` shows database capabilities and whether the schema is in sync. `orm:diff` lists code-versus-database differences without applying them. `orm:sync --dry-run` builds the execution plan as reviewable output, and `--output` exports it to a SQL file for audit trails. `orm:seed` runs `defaults()` upserts for seedable resources to make local and demo environments reproducible. A row that is already there keeps its `created_at`, and a row that differs only in `created_at` counts as unchanged.
 
 ## Why this matters
 
