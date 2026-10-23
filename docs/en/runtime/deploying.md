@@ -168,7 +168,7 @@ It prints the settings, the version a deploy would move to, the reason, a table 
 bin/semitexa update:packages:auto --json
 ```
 
-When auto-deploy is off it ends with status `skipped`. With no newer release it ends with `noop`. It also ends with `noop`, without running composer, when `composer.json` pins every package that has a newer release at exactly the version installed; the reason names them. Otherwise it:
+When auto-deploy is off it ends with status `skipped`. With no newer release it ends with `noop`. It also ends with `noop`, without running composer, when `composer.json` pins every package that has a newer release at exactly the version installed; the reason names them. And it ends with `noop` while the newest releases are no newer than the ones a rollback backed out (see [Rolling back the last deploy](#rolling-back-the-last-deploy)). Otherwise it:
 
 1. Takes `var/lock/semitexa-update.lock`, the same lock `bin/semitexa update` uses. If another run holds it, this run fails and the next tick tries again.
 2. Starts a run-journal record.
@@ -177,7 +177,7 @@ When auto-deploy is off it ends with status `skipped`. With no newer release it 
 5. Compares every `semitexa/*` package in `composer.lock` with `vendor/composer/installed.json` and fails if one is missing or at another version. A `require-dev` package is not counted as missing: `--no-dev` takes it out of `vendor/` while `composer.lock` keeps it.
 6. Runs `orm:sync`, then `cache:clear`. When the server runs in the same container, `cache:clear` also reloads its workers.
 7. Restarts: with `SEMITEXA_AUTO_DEPLOY_RESTART_COMMAND`, that command. Otherwise `docker compose restart`, but only when `docker-compose.yml` and the Docker CLI exist and the command is not running inside a container. Otherwise nothing, and the result says `restart_required: true`.
-8. Fetches `SEMITEXA_AUTO_DEPLOY_HEALTHCHECK_URL` when it is set; a failure fails the deploy and rolls it back. After a restart in step 7 it tries four times, three seconds apart. Without one (inside the `app` container) it asks the workers `cache:clear` reloaded on the new `vendor/`. It is the only health check that can roll a deploy back: the systemd wrapper's check after its restart only reports.
+8. Fetches `SEMITEXA_AUTO_DEPLOY_HEALTHCHECK_URL` when it is set; a failure fails the deploy and rolls it back. After a restart in step 7 it tries four times, three seconds apart. Without one (inside the `app` container) it asks the workers `cache:clear` reloaded on the new `vendor/`. A deploy that passes keeps the `composer.json` and `composer.lock` it replaced in `var/update/rollback/` (`rollback_snapshot: kept` in the result), so the systemd wrapper's check after its restart can still roll it back with `update:packages:rollback`.
 
 After step 5, when composer installed none of the newer releases (a constraint, or a pinned package a newer one needs, held them back) and `composer.lock` did not change, the run ends as `noop` there: no sync, no restart, and the reason says so. Composer still runs on each such tick until the constraints move.
 
@@ -217,7 +217,7 @@ Each tick runs the wrapper, which:
 
 1. Runs `./bin/semitexa update:packages:auto --json`. When that fails, it stops with its exit code; first, if the deploy was rolled back and the result says `restart_required: true`, it runs `./bin/semitexa server:restart`, so every container goes back onto the restored release. A rollback that `FAILED` restarts nothing: `vendor/` is half-written then.
 2. Reads `status` and `restart_required` from that JSON. It needs no PHP on the host, only `curl` (which the bootstrap installs).
-3. When the status is `updated` and `restart_required` is true, runs `./bin/semitexa server:restart`, holding the update lock (`var/lock/semitexa-update.lock`, with `flock`), so a `bin/semitexa update` started meanwhile is refused as "already in progress" rather than having its container stopped mid-composer: it builds the image, then takes every container down and starts them again, so the `worker` container (the queue, scheduler and mail workers) runs the new code too. The app is down until it boots. Then it fetches the health-check URL from the host and wants a 2xx answer, trying six times, five seconds apart, up to about a minute and a half. A failure there exits `1`; it prints the URL without its query string or credentials, and passes it to `curl` on standard input, not on its command line. Nothing is rolled back at this point, and the next tick finds nothing newer to deploy: the site stays on the release that failed until you act.
+3. When the status is `updated` and `restart_required` is true, runs `./bin/semitexa server:restart`, holding the update lock (`var/lock/semitexa-update.lock`, with `flock`), so a `bin/semitexa update` started meanwhile is refused as "already in progress" rather than having its container stopped mid-composer: it builds the image, then takes every container down and starts them again, so the `worker` container (the queue, scheduler and mail workers) runs the new code too. The app is down until it boots. Then it fetches the health-check URL from the host and wants a 2xx answer, trying six times, five seconds apart, up to about a minute and a half. It prints the URL without its query string or credentials, and passes it to `curl` on standard input, not on its command line. When the check fails, or the restart itself fails, it runs `./bin/semitexa update:packages:rollback --json` and exits `1`. When that answers `rolled_back` with `restart_required: true`, it first restarts the stack again, so every container runs the restored release. Later ticks do not deploy the releases it backed out (see [Rolling back the last deploy](#rolling-back-the-last-deploy)). Any other answer leaves the failing release in place, live or with the stack down when the restart failed, and the journal says so: the next tick finds nothing newer to deploy, so act on it.
 
 Check and trigger it:
 
@@ -243,7 +243,25 @@ Any failure after the lock is taken ends the run as `failed`, with the error as 
 | `partial` | files and `vendor/` are back, but nothing restarted: the restart failed, or there was none to run (inside the `app` container the workers were reloaded with `cache:clear`). The systemd wrapper restarts the stack; without it, restart by hand |
 | `FAILED` | the files could not be written, or `composer install` failed: `vendor/` is still on the new versions |
 
-The rollback does not undo schema changes `orm:sync` made and does not repeat the health check. The saved files are kept in memory only: a run killed mid-update has nothing to roll back from.
+The rollback does not undo schema changes `orm:sync` made and does not repeat the health check. During the run the saved files are kept in memory only: a run killed mid-update has nothing to roll back from.
+
+### Rolling back the last deploy
+
+```bash
+bin/semitexa update:packages:rollback --json
+```
+
+It takes the update lock, puts back the files kept in `var/update/rollback/` by the last deploy that passed, then runs the same `composer install` and restart steps as the rollback above, with `SEMITEXA_AUTO_DEPLOY_RESTART_COMMAND` when it is set. After a rollback, `release_set` in the result names the release now installed. Its `status` is:
+
+| Status | Meaning |
+|---|---|
+| `rolled_back` | the previous release is back; `rollback` says how far it got, and `restart_required: true` means the stack still has to restart |
+| `nothing` | no kept state; the deploy started with no `composer.lock`; or `composer.lock` has changed since that deploy wrote it, and going back would undo that change too |
+| `failed` | another update run holds the lock, the lock file cannot be opened, or the rollback `FAILED` |
+
+A rollback is used once: after it, the kept files are removed. The next deploy that passes keeps new ones. The command exits `1` only for `failed`. It writes a deployment log like a deploy does, but no run-journal entry: the journal keeps that deploy as a success.
+
+With `vendor/` back on the older versions, the releases that were backed out look newer again. So the rollback writes the `semitexa/*` versions that deploy installed to `var/update/rollback/rejected.json` (`rejected: recorded` in the result), and `update:packages:auto` answers `noop` while no package has a release newer than its rejected version. A newer release of any package is deployed. The rejection holds even when the failure was passing (a Docker hiccup, a health URL down for a minute), and a `noop` exits `0`: the reason is in the journal and the deployment log only. To try the rejected releases again, delete that file.
 
 Each run is recorded in two places:
 
