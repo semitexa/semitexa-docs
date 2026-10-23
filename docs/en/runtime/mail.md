@@ -116,6 +116,7 @@ A `Queued` send is published to a queue only when the queue can reach another pr
 |---|---|---|---|
 | the config resolver threw | `Failed` | `config_error` | none |
 | the template failed to render | `Failed` | `render_failed` | none |
+| a field is longer than its column (subject 998 characters; tenant 64; mailer key 128; template handle, sender, reply-to and idempotency key 255) or not UTF-8; the message names the field | `Failed` | `invalid_message` | none |
 | no recipient (`to`, `cc`, `bcc` empty) | `Failed` | `invalid_recipient` | none |
 | an inline attachment is over 256 KB | `Failed` | `attachment_missing` | none |
 | a message with the same idempotency key was already sent | `Sent` | | the existing one; its id is returned |
