@@ -179,6 +179,8 @@ Both return the new run's id. `dispatchAfter()` is `dispatchAt(now + $delay)`.
 
 ### Leases
 
+Lease and lock times are written and judged by the database's clock (`NOW(6)` on MySQL, in UTC), not by each worker's: a worker whose clock runs ahead does not take over leases or locks that others still hold. On SQLite, the database's clock is the clock of the host it runs on, so every worker on that host shares it. The time a run is due (`available_at`) is still written by the PHP process that plans or retries it, so a planner whose clock is off makes runs due early or late by that much.
+
 The worker does **not** renew the lease while a job runs. A job that can take longer than `SCHEDULER_LEASE_TTL` (300 s by default) must call `$context->renewLease()` at checkpoints. If it does not, another worker reclaims the "expired" run. With attempts left, it starts the run a second time, alongside the first. With none left (the default `maxAttempts: 1`), it marks the run `failed`, and the first copy's outcome is then discarded when it finishes. When `renewLease()` throws `LeaseLostException`, let the exception propagate: the worker then discards this attempt's outcome.
 
 ### Retries
