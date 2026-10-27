@@ -111,7 +111,7 @@ $byState = $q->countBy(ColumnRef::for(OrderResource::class, 'status'));
 
 ### Tenancy is fail-closed
 
-`#[TenantScoped]` has one strategy: the rows of every tenant share the table and are filtered on the tenant column (`column`, the `tenant_id` column by default). `strategy` takes `'same_storage'` (the default) or its other name `'column'`; anything else (`'separate_db'`, `'separate_schema'`, `'connection_switch'`) is refused when the model is read, because a database or schema per tenant is the connection's job (the pool switches on `TenantResolved`), not a model's. Those values used to be accepted and ignored.
+`#[TenantScoped]` has one strategy: the rows of every tenant share the table and are filtered on the tenant column it names (`column`, a property or column the model declares). `strategy` takes `'same_storage'` (the default) or its other name `'column'`; anything else (`'separate_db'`, `'separate_schema'`, `'connection_switch'`) is refused when the model is read, because a database or schema per tenant is the connection's job (the pool switches on `TenantResolved`), not a model's. Those values used to be accepted and ignored.
 
 A query on a `#[TenantScoped]` resource without tenant context throws a
 `LogicException`. Call `forTenant($value)`, or opt out explicitly with
@@ -220,9 +220,12 @@ The other way round, for something already done outside the database that a
 rollback should take back (a file stored for a row about to be written),
 `afterRollback(fn () => $storage->delete($path))` runs the work if the
 transaction rolls back, or the savepoint it was asked for in, and drops it on
-commit; with no transaction open it does nothing. A failure in it is logged and
-the rollback's own exception still reaches you. `semitexa/media` uses it for
-the original of an upload whose asset row was rolled back.
+commit; with no transaction open it does nothing. It runs once the connection
+is back in the pool. A failure in it is logged and the rollback's own exception
+still reaches you. A failure of the commit itself does not run it: the commit
+may have gone through, so what it would undo is kept, and a warning says so.
+`semitexa/media` uses it for the original of an upload whose asset row was
+rolled back.
 
 For an effect a rollback cannot undo — a mail sent, a message published, a
 call to another service — hold it back until the commit:
