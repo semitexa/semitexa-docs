@@ -382,11 +382,11 @@ Applies to: property
 | `default` | `BackedEnum\|string\|int\|float\|bool\|null` | no |
 
 ```php
-    #[Config(env: 'CACHE_DRIVER', default: 'array')]
-    protected string $driver;
+    #[Config(env: 'DEMO_RETENTION_DAYS', default: 7)]
+    protected int $retentionDays = 7;
 ```
 
-— `vendor/semitexa/cache/src/Application/Service/CacheManager.php`
+— `vendor/semitexa/demo/src/Application/Service/Scheduler/DemoRetentionJob.php`
 
 ## `#[CsrfExempt]`
 
