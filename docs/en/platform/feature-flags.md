@@ -61,7 +61,7 @@ bin/semitexa feature:set checkout.new-flow clear --tenant=acme         # back to
 bin/semitexa feature:list --tenant=acme --user=42                      # value, and where it comes from
 ```
 
-The most specific setting wins: **user**, then **site**, then **every site**, then the declaration. `feature:set` refuses a flag no module declares (it would read as off anyway); `--force` stores it regardless. In code, `FeatureFlagWriter` does the same.
+The most specific setting wins: **user**, then **site**, then **every site**, then the declaration. `feature:set` refuses a flag no module declares (it would read as off anyway), and a `--tenant` that is neither `default` (the every-site row) nor one of the sites the tenant fanout knows (with `semitexa/tenancy`, the active tenants of its registry: `TENANTS` and `TENANT_<ID>_*`); `--force` stores it regardless. A `--user` is not checked: the user providers do not know which site a user belongs to. In code, `FeatureFlagWriter` checks the flag only. A user's own overrides are not removed when the user is deleted: clear them with `feature:set <flag> clear --tenant=… --user=… --force`.
 
 ## How it behaves
 
