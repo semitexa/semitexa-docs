@@ -111,6 +111,8 @@ $byState = $q->countBy(ColumnRef::for(OrderResource::class, 'status'));
 
 ### Tenancy is fail-closed
 
+`#[TenantScoped]` has one strategy: the rows of every tenant share the table and are filtered on the tenant column (`column`, the `tenant_id` column by default). `strategy` takes `'same_storage'` (the default) or its other name `'column'`; anything else (`'separate_db'`, `'separate_schema'`, `'connection_switch'`) is refused when the model is read, because a database or schema per tenant is the connection's job (the pool switches on `TenantResolved`), not a model's. Those values used to be accepted and ignored.
+
 A query on a `#[TenantScoped]` resource without tenant context throws a
 `LogicException`. Call `forTenant($value)`, or opt out explicitly with
 `withoutTenantScope(SystemScopeToken)` — there is no silent global read.
