@@ -567,7 +567,9 @@ final class PasswordChangePayload implements ValidatablePayloadInterface, OsCont
 
 Applies to: class
 
-Takes no arguments.
+| parameter | type | required |
+|---|---|---|
+| `methods` | `array` | no |
 
 ```php
 #[RequiresSignedUrl]
