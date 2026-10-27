@@ -216,6 +216,14 @@ rollback, including a rolled-back savepoint's). If you call `bufferEvent()`
 yourself, wire a dispatcher with `setEventDispatcher()` first — flushing
 with no dispatcher discards silently.
 
+The other way round, for something already done outside the database that a
+rollback should take back (a file stored for a row about to be written),
+`afterRollback(fn () => $storage->delete($path))` runs the work if the
+transaction rolls back, or the savepoint it was asked for in, and drops it on
+commit; with no transaction open it does nothing. A failure in it is logged and
+the rollback's own exception still reaches you. `semitexa/media` uses it for
+the original of an upload whose asset row was rolled back.
+
 For an effect a rollback cannot undo — a mail sent, a message published, a
 call to another service — hold it back until the commit:
 
