@@ -309,7 +309,7 @@ If you need word-level matching, stemming or ranking across the whole match set 
 ## Watch out for
 
 - **The shipped backend searches one table with `LIKE`.** No joins, no full-text index, no stemming: a large table is scanned. Bind your own factory or backend for more.
-- **It follows the model, as a repository would.** A `#[SoftDelete]` model's deleted rows are never found; a `#[TenantScoped]` model is filtered on its own tenant column, and a Global index over one is refused. A Tenant index over a table with no tenant column fails with a database error. Only the default connection is searched (`#[Connection]` is not followed).
+- **It follows the model, as a repository would.** A `#[SoftDelete]` model's deleted rows are never found; a `#[TenantScoped]` model is filtered on its own tenant column, and a Global index over one is refused. A Tenant index over a table with no `tenant_id` column fails with a `SearchBackendException` that says to make the model `#[TenantScoped]` or the index Global. Only the default connection is searched (`#[Connection]` is not followed).
 - **Set a sort with a unique last column for stable pages.** Without one (or `defaultSort`), `LIMIT`/`OFFSET` pages can repeat or skip rows.
 - **No tenant context means tenant `default`.** A tenant index searched from a CLI command or a job without a tenant context searches `tenant_id = 'default'`: rows written under no tenant (`''` or `NULL`) are not found. With `TENANCY_ENABLED` on, the first such search in a process logs a warning. Run it under the tenant (`bin/semitexa tenant:run <tenant> …`) or pass `tenantId`.
 - **A non-numeric value on a `Number` filter is refused.** `price:abc` (or `'price' => 'abc'`) throws `SearchValidationException` naming the field.
