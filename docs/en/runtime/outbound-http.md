@@ -37,7 +37,7 @@ if (!$response->isSuccessful()) {
 $rates = $response->json();
 ```
 
-`send(HttpRequest)` takes any method; `get()`, `postJson()` and `postForm()` build the common ones. Under the Swoole server the call yields its worker to other requests while it waits (curl is hooked); in a console command it blocks, as a command expects.
+`send(HttpRequest)` takes any method; `get()`, `postJson()` and `postForm()` build the common ones. Under the Swoole server the call yields its worker to other requests while it waits (curl is hooked); in a console command it blocks, as a command expects. It needs the `curl` extension, which the Semitexa image has; `semitexa/core` only suggests it, so an install without it works until the first outbound call, which throws a `LogicException` saying so.
 
 ## What can go wrong
 
