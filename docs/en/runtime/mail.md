@@ -321,7 +321,7 @@ When the envelope has an `idempotencyKey`, `send()` first looks for a message wi
 
 A key lasts as long as its row: with `MAIL_RETENTION_DAYS` set, a key whose mail was deleted sends again.
 
-`mail_messages` has a unique index on `(tenant_id, idempotency_key)`. When two `send()` calls with the same key race and the second insert is refused, the second one answers from the first one's row as above. The index does not cover mail with no tenant (the database lets any number of `NULL` tenants through), so two tenant-less sends racing with one key can both be stored and sent.
+`mail_messages` has a unique index on `(tenant_id, idempotency_key)`. When two `send()` calls with the same key race and the second insert is refused, the second one answers from the first one's row as above. Mail with no tenant is stored with `tenant_id` `''` (read back as no tenant), so the index holds it to one row per key too; a row stored before that, with `NULL`, is still found by its key, but a race against it is not caught.
 
 The worker has its own guard: a redelivered queue message whose row is already `sent` is skipped.
 
