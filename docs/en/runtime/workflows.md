@@ -273,7 +273,8 @@ Those are the defaults. `maxAttempts` counts every run, the first one inside `ap
 
 - attempt `n + 1` runs `backoffForAttempt(n)` seconds after attempt `n` failed, where `backoffForAttempt(n) = backoffSeconds × backoffMultiplier^(n − 1)`, clamped to 0…`maxBackoffSeconds`. With the defaults: 60 s, then 120 s;
 - the job is dispatched with no pool (so `SCHEDULER_DEFAULT_POOL`) and the instance's tenant id. The retries of one failure share a chain id in their payload, and with the shipped scheduler (a `DeduplicatingSchedulerInterface`) each attempt of a chain is scheduled once: a retry run the scheduler took over from a worker that seemed dead, and that worker finishing after all, no longer both schedule the next attempt. A scheduler of your own that only implements `SchedulerInterface` gets a unique lock key instead, as before;
-- the retry runs only a side effect the transition still declares, against the instance as it is now, not as it was when the transition was applied;
+- the retry runs only a side effect the transition still declares, against the instance as it is now, not as it was when the transition was applied. It runs even if the instance has moved on since: the side effect is a consequence of a transition that was committed (a receipt for a payment), and dropping it would lose it. If that matters to yours, check the instance's state in the side effect;
+- a `WorkflowFailed` sent when it gives up names, as `failedState`, the state the side effect's transition led to, not the one the instance has moved to;
 - the `context` is stored as JSON: a date comes back as an array, an enum as its value (a warning is logged), and a context that cannot be encoded is replaced by `[]`;
 - after the last attempt fails, the engine logs an error ("failed N times; giving up") and dispatches `WorkflowFailed`. No history row is written and the status does not change.
 
