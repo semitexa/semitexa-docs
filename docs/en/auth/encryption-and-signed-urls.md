@@ -45,7 +45,7 @@ try {
 - Encrypting the same text twice gives two different tokens.
 - Changing one character makes `decrypt()` throw: a token is authenticated as well as encrypted.
 - It encrypts strings. Encode anything else first, as above.
-- A token is not tied to what it was made for: any code that decrypts will read it. Put what it is for inside it (`['purpose' => 'invite', …]`) and check that when you read it back.
+- A token is tied to what it was made for only when you say so: pass a context to both sides, `encrypt($value, 'link:invite')` and `decrypt($token, 'link:invite')`, and a token made under one context throws under any other (no context included). Without one, any code that decrypts without a context reads it.
 
 It uses libsodium's secretbox (XSalsa20-Poly1305), which needs the `sodium` extension; the Semitexa image has it.
 
