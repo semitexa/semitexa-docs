@@ -262,7 +262,7 @@ A transport answers with a `MailTransportResult`: `status` (`MailTransportStatus
 - It sends `EHLO` with this machine's host name when that is a full domain, otherwise with the address literal of its end of the connection (`[10.0.0.5]`), falling back to `HELO`.
 - When both `MAIL_USERNAME` and `MAIL_PASSWORD` are set, it authenticates with `AUTH LOGIN`, or with `AUTH PLAIN` when the server's `EHLO` reply (the one after `STARTTLS`, with `tls`) offers PLAIN and not LOGIN. No other mechanism is supported. Without `MAIL_ENCRYPTION` it signs in only to a local relay — `localhost`, `127.0.0.1`, `::1` or a one-word host such as a compose service — and refuses any other host with `config_error`, before the password is sent: set `MAIL_ENCRYPTION`, or `MAIL_ALLOW_PLAINTEXT_AUTH=1` on a network you trust.
 - A recipient the server answers `251` (it will forward) counts as accepted.
-- It sends one `RCPT TO` for every to, cc and bcc address. One refused recipient fails the whole message.
+- It sends one `RCPT TO` for every to, cc and bcc address. A recipient refused for good (a 5xx reply, such as a mistyped address) is skipped: the others get the mail. The message row reads `sent`, and its `error_message` names who did not get the mail (`Not delivered to: …`), with a warning in the log. The attempt is recorded with `provider_status` `sent_partially`, and `provider_response.refused_recipients` lists each refused address with the server's code and reply. When every recipient is refused, the mail fails as that refusal. A temporary refusal (4xx) of any one recipient defers the whole mail, because sending it now would reach the others a second time on the retry. A refusal that says too many recipients (`4.5.3`/`5.5.3` or the words, under any code) fails the whole mail at once with `invalid_recipient`, and it is not retried: every try would hit the same limit. Split the list into several mails.
 - The message gets a `Message-ID` of `<message id@sender's domain>` (the row's UUID), a `Date`, `MIME-Version`, and `multipart/alternative` when both bodies exist, `multipart/mixed` with attachments. Bodies are quoted-printable UTF-8, attachments base64.
 - `MAIL_TIMEOUT` is the connect timeout and the read timeout of each response, except the reply to the end of the message, which is given four minutes (or `MAIL_TIMEOUT`, if longer): a content filter can take that long, and a queue hands an unacknowledged message to another worker after five (RFC 5321 allows ten). A mail sent at once, inside a request, holds the request that long too. No reply at all then fails the mail with `unknown_transport_error`, and it is not retried: the server may have delivered it, so check before resending it by hand.
 
@@ -274,7 +274,7 @@ An SMTP error is turned into an error code:
 | no reply to the end of a message the server received whole | `unknown_transport_error` | no: it may have been delivered |
 | 421 | `rate_limited` | yes |
 | 534, 535 | `auth_error` | no |
-| 550–553 | `invalid_recipient` | no |
+| 550–553, and "too many recipients" under any code | `invalid_recipient` | no |
 | any other 4xx (greylisting answers 450, 451) | `provider_4xx` | yes |
 | any other 5xx (except a reply to `STARTTLS`, see below) | `provider_5xx` | no |
 
