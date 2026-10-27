@@ -159,6 +159,8 @@ public function dispatchAfter(string $jobClass, \DateInterval $delay, array $pay
 
 Both return the new run's id. `dispatchAfter()` is `dispatchAt(now + $delay)`.
 
+The shipped `SchedulerService` is also a `DeduplicatingSchedulerInterface`: `dispatchOnceAt(string $occurrenceKey, …)` takes the same arguments after a key (at most 255 characters) and schedules the run only if no run with that key exists, whatever its status; otherwise it returns `null`. The unique `occurrence_key` index decides, so two callers at once get one run. Use it for a follow-up two runs can ask for at the same time.
+
 - `payload` is stored as JSON and reaches the job as `$context->payload`. It must be JSON-encodable, or `dispatchAt()` throws.
 - `pool: null` means `SCHEDULER_DEFAULT_POOL`, or `default` if that is unset.
 - `tenantId` makes the job run as that tenant (see [Tenants](#tenants)).
