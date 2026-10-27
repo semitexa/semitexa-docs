@@ -90,7 +90,8 @@ public function send(MailEnvelope $envelope, ?MailSendOptions $options = null): 
 | `tenantId` | `?string` | stored on the row; scopes the idempotency key |
 | `idempotencyKey` | `?string` | see [Idempotency](#idempotency) |
 | `mailerKey` | `?string` | passed to the config resolver on a send, and stored on the row, so the worker resolves the same mailer |
-| `tags`, `metadata` | arrays | stored on the row as JSON; nothing else reads them |
+| `tags`, `metadata` | arrays | stored on the row as JSON; nothing else reads them, except the reserved metadata key `semitexa.sensitive` (see `sensitive`) |
+| `sensitive` | bool, `false` | the bodies carry a secret (a reset link, a sign-in code): kept while the mail waits and is retried, replaced on the stored row by `[erased once sent: it carried a secret]` once it is sent. The subject, recipients and attempts stay. A mail that failed keeps its bodies, so that a resend under its key can send it: until the retention sweep, its row holds the secret. `platform-user`'s reset mail sets it |
 | `mailKey` | `string` | not read anywhere |
 
 `MailRecipient` (`email`, `name = null`) is readonly. Its constructor throws `InvalidArgumentException` when the address holds a control character (CR and LF included) or `<` / `>`. A name outside printable ASCII is written as an RFC 2047 encoded-word, so a line break in a name cannot start a new header.
