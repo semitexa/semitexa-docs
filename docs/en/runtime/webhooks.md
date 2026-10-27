@@ -267,7 +267,7 @@ $this->webhooks->publish(new OutboundWebhookMessage(
 ));
 ```
 
-`publish()` sends nothing. It inserts a `pending` outbox row due now and returns. An unknown or disabled `endpointKey` throws `RuntimeException`. With an `idempotencyKey`, a second publish with the same key for the same endpoint definition matches the existing row instead of adding one (a unique index on `(endpoint_definition_id, idempotency_key)`); without one, every call is a new delivery. `payload` is JSON-encoded as the request body. Every attempt carries `X-Webhook-Event-Id` (the outbox id, the same on every retry, so a receiver can recognise a second copy even though each retry is signed with a new timestamp) and `X-Webhook-Event-Type` (`eventType`); headers you pass in `headers` replace them.
+`publish()` sends nothing. It inserts a `pending` outbox row due now and returns. An unknown or disabled `endpointKey` throws `RuntimeException`. With an `idempotencyKey`, a second publish with the same key for the same endpoint definition matches the existing row instead of adding one (a unique index on `(endpoint_definition_id, idempotency_key)`); without one, every call is a new delivery. `payload` is JSON-encoded as the request body. By default every attempt carries `X-Webhook-Event-Id` (the outbox id, the same on every retry, so a receiver can recognise a second copy even though each retry is signed with a new timestamp) and `X-Webhook-Event-Type` (`eventType`). The endpoint's default headers and those you pass in `headers` replace them: the example above sends `order-paid-{$orderId}`, and that is the id a receiver deduplicates on.
 
 ### Delivery: `webhook:work`
 

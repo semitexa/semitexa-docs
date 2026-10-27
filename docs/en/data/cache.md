@@ -209,7 +209,7 @@ bin/semitexa cache:tags:flush <tag>...
 bin/semitexa cache:flush [--namespace=<name>] [--scope=tenant|global]
 ```
 
-They act on the root namespace of the current tenant unless told otherwise (`bin/semitexa tenant:run <tenant> cache:flush` for another tenant), through the same manager and resolver as the workers; `cache:tags:flush` has no namespace option. They run in their own CLI process, so with `CACHE_DRIVER=array` they only see that process's empty cache and change nothing in the running workers. `cache:clear` is a different command: it clears compiled templates under `var/cache` and cycles the workers. It never touches Redis entries, though cycling the workers does empty an `array` cache.
+They act on the root namespace of the current tenant unless told otherwise (`bin/semitexa tenant:run <tenant> cache:flush` for another tenant), through the same manager and resolver as the workers; `cache:tags:flush` has no namespace option. They run in their own CLI process, so with `CACHE_DRIVER=array` they only see that process's empty cache and change nothing in the running workers. `cache:clear` is a different command: it clears compiled templates under `var/cache` and cycles the workers; with `--no-reload` it clears the disk only, and running workers keep the templates they already compiled. It never touches Redis entries, though cycling the workers does empty an `array` cache.
 
 ## Watch out for
 

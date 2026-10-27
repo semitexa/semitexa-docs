@@ -66,7 +66,10 @@ final class TruthIndexBuilderTest extends TestCase
         $command = $this->commandNamed($index, 'demo:thing');
 
         self::assertSame('console', $command['kind']);
-        self::assertSame([['name' => 'target', 'required' => true]], $command['arguments']);
+        self::assertSame([
+            ['name' => 'target', 'required' => true, 'array' => false],
+            ['name' => 'more', 'required' => false, 'array' => true],
+        ], $command['arguments']);
         self::assertContains(
             ['name' => '--force', 'accepts_value' => false],
             $command['options'],
@@ -153,6 +156,7 @@ final class TruthIndexBuilderTest extends TestCase
     {
         $command = new Command('demo:thing');
         $command->addArgument('target', InputArgument::REQUIRED);
+        $command->addArgument('more', InputArgument::IS_ARRAY);
         $command->addOption('force', null, InputOption::VALUE_NONE);
 
         $application = new Application();

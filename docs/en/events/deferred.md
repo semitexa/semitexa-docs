@@ -28,7 +28,7 @@ In a live region (a held-open connection), each re-run runs the route's sync han
 
 ## Why this matters
 
-Long-running side effects — email, cache invalidation, audit logging — do not need to delay the response. Marking a listener `EventExecution::Async` gives users instant feedback while still guaranteeing the work runs. The tradeoff is that deferred work does not survive a worker restart (past that grace window, or a crash), which is why durable side effects belong in the queued tier instead.
+Long-running side effects — email, cache invalidation, audit logging — do not need to delay the response. Marking a listener `EventExecution::Async` gives users instant feedback and runs the work after the response, without a guarantee: deferred work does not survive a worker restart (past that grace window, or a crash), which is why durable side effects belong in the queued tier instead.
 
 ## Execution mode comparison
 

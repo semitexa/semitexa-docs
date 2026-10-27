@@ -367,12 +367,14 @@ final class ReferenceGenerator
             // a prose argument — `ai:review-graph:context "adding a payment method"` — and an
             // unquoted <task> silently becomes three arguments instead of one. Quoting is
             // correct for every placeholder, so it does not need to be decided per command;
-            // the hand-written pages already write it this way.
+            // the hand-written pages already write it this way. A list argument is one
+            // quoted placeholder per value, so it ends in `...`: `"<tags>"...`.
             $usage = 'bin/semitexa ' . $command['name'];
             foreach ($arguments as $argument) {
+                $repeat = ($argument['array'] ?? false) ? '...' : '';
                 $usage .= ($argument['required'] ?? false)
-                    ? ' "<' . $argument['name'] . '>"'
-                    : ' ["' . $argument['name'] . '"]';
+                    ? ' "<' . $argument['name'] . '>"' . $repeat
+                    : ' ["' . $argument['name'] . '"' . $repeat . ']';
             }
 
             $out .= sprintf("```bash\n%s\n```\n\n", $usage);

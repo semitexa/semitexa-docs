@@ -280,7 +280,7 @@ An SMTP error is turned into an error code:
 | any other 4xx (greylisting answers 450, 451) | `provider_4xx` | yes |
 | any other 5xx (except a reply to `STARTTLS`, see below) | `provider_5xx` | no |
 
-A 4xx reply or no reply is returned as `Deferred`, a 5xx reply or no reply to the end of the message as `Failed`. A failed TLS handshake (an untrusted certificate, a host name that does not match it), and a 5xx reply to `STARTTLS` (a server that does not offer it on that port), are returned as `Failed` with `config_error`, which is not retried, and the message says why. Any other non-SMTP exception inside `deliver()` is returned as `Failed` with `network_error`.
+A 4xx reply, or a connection that failed before the server had the whole message, is returned as `Deferred`; a 5xx reply, or no reply to the end of a message the server received whole, as `Failed`. A failed TLS handshake (an untrusted certificate, a host name that does not match it), and a 5xx reply to `STARTTLS` (a server that does not offer it on that port), are returned as `Failed` with `config_error`, which is not retried, and the message says why. Any other non-SMTP exception inside `deliver()` is returned as `Failed` with `network_error`.
 
 ### Configuration
 

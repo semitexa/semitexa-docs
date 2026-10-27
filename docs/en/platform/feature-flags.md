@@ -36,6 +36,7 @@ The declaration is the default and the documentation: `default` (off unless said
 ## Read
 
 ```php
+use Semitexa\Core\Attribute\InjectAsMutable;
 use Semitexa\Core\Feature\FeatureFlagsInterface;
 
 #[InjectAsMutable]

@@ -21,6 +21,7 @@ keywords:
 Inject `HttpClientInterface` and call:
 
 ```php
+use Semitexa\Core\Attribute\InjectAsReadonly;
 use Semitexa\Core\Http\Client\HttpCallOptions;
 use Semitexa\Core\Http\Client\HttpClientInterface;
 use Semitexa\Core\Http\Client\RetryPolicy;
@@ -70,7 +71,7 @@ None unless asked: resending a request is a decision about the other side, and a
 - `RetryPolicy::linear(3, 500)` — three attempts in all, 0.5 s and then 1 s apart.
 - `->allowingNonIdempotent()` — POST and PATCH too, for an API known to tolerate a repeat.
 
-A retry follows a transport failure worth another try (not `tls`, `too_large` or `protocol`) and the statuses 429, 500, 502, 503, 504 and 529 (overloaded). A `Retry-After` header, in seconds or as a date, sets the wait: never shorter than the policy's own backoff, and one longer than the cap is not waited for at all — the response (the 429 or 503, with its `Retry-After`) is returned to you. `$response->attempts` says how many it took.
+A retry follows a transport failure worth another try (not `tls`, `too_large` or `protocol`) and the statuses 429, 500, 502, 503, 504 and 529 (overloaded). A `Retry-After` header, in seconds or as a date, sets the wait: never shorter than the policy's own backoff, and one longer than the cap is not waited for at all — the response, with its `Retry-After` header, is returned to you. `$response->attempts` says how many it took.
 
 ## In tests
 

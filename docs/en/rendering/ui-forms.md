@@ -200,13 +200,13 @@ A submit pressed while a file is still uploading waits for it.
 
 #### How many uploads
 
-Every file is kept for the hour, used or not, so the number a client may send is limited too:
+A file no form takes, or one a form takes and does not move, stays in `var/tmp/ui-uploads` for up to an hour, so the number a client may send is limited too:
 `PLATFORM_UI_UPLOADS_PER_MINUTE` (10) and `PLATFORM_UI_UPLOADS_PER_HOUR` (100) uploads per
 client — the signed-in user, otherwise the address — counted by core's `RateLimiter` before the
 file is looked at. `0` turns either off. One over a limit is answered `429` with the reason
 `upload_rate_limited` and "Too many uploads. Try again in …", and the file is not kept. One
 client can therefore leave about `PLATFORM_UI_UPLOADS_PER_HOUR` × the largest field's
-`maxBytes` on the disk at a time (the count is a sliding-window estimate, and a file a form took but did not move stays another hour). Behind a proxy that is not in `TRUSTED_PROXIES`, every guest
+`maxBytes` in that directory at a time (the count is a sliding-window estimate, and a file a form took but did not move stays another hour). A file a form moved with `moveTo()` has left it: where it went, and for how long, is the application's to decide. Behind a proxy that is not in `TRUSTED_PROXIES`, every guest
 has the proxy's address and all share one budget.
 
 ## Form submit pipeline (authoritative final validation)

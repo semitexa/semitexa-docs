@@ -29,7 +29,7 @@ The run was planned for 72 hours. It stopped at 50.8 hours because the host mach
 - **Load:** an open loop, so a slow server could not slow the load down and hide it:
   - server-rendered pages 6 per second, API calls 3 per second, writes 0.5 per second, events 0.5 per second (sync, async and queued in turn), and pages with deferred blocks 1 per second;
   - 20 live (KISS) streams at all times, each held for 2 to 10 minutes.
-- **Sampling:** every 30 seconds, nothing missed: 5 799 process and memory samples and 23 196 metrics samples.
+- **Sampling:** a sample, then a 30-second pause, so one every 31.6 seconds on average (never more than 36 apart): 5 799 process and memory samples and 23 196 metrics samples (one per worker).
 
 ## Results
 

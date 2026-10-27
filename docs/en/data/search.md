@@ -23,7 +23,7 @@ keywords:
 
 # Search
 
-`semitexa/search` turns "the user typed some words and ticked a few filters" into one query: free text matched with SQL `LIKE` across the fields you declare, typed filters, sorting, pagination, a tenant predicate, and a relevance score per hit. It is installed in every project.
+`semitexa/search` turns "the user typed some words and ticked a few filters" into one search request: free text matched with SQL `LIKE` across the fields you declare, typed filters, sorting, pagination, a tenant predicate, and a relevance score per hit. It is installed in every project.
 
 Use it when people type text and expect ranked matches across several columns. For a lookup by one known column, a repository query is shorter to write and cheaper to run. It is not a full-text engine: there is no tokenising, stemming or inverted index (see [Performance](#performance)).
 
@@ -302,7 +302,7 @@ Matching is SQL `LIKE`, one predicate per searchable field, joined with `OR`. On
 - **The `OR` across fields** usually stops the database from using any single-column index for the text part, even when every field is `Prefix`. Fewer searchable fields means less work.
 - **Every search runs two queries:** the page, and a `COUNT(*)` with the same predicates. Both pay for the scan.
 - **Deep pages cost more:** pagination is `OFFSET`, so at 20 rows a page, page 500 reads and discards about 10 000 rows first. See [Pagination](pagination.md).
-- **Ranking is cheap and shallow:** it runs in PHP over the page only, so it costs nothing at scale and also cannot surface a better match from another page.
+- **Ranking is bounded and shallow:** it runs in PHP over the page only, lower-casing and comparing each searchable field of every hit, so its cost grows with the page size and the number of searchable fields, not with the table; it also cannot surface a better match from another page.
 - **Multi-word queries are one substring.** `red lamp` will not find `lamp, red`.
 
 If you need word-level matching, stemming or ranking across the whole match set at millions of rows, this package does not provide it.

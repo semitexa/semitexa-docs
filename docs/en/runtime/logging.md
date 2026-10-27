@@ -82,7 +82,7 @@ LOG_CHANNELS=audit=var/log/audit.log,security=both,sql=off
 LOG_REMOTE=udp://10.0.0.5:5140
 ```
 
-Every line the logger writes — to a file, to stderr, by `LOG_SINK` or by a channel's route — is also sent to that address as one UDP datagram holding the same JSON. A channel routed `off` is not sent. Point it at a log collector that accepts JSON over UDP.
+Every line the logger writes — to a file, to stderr, by `LOG_SINK` or by a channel's route — is also sent to that address as one UDP datagram holding the same JSON, with secret values in its context redacted (below). A channel routed `off` is not sent. Point it at a log collector that accepts JSON over UDP.
 
 - UDP, because the send never waits: the datagram is handed to the kernel and the worker carries on. A syslog socket or a TCP connection to a slow collector would hold the worker, during a drain past its grace.
 - The price is UDP's: a line the network or a busy collector drops is gone. The next line that gets through carries `"remote_dropped": N`, the lines this worker could not hand over — a lower bound: what the network loses after that is not counted.

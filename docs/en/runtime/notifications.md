@@ -324,7 +324,7 @@ bin/semitexa notifications:prune               # uses NOTIFICATIONS_RETENTION_DA
 | `NOTIFICATIONS_RETENTION_DAYS` | `0` | the default for `--days`; `0` or unset keeps everything |
 | `--batch-size` | `1000` | rows deleted per statement, at most 10000 |
 
-The command prints a count only. Run it from the [scheduler](scheduler.md) or cron. Preferences are never pruned. A pruned idempotent notification no longer counts as delivered, so a retry after the retention window stores it again.
+The command prints a count only. Run it from the [scheduler](scheduler.md) or cron. Preferences are never pruned. It deletes `notifications_inbox` rows only, so it changes the `database` channel only: a pruned idempotent notification no longer counts as stored there, and a retry after the retention window stores it again. The `mail` channel's key lives in `mail_messages` and holds until `MAIL_RETENTION_DAYS` removes that row, so the same retry does not send the mail again before then.
 
 ## Tables
 
@@ -377,7 +377,7 @@ See also [Requests and Fakes](../testing/requests-and-fakes.md).
 
 ## Watch out for
 
-- **"Sent" on `mail` means queued.** The mail service accepted the mail. Whether it reached the recipient is in `mail_messages` and `mail_attempts`.
+- **"Sent" on `mail` means the mail service accepted it.** Behind a queue a worker reads, that is queued; with the in-process queue (`EVENTS_ASYNC=0`) the mail was sent at once, inside the call. Whether it reached the recipient is in `mail_messages` and `mail_attempts`.
 - **"Sent" inside a transaction means "unless it rolls back".** Both built-in channels write into the caller's transaction, and a deadlock there is rethrown rather than reported. A mail leaves only after the commit.
 - **Unreadable preferences mean nothing is sent.** If the preferences cannot be read, for example because the table is missing before `orm:sync`, every channel of that recipient fails with `preferences_unavailable`. Sending what the recipient may have switched off would be worse. Mandatory notifications do not read preferences and still go out.
 - **A tenantless recipient shares one bucket.** `null` and `''` are the same tenant.

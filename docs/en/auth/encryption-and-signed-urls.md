@@ -92,7 +92,7 @@ To check a URL in your own code: `$this->signer->checkRequest($request)` or `$th
 
 ## Rotating the secret
 
-1. Move the current value to `APP_SECRET_PREVIOUS` and set a new `APP_SECRET`.
+1. Put the current value first in `APP_SECRET_PREVIOUS`, keeping any values already there, and set a new `APP_SECRET`.
 2. Restart. New tokens and links use the new secret; old ones still decrypt and verify.
 3. Once nothing signed or encrypted with the old secret needs to work (the longest link TTL, the longest cookie life), remove it from `APP_SECRET_PREVIOUS`.
 

@@ -111,6 +111,22 @@ final class ReferenceGeneratorTest extends TestCase
         self::assertStringContainsString('bin/semitexa docs:get "<document-id>"', $files['reference/commands-docs.md']);
     }
 
+    #[Test]
+    public function a_list_argument_is_shown_as_several_values(): void
+    {
+        $files = (new ReferenceGenerator())->generate($this->index());
+
+        // cache:tags:flush takes one or more tags; one quoted "<tags>" read as a single value.
+        self::assertStringContainsString(
+            "```bash\nbin/semitexa docs:tag \"<tags>\"...\n```",
+            $files['reference/commands-docs.md'],
+        );
+        self::assertStringContainsString(
+            "```bash\nbin/semitexa docs:untag \"<document-id>\" [\"tags\"...]\n```",
+            $files['reference/commands-docs.md'],
+        );
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -140,6 +156,21 @@ final class ReferenceGeneratorTest extends TestCase
                 'description' => 'Get a document',
                 'arguments' => [['name' => 'document-id', 'required' => true]],
                 'options' => [['name' => '--format', 'accepts_value' => true]],
+            ], [
+                'name' => 'docs:tag',
+                'kind' => 'console',
+                'description' => 'Tag documents',
+                'arguments' => [['name' => 'tags', 'required' => true, 'array' => true]],
+                'options' => [],
+            ], [
+                'name' => 'docs:untag',
+                'kind' => 'console',
+                'description' => 'Untag a document',
+                'arguments' => [
+                    ['name' => 'document-id', 'required' => true, 'array' => false],
+                    ['name' => 'tags', 'required' => false, 'array' => true],
+                ],
+                'options' => [],
             ]],
             'events' => [],
         ];

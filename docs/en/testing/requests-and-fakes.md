@@ -96,4 +96,4 @@ $mail->assertSentCount(1);
 self::assertSame('Your order', $mail->getLastMessage()?->subject);
 ```
 
-`getSentMessages()` lists every message (subject, `to`, `htmlBody`, `textBody`, attachments), `assertNothingSent()` and `reset()` complete it. `MailSendMode::Queued` is the default; when the queue is the in-process one (`EVENTS_ASYNC=0`) a queued message is sent at once and reaches the fake, otherwise only when a worker sends it, so send with `MailSendMode::Sync` where it matters. Put `MAIL_DRIVER` back in `tearDown()`.
+`getSentMessages()` lists every message (subject, `to`, `htmlBody`, `textBody`, attachments), `assertNothingSent()` and `reset()` complete it. `MailSendMode::Queued` is the default; when the queue is the in-process one (`EVENTS_ASYNC=0`) a queued message is sent at once and reaches the fake, otherwise only when a worker sends it, so send with `MailSendMode::Sync` where it matters. Put `MAIL_DRIVER` back in `tearDown()` and call `MailTransportRegistry::reset()`: the registry is static, so a later test would otherwise get this fake, with its messages.
