@@ -225,7 +225,7 @@ if (!$result->isApplied()) {
 | `RejectedGuard` | `guard_denied` | at least one guard denied; details in `guardFailures` (`guard`, `code`, `message`) | yes | `WorkflowTransitionRejected` |
 | `RejectedConflict` | `version_conflict` | another apply saved first | no | none |
 
-`scheduledFollowUp` is true when the call scheduled a timeout or a side-effect retry. Inside your own transaction (below) nothing is scheduled yet: it then says whether the transition has a `TimeoutPolicy` or a `RetryPolicy`. `triggerType`, `triggeredByType` and `triggeredById` are written to the history row; `idempotencyKey` is accepted and ignored.
+`scheduledFollowUp` is true when the call scheduled a timeout or a side-effect retry. Inside your own transaction (below) nothing is scheduled yet: it then says whether the transition has a `TimeoutPolicy` or a `RetryPolicy`. `triggerType`, `triggeredByType` and `triggeredById` are written to the history row; `idempotencyKey` is accepted and ignored. `expectedVersion` applies the transition only to the instance at that version (the instance's `getVersion()` when you read it): any other gets `RejectedConflict` (`version_conflict`) and changes nothing. A timeout's job passes the version of the visit that scheduled it, so a timer whose instance left the state and came back between the job's check and the transition no longer ends the new visit.
 
 An applied transition, in order:
 
