@@ -10,6 +10,7 @@ status: published
 verified_against: 2026.10.15.2225
 keywords:
   - SWOOLE_MAX_REQUEST
+  - SWOOLE_MAX_WAIT_TIME
   - PHP_MEMORY_LIMIT
   - SWOOLE_MEMORY_WATCHDOG_RATIO
   - SWOOLE_MEMORY_WATCHDOG_INTERVAL
@@ -51,7 +52,7 @@ So in production run two or more (the scaffold sets `4`). With `APP_ENV=prod` an
 Whatever started it (the request count, the watchdog, a reload), a leaving worker drains:
 
 - Timers are cleared and background coroutines (subscribers, warm-ups, timer bodies) are cancelled at once, so nothing holds the worker past its exit timeout.
-- A request being answered, and any coroutine it spawned, is left to finish for up to two seconds (one second less than the three the manager waits before it kills the worker). One still running after that is cancelled.
+- A request being answered, and any coroutine it spawned, is left to finish for up to nine seconds: one second less than `SWOOLE_MAX_WAIT_TIME` (10 by default, 2 to 300), the time the manager waits before it kills the worker. One still running after that is cancelled and answers 500. It was two seconds of three until October 2026: a long request (a slow report, a sync chain of handlers) was cancelled at every recycle. A stream is cut at once whatever the setting, so only requests hold a leaving worker that long; raise it for routes that run longer, and expect `server:stop` and a reload to wait as long for a request still running.
 - An SSE stream is cancelled at once: it would never end by itself.
 
 A connection that reaches a worker at the instant it exits can still get an empty reply. That happens inside Swoole, and the client should retry it as any dropped connection.
