@@ -67,7 +67,7 @@ $rates = $response->json();
 None unless asked: resending a request is a decision about the other side, and a resent POST can charge a card twice.
 
 - `RetryPolicy::idempotent(3)` — up to 3 attempts for GET, HEAD, PUT, DELETE and OPTIONS. The wait grows exponentially with full jitter (a random wait up to 200 ms·2ⁿ, capped at 5 s), so many clients do not retry in step.
-- `RetryPolicy::linear(3, 500)` — 0.5 s, 1 s, 1.5 s.
+- `RetryPolicy::linear(3, 500)` — three attempts in all, 0.5 s and then 1 s apart.
 - `->allowingNonIdempotent()` — POST and PATCH too, for an API known to tolerate a repeat.
 
 A retry follows a transport failure worth another try (not `tls`, `too_large` or `protocol`) and the statuses 429, 500, 502, 503, 504 and 529 (overloaded). A `Retry-After` header, in seconds or as a date, sets the wait: never shorter than the policy's own backoff, and one longer than the cap is not waited for at all — the response (the 429 or 503, with its `Retry-After`) is returned to you. `$response->attempts` says how many it took.

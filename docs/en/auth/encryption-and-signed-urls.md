@@ -96,4 +96,4 @@ To check a URL in your own code: `$this->signer->checkRequest($request)` or `$th
 2. Restart. New tokens and links use the new secret; old ones still decrypt and verify.
 3. Once nothing signed or encrypted with the old secret needs to work (the longest link TTL, the longest cookie life), remove it from `APP_SECRET_PREVIOUS`.
 
-`APP_SECRET_PREVIOUS` takes several values separated by commas. The signed event contexts of Platform UI components use `APP_SECRET` too, but not `APP_SECRET_PREVIOUS`: after a rotation, a page rendered before it needs a reload before its components answer again.
+`APP_SECRET_PREVIOUS` takes several values separated by commas. The signed event contexts of Platform UI components use them too: after a rotation, a page rendered before it keeps answering until its contexts expire.

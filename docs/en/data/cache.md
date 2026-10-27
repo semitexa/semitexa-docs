@@ -218,4 +218,4 @@ They act on the root namespace of the current tenant unless told otherwise (`bin
 - **`null` and `get()`.** `remember()` keeps a `null` its resolver returned, but `get($key)` cannot tell a stored `null` from a miss: pass a default you can recognise (`get($key, $missing)`) when the difference matters.
 - **Tagged writes during an outage.** If the tag index cannot be written, the entry is removed again (an entry no tag knows would survive every flush of its tags); the call itself does not fail. The outage is logged once, by the Redis circuit breaker, not once per write. Any other exception from a tag index is a bug and is thrown.
 - **`CACHE_DEFAULT_TTL=0` means forever.** It is refused (every cache call fails, and `system:doctor` reports `cache.default-ttl`) unless `CACHE_ALLOW_FOREVER=1`.
-- **Booleans in CLI.** The console commands read `CACHE_ALLOW_FOREVER` and `CACHE_TAGS_ENABLED` as on only when the value is exactly `1`. Use `1` and `0`, not `true` and `false`.
+- **Booleans.** Write `CACHE_ALLOW_FOREVER` and `CACHE_TAGS_ENABLED` as `1` and `0`: every reader takes those, while not every one takes `true`, `yes` or `on`.

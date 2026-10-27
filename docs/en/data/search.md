@@ -183,7 +183,7 @@ try {
 
 Filter values are a scalar (`=`), a non-empty list of scalars (`IN`), or a range with `from`, `to` or both. Unknown fields, non-filterable fields, ranges on a field that is not `Date` or `Number`, empty lists and non-scalar items throw `SearchValidationException` from `search()`. `SortClause` accepts `ASC`/`DESC` in any case and throws on anything else.
 
-A `SearchRequest` built with `new` skips the factory's limits entirely; only the value object's own checks (limit ≥ 1, offset ≥ 0, non-empty query) apply.
+A `SearchRequest` built with `new` is held to the same limits: `search()` checks the query length, the number of filters and of values in one, `SEARCH_MAX_RESULT_LIMIT` and an offset of at most 10 000, and throws `SearchValidationException`.
 
 ### What the backend receives
 
@@ -230,7 +230,7 @@ Each row is turned into an array with its `toArray()` method when it has one, ot
 
 Points are multiplied by the field's `weight` and summed. With a query, hits are then sorted by score descending, ties by `documentId`; without a query every score is `0` and the SQL order stands.
 
-Ranking happens **after `LIMIT`/`OFFSET`**. It orders the 20 rows of this page, not the whole match set: the best match may sit on page 3 while page 1 shows weaker ones in score order. And when a query is present it replaces the requested sort within the page: `sort: price DESC` decides *which* rows land on the page, the score decides their order.
+Ranking happens **after `LIMIT`/`OFFSET`**. It orders the 20 rows of this page, not the whole match set: the best match may sit on page 3 while page 1 shows weaker ones in score order. With a query and no sort of the request's own, the score orders the page; a requested sort (`sort: price DESC`) keeps its order, and the score is not applied.
 
 ## Tenants
 
@@ -247,7 +247,7 @@ A `tenantId` set on the request must be the current tenant's inside a tenant's c
 
 The planner rewrites a natural-language query before it runs ("cheap red lamps" → query `lamp`, filters `colour: red`, sort by price) with a language model.
 
-When it runs: `SEARCH_PLANNER_ENABLED=1`, **and** the index has `plannerEnabled: true`, **and** the request has a query. All three; otherwise it is skipped. Both switches are off by default, and setting either back to off turns it off.
+When it runs: `SEARCH_PLANNER_ENABLED=1`, **and** the index has `plannerEnabled: true`, **and** the request has a query of two words or more (a single word has no filter or sort in it to find). All three; otherwise it is skipped. Both switches are off by default, and setting either back to off turns it off.
 
 What runs: `SearchManager` gets its `SearchQueryPlannerInterface` injected; the package binds `LlmSearchQueryPlanner`. It renders the catalog prompt `search.query-planner` (inspect it with `bin/semitexa prompt:show --id=search.query-planner`) with the index name, document type, field list and allowed operators, sends it as the system prompt with the visitor's query as the user message through `LlmPlannerMessageBridgeInterface::executeMessage()`, takes the JSON object out of the answer (a fenced code block or prose around it is fine) and checks it with `LlmPlannerSchemaValidator`: unknown or non-filterable filter fields, unknown or non-sortable sort fields, bad directions and a confidence outside 0–1 are refused. The model chosen is the one `semitexa/llm` resolves from `LLM_BACKEND`, through the shipped bridge `LlmProviderPlannerBridge`; `semitexa/llm` is only a suggested dependency, and without it every plan falls back.
 
@@ -319,8 +319,7 @@ If you need word-level matching, stemming or ranking across the whole match set 
 - **Rows without `id` or `uuid`** get a `documentId` that is only an in-memory object id, different on every request.
 - **`query: ''` throws.** `SearchRequest` requires `null` or a non-empty query; whitespace-only queries are accepted and search for the spaces.
 - **`searchText()` ignores `SEARCH_DEFAULT_LIMIT`.** Its own `$limit` defaults to 20 and is always passed on; a value above `SEARCH_MAX_RESULT_LIMIT` throws `SearchValidationException`.
-- **Hand-built requests skip the limits.** `new SearchRequest(limit: 100000)` passed to `search()` is not checked against `SEARCH_MAX_RESULT_LIMIT`. Build requests from user input through `SearchRequestFactory`.
 - **Sorts on unknown or non-sortable fields vanish** instead of failing. And once a request has any sort, `defaultSort` is not used, even if every clause was skipped.
 - **A backend of your own must send the escape character.** The translator escapes `%`, `_` and `\` with a backslash; the shipped `TableSearchQuery` adds `ESCAPE` for MySQL and SQLite (which has no default), and a query object of your own must do the same.
-- **The planner calls a model on every search with a query.** With both switches on, each such search waits for the model (up to `SEARCH_PLANNER_TIMEOUT_MS`) and pays for it. Each worker remembers its last 256 answers for 10 minutes (the same index and query, case and surrounding spaces aside), so a reload or the next page asks again only after that. A refused or low-confidence answer is remembered too; a failed call is not. Turn it on per index, for searches typed by people.
+- **The planner calls a model on every search of two words or more.** With both switches on, each such search waits for the model (up to `SEARCH_PLANNER_TIMEOUT_MS`) and pays for it. Each worker remembers its last 256 answers for 10 minutes (the same index and query, case and surrounding spaces aside), so a reload or the next page asks again only after that. A refused or low-confidence answer is remembered too; a failed call is not. Turn it on per index, for searches typed by people.
 - **The user's text reaches the model.** The shipped bridge sends it as the user message, apart from the system prompt, which tells the model it is data; a bridge that only implements `execute()` gets it inside the system prompt, between quotes and not escaped. Either way a crafted query can still steer the model. What the model answers is checked against the index (fields, types, ranges) and never overrides the request's own filters or tenant, so the worst it does is search the right data differently.

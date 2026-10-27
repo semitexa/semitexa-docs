@@ -291,7 +291,7 @@ By default it writes `composer.release.json` (`--output` changes the path, insid
 No. Nothing in these commands runs a second copy of the app, switches traffic, or rolls containers one at a time. There is one `app` container, and it publishes `SWOOLE_PORT` itself.
 
 - `composer update` rewrites `vendor/` in place, in the directory the running workers load code from.
-- `cache:clear` reloads the workers. A leaving worker gives each request it is answering up to two seconds, and cuts its SSE streams at once ([Worker Memory and Recycling](worker-recycling.md)). A reload does not reload classes the server loaded before it started its workers. The notes on `server:reload` say a reload covers changes inside existing files, and that new, renamed or deleted classes need `server:restart`.
+- `cache:clear` reloads the workers. A leaving worker gives each request it is answering up to `SWOOLE_MAX_WAIT_TIME` less one second (nine by default), and cuts its SSE streams at once ([Worker Memory and Recycling](worker-recycling.md)). A reload does not reload classes the server loaded before it started its workers. The notes on `server:reload` say a reload covers changes inside existing files, and that new, renamed or deleted classes need `server:restart`.
 - `docker compose restart` stops and starts every container. Requests are refused while `app` is down.
 - `bin/semitexa server:restart` runs `docker compose down` and then `up -d`; `server:restart app` recreates only the `app` container. Either way the app is down until the new container boots.
 
