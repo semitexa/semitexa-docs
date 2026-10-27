@@ -73,7 +73,7 @@ The API has no listing, copy, move, append or signed-URL method. `put()` takes t
 | `STORAGE_LOCAL_PUBLIC_URL` | empty | Base URL under which you serve the local storage root. Empty means local objects have no URL |
 | `STORAGE_S3_BUCKET` | empty | Bucket name |
 | `STORAGE_S3_REGION` | `us-east-1` | Signing region |
-| `STORAGE_S3_ENDPOINT` | `https://s3.<region>.amazonaws.com` | Scheme, host, optional port and optional path of the store (`https://gateway.example/s3`: every request and `url()` go under that path) |
+| `STORAGE_S3_ENDPOINT` | `https://s3.<region>.amazonaws.com` | Scheme, host, optional port and optional path of the store (`https://gateway.example/s3`: every request and `url()` go under that path, and the path is signed: a proxy that strips it before the store fails every request with SignatureDoesNotMatch) |
 | `STORAGE_S3_KEY` / `STORAGE_S3_SECRET` | empty | Access key pair |
 | `STORAGE_S3_PATH_STYLE` | by endpoint | `1`, `true`, `yes` or `on` puts the bucket in the path (`<endpoint>/<bucket>/<key>`), any other value in the host name; unset, an IP address, `localhost`, a one-word host (a compose service such as `objects`) or a bucket name with a dot is path style, any other virtual-hosted |
 | `STORAGE_S3_TRANSFER_TIMEOUT` | `600` | seconds an upload or a download may take in all; an upload gets more as its body is larger (at 128 KiB/s) |
