@@ -23,7 +23,7 @@ keywords:
 
 `semitexa/storage` gives one file API over two backends: a directory on the local disk and an S3-compatible object store. It is installed in every project. A handler writes `put('invoices/2026/42.pdf', $bytes, 'application/pdf')` and does not care where the bytes go. `STORAGE_DRIVER` decides that.
 
-Uploads arrive through `semitexa/core` as `UploadedFile` objects, either on the `Request` or through a payload setter. Storing one is your code's job: read its bytes and `put()` them. If the bytes are images that need resized variants, use `semitexa/media`, which builds on this package.
+Uploads arrive through `semitexa/core` as `UploadedFile` objects, either on the `Request` or through a payload setter. Storing one is your code's job: read its bytes and `put()` them. If the bytes are images that need resized variants, use `semitexa/media`, which builds on this package. The Semitexa image's ImageMagick reads and writes only JPEG, PNG, WebP, GIF, HEIC/HEIF and AVIF, with no delegates, no `@file` paths and limits on memory (256 MiB), size (16K pixels a side, 128 megapixels) and time (60 s): an upload chooses its format by its bytes, and the package's own policy let one be an SVG, MVG or PostScript that reads files or runs Ghostscript. A project built on another image sets its own `policy.xml`.
 
 ## Getting it
 
