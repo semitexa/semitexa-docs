@@ -165,7 +165,7 @@ A part is written as `Content-Disposition: inline` with a `Content-ID` only when
 | `mail/<handle>.body.html.twig` | no |
 | `mail/<handle>.body.txt.twig` | no. When it is missing and the HTML body exists, the text body is made from the HTML |
 
-Templates are escaped by their extension: the `.html.twig` body is HTML-escaped, the `.txt.twig` subject and text body are not, so `O'Brien` stays `O'Brien`.
+Templates are escaped by their extension: the `.html.twig` body is HTML-escaped, the `.txt.twig` subject and text body are not, so `O'Brien` stays `O'Brien`. Each template keeps its own escaping when included, so a `.txt.twig` partial included in the `.html.twig` body prints its variables unescaped into the HTML; `bin/semitexa lint:templates` warns about such an include.
 
 A handle is found like this:
 
