@@ -54,7 +54,7 @@ Each line is written when it is logged, by the coroutine that logged it. While o
 | Variable | Default | |
 |---|---|---|
 | `LOG_LEVEL` | `info` in dev, `warning` otherwise | lines below it are not written |
-| `LOG_SINK` | `file` | `file`, `stderr` or `both` |
+| `LOG_SINK` | `file` | `file`, `stderr` or `both`; any other value is said once per worker in the error log, and the file is used |
 | `LOG_CHANNELS` | none | per-channel destinations, see [Routing channels](#routing-channels) |
 | `LOG_REMOTE` | none | `udp://<IPv4 address>:<port>`: a copy of every written line to a collector, see [To another machine](#to-another-machine-udp) |
 | `LOG_FILE` | `var/log/app.log` | relative to the project root (a leading `/` is ignored); `logs:app` and the Observatory read it there |
@@ -71,7 +71,7 @@ LOG_CHANNELS=audit=var/log/audit.log,security=both,sql=off
 
 - A channel it does not name, and a line with no channel, go where `LOG_SINK` says. Channel names match exactly, case included.
 - A channel's own file is rotated like `LOG_FILE` (`LOG_MAX_BYTES`, `LOG_RETENTION_DAYS`).
-- A route that is none of these (a typo such as `of`, a path outside `var/log/`, one with `..`, `var/log/swoole.log`, `var/log/error.log` or `LOG_FILE` itself) is ignored with one warning in the error log per worker, and that channel follows `LOG_SINK`.
+- A route that is none of these (a typo such as `of`, a path outside `var/log/`, one with `..`, `var/log/swoole.log`, the `SWOOLE_LOG_FILE` the server writes, `var/log/error.log` or `LOG_FILE` itself) is ignored with one warning in the error log per worker, and that channel follows `LOG_SINK`.
 - Each file and stderr get their lines in the order they were logged, whichever routes write them.
 - `logs:app` and the Observatory read `LOG_FILE` only, not a channel's own file.
 - There is no syslog route. The dependable way to a remote collector is a log shipper reading stderr (`LOG_SINK=stderr`) or the files; for a lighter, lossy copy, see [To another machine](#to-another-machine-udp).
@@ -85,11 +85,11 @@ LOG_REMOTE=udp://10.0.0.5:5140
 Every line the logger writes — to a file, to stderr, by `LOG_SINK` or by a channel's route — is also sent to that address as one UDP datagram holding the same JSON, with secret values in its context redacted (below). A channel routed `off` is not sent. Point it at a log collector that accepts JSON over UDP.
 
 - UDP, because the send never waits: the datagram is handed to the kernel and the worker carries on. A syslog socket or a TCP connection to a slow collector would hold the worker, during a drain past its grace.
-- The price is UDP's: a line the network or a busy collector drops is gone. The next line that gets through carries `"remote_dropped": N`, the lines this worker could not hand over — a lower bound: what the network loses after that is not counted.
+- The price is UDP's: a line the network or a busy collector drops is gone. Every datagram carries `"remote_seq"`, one up per line the worker was given, sent or not, so the collector sees a loss as a gap in it. The next line that gets through also carries `"remote_dropped": N`, the lines this worker knew it could not send (the socket refused them, was not open, or was backing off); what the network loses after the kernel took a datagram shows only as the gap.
 - An entry over 60 000 bytes goes as a stub with its time, level, channel, request id, the start of its message and `truncated`. A datagram that large travels in many fragments, and many collectors cap UDP messages far lower: keep lines short.
 - An IPv4 address only (`udp://<address>:<port>`): a host name would be looked up on the first send, and the coroutine runtime opens UDP sockets as IPv4. Anything else is ignored, with a note in the PHP error log.
 - An address that cannot be opened is reported once in the PHP error log and tried again a minute later.
-- Plain UDP: every line crosses the network unencrypted, and anyone who can reach the collector can send it lines. Use it on a private network, or to a collector on the same host. In the copy that is sent, the value under a key that names a secret — `password`, `passwd`, `passphrase`, `pass`, `secret`, a key ending in `token`, `authorization`, `cookie`, `api_key`, `credential`, `private_key`, `signature`, `dsn`, at any depth of the context — reads `[redacted]`, whatever it holds (a header list, a cookie map, a number). `prompt_tokens` and `passenger` are not secrets and stay. The file and stderr keep the line as logged. Anything else in a message or context, a database error quoting its values included, is sent as written.
+- Plain UDP: every line crosses the network unencrypted, and anyone who can reach the collector can send it lines. Use it on a private network, or to a collector on the same host. In the copy that is sent, the value under a key that names a secret — `password`, `passwd`, `passphrase`, `pass`, `secret`, a key ending in `token`, `authorization`, `cookie`, `api_key`, `credential`, `private_key`, `signature`, `dsn`, at any depth of the context — reads `[redacted]`, whatever it holds (a header list, a cookie map, a number). `prompt_tokens` and `passenger` are not secrets and stay. Secrets inside text are redacted too, in the message and in any string of the context: a `Bearer` credential, a URL's `user:password@`, and `name=value` or `name: value` for one of those names (`Authorization: Basic …` to the end of its line). An object in the context is read as it would be encoded, so a DTO's public `password` is redacted. The file and stderr keep the line as logged. A secret in free text with no such name beside it, a database error quoting its values included, is sent as written.
 - It is a copy: keep a file or stderr as well, for `logs:app` and for what UDP loses.
 
 ## In a container: stderr
