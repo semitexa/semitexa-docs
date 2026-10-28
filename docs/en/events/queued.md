@@ -29,7 +29,7 @@ Async deferred execution runs in the same worker and is lost on restart. Queued 
 
 ## When a listener fails
 
-Behind a queue (`EVENTS_ASYNC=1`), a queued listener that throws does not lose its message. The failure follows the listener's retry policy: with `maxRetries` above zero the message goes back on its queue that many times, and once the retries are used up it moves to the failed queue; with the default of `0` it moves there on the first failure:
+On NATS or the database transport (`EVENTS_ASYNC=1`, or `EVENTS_TRANSPORT=nats` or `database`), a queued listener that throws does not lose its message. The failure follows the listener's retry policy: with `maxRetries` above zero the message goes back on its queue that many times, and once the retries are used up it moves to the failed queue; with the default of `0` it moves there on the first failure:
 
 ```php
 #[AsEventListener(

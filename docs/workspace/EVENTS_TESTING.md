@@ -82,17 +82,17 @@ Restart so the workers discover the new classes: `bin/semitexa server:restart`.
 
 ## 3. Run the worker
 
-The default stack has no dedicated worker container. Run the worker in a second terminal:
+`bin/semitexa server:start` already started it: the `worker` container (`docker-compose.worker.yml`) runs `queue:work` for every queue a queued listener names, and `bin/semitexa worker:processes` lists what it runs. Do not start a second one by hand. A project without `docker-compose.worker.yml` (made before it shipped) has no worker container; there, run the worker in a second terminal:
 
 ```bash
 bin/semitexa queue:work
 ```
 
-It processes queued handlers until you stop it. In production, run `php vendor/bin/semitexa queue:work` as its own process (see [DEPLOYMENT.md](DEPLOYMENT.md)).
+It processes queued handlers until you stop it. Outside Docker, run `php vendor/bin/semitexa queue:work` as its own process (see [DEPLOYMENT.md](DEPLOYMENT.md)).
 
 ## 4. Trigger and check
 
-Call the route whose handler dispatches the event. The response returns without waiting for the listener; the worker terminal shows the job, and the application log has the entry:
+Call the route whose handler dispatches the event. The response returns without waiting for the listener, and the application log has the entry once the worker ran it:
 
 ```bash
 bin/semitexa logs:app --grep="Contact form submitted"
@@ -104,7 +104,7 @@ bin/semitexa logs:app --grep="Contact form submitted"
 |------|------------------|
 | Enable NATS | `EVENTS_ASYNC=1` in `.env`, then `bin/semitexa server:start` |
 | Declare a queued listener | `#[AsEventListener(event: ..., execution: EventExecution::Queued)]` |
-| Run the worker | `bin/semitexa queue:work` |
+| Run the worker | started by `server:start`; `bin/semitexa queue:work` only without `docker-compose.worker.yml` |
 | See the result | `bin/semitexa logs:app` |
 
 To go back to in-memory handling, set `EVENTS_ASYNC=0` in `.env` and restart.
