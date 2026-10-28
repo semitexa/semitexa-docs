@@ -56,6 +56,8 @@ bin/semitexa cache:forget "<key>" ["namespace"]
 Flush all cache entries associated with the given tags.
 
 ```bash
-bin/semitexa cache:tags:flush "<tags>"...
+bin/semitexa cache:tags:flush "<tags>"
 ```
+
+`tags` takes one value or more, each quoted on its own: `"first" "second"`.
 

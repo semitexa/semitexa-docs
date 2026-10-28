@@ -116,13 +116,17 @@ final class ReferenceGeneratorTest extends TestCase
     {
         $files = (new ReferenceGenerator())->generate($this->index());
 
-        // cache:tags:flush takes one or more tags; one quoted "<tags>" read as a single value.
+        // cache:tags:flush takes one or more tags. The block holds nothing a reader must not
+        // copy: "<tags>"... with a value in place of <tags> is one word, `products...`, to
+        // Bash. The repetition is said under it.
         self::assertStringContainsString(
-            "```bash\nbin/semitexa docs:tag \"<tags>\"...\n```",
+            "```bash\nbin/semitexa docs:tag \"<tags>\"\n```\n\n"
+            . "`tags` takes one value or more, each quoted on its own: `\"first\" \"second\"`.\n\n",
             $files['reference/commands-docs.md'],
         );
         self::assertStringContainsString(
-            "```bash\nbin/semitexa docs:untag \"<document-id>\" [\"tags\"...]\n```",
+            "```bash\nbin/semitexa docs:untag \"<document-id>\" [\"tags\"]\n```\n\n"
+            . "`tags` takes any number of values, each quoted on its own: `\"first\" \"second\"`.\n\n",
             $files['reference/commands-docs.md'],
         );
     }
