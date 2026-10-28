@@ -25,11 +25,11 @@ Domain listeners use `#[AsEventListener(event: EventClass::class, execution: ...
 
 ### Configuration
 
-- **EVENTS_ASYNC** (`.env`): `0` (default) = in-memory (sync); `1` (or `true`/`yes`) = use NATS for async.
-- **EVENTS_TRANSPORT**: Override transport: `in-memory` or `nats`.
+- **EVENTS_ASYNC** (`.env`): `0` (default) = in-memory (sync); `1` (or `true`/`yes`) = async, on NATS when semitexa/ledger is installed, otherwise on the broker-less `database` transport (semitexa/orm).
+- **EVENTS_TRANSPORT**: Override transport: `in-memory`, `nats` or `database`. It wins over `EVENTS_ASYNC`: with `nats` or `database`, queued work is published and `queue:work` runs it, even with `EVENTS_ASYNC=0`.
 - **EVENTS_QUEUE_DEFAULT**: Default queue name pattern when not set per handler.
 
-When **EVENTS_ASYNC=1**, the app uses NATS JetStream. If you run with Docker, `bin/semitexa server:start` automatically uses `docker-compose.nats.yml` (so NATS is started and the app connects to the `nats` service via `NATS_PRIMARY_URL`).
+When **EVENTS_ASYNC=1** and NATS is installed, the app uses NATS JetStream. If you run with Docker, `bin/semitexa server:start` automatically uses `docker-compose.nats.yml` (so NATS is started and the app connects to the `nats` service via `NATS_PRIMARY_URL`).
 
 ### Sync, async or queued per handler
 
@@ -37,7 +37,7 @@ Every declared handler (e.g. `#[AsPayloadHandler(...)]`) has an **execution** op
 
 - **Sync** (default): the handler runs in the request and the HTTP response waits for it.
 - **Async**: the handler runs in the same process right after the response is sent, with the request's context: session, auth, tenant and locale are the request's. The resource it returns is sent to the page over SSE. It runs again on each re-run of a live region, so the region gets a fresh result. The session is saved with the response, so do not count on what the handler writes to it. It is not durable: a worker that is being recycled lets it finish within about two seconds and then cancels it, and there are no retries. A failure is logged.
-- **Queued**: the handler is enqueued, and a worker runs it later, in its own container. `transport`, `queue`, `maxRetries` and `retryDelay` apply, and so does the dead-letter queue. The request's context does not: the worker gets copies of the payload and resource, so the handler must not depend on the session or the signed-in user. Only the signed UI contexts in the result it hands back are tied to the visitor who queued it: the message carries a digest of their session and their site, never the session id, so a component rendered in the worker answers that visitor and nobody else. Use it for heavy work, such as an export, a report or a call to a slow API, so it does not slow the site down. With `EVENTS_ASYNC=0` no worker reads the in-memory transport, so the handler runs in the same process right after the response is sent, without the request's context, as a worker would run it.
+- **Queued**: the handler is enqueued, and a worker runs it later, in its own container. `transport`, `queue`, `maxRetries` and `retryDelay` apply, and so does the dead-letter queue. The request's context does not: the worker gets copies of the payload and resource, so the handler must not depend on the session or the signed-in user. Only the signed UI contexts in the result it hands back are tied to the visitor who queued it: the message carries a digest of their session and their site, never the session id, so a component rendered in the worker answers that visitor and nobody else. Use it for heavy work, such as an export, a report or a call to a slow API, so it does not slow the site down. With `EVENTS_ASYNC=0` and no `EVENTS_TRANSPORT`, no worker reads the in-memory transport, so the handler runs in the same process right after the response is sent, without the request's context, as a worker would run it.
 
 ```php
 #[AsPayloadHandler(payload: SomeRequest::class, resource: SomeResponse::class, execution: HandlerExecution::Async)]
