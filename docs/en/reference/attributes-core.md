@@ -138,7 +138,6 @@ Applies to: class. Repeatable.
 ```php
 #[AsFeatureFlag('checkout.new-flow', description: 'One-page checkout')]
 #[AsFeatureFlag('search.semantic', default: true)]
-#[AsFeatureFlag('Bad Name')]
 #[AsFeatureFlag('rollout.half', percent: 50)]
 final class FeatureFlagsTestDeclarations
 ```
