@@ -300,6 +300,9 @@ final class TruthIndexBuilder
                         static fn ($argument): array => [
                             'name' => $argument->getName(),
                             'required' => $argument->isRequired(),
+                            // A list argument takes several words: without this the page
+                            // showed `cache:tags:flush "<tags>"`, one quoted value.
+                            'array' => $argument->isArray(),
                         ],
                         array_filter(
                             $definition->getArguments(),

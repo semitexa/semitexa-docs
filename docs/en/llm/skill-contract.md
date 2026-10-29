@@ -133,6 +133,21 @@ accepted, because a skill on no surface sits in the manifest and can never be re
 it — invisible everywhere, with no signal anywhere, and an unset variable with no default is
 one typo away. To turn a skill off, say so: `allowed: false`.
 
+## Whose launcher a skill is in
+
+On an install with several sites, a site's admin is offered only part of the manifest. A skill
+from a project module reaches the tenants that module is mapped to with `TENANT_*_MODULES`, and
+no one else but the operator; a skill shipped in a package reaches every admin, because those act
+on the console and the session, not on one site's content.
+
+A packaged skill whose surface reads or acts across sites, such as the OS Terminal, Updates and
+Queues apps or `skins:generate`, says so with `operatorOnly: true`: it then stays out of every
+tenant admin's launcher and planner, a dialog for it is refused, and only the operator (the Owner,
+or anyone with OS sign-in switched off) can open or run it from the OS. A request straight to the
+skill's entry URL or command does not pass through the manifest, so the entry must still refuse a
+caller it is not for: an OS window does it by implementing `OsOperatorSurfaceInterface`, and the
+console then answers a tenant admin with 403.
+
 ## Internal LLM consumption (not skill-based)
 
 When a platform-ui command needs to call the LLM **inside** its own logic (not via Planner), it depends on `LlmProviderInterface` directly:

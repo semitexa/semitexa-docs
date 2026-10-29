@@ -185,7 +185,12 @@ final class DocsForbiddenPatternRegressionTest extends TestCase
                     ];
                 }
             }
-            if ($hasReplayStore && str_contains($line, '->markSeen(')) {
+            // A decorator must still implement markSeen() and forward it: the
+            // line that DECLARES markSeen is delegation, not the racy
+            // seen()-then-markSeen() flow this rule is about — unless it checks
+            // seen() itself.
+            $forwards = str_contains($line, 'function markSeen(') && !str_contains($line, '->seen(');
+            if ($hasReplayStore && str_contains($line, '->markSeen(') && !$forwards) {
                 $hits[] = [
                     'line' => $idx + 1,
                     'label' => 'racy seen()+markSeen() flow — use markIfFirstSeen() (atomic)',
@@ -208,6 +213,22 @@ final class DocsForbiddenPatternRegressionTest extends TestCase
         $content = (string) file_get_contents($expected);
         self::assertStringContainsString('id: migration/post-hardening', $content, 'migration guide front-matter id');
         self::assertStringContainsString('# Post-Hardening Migration Guide', $content, 'migration guide H1');
+    }
+
+    /** The racy flow is still caught; a decorator forwarding the interface method is not. */
+    #[Test]
+    public function a_forwarding_markseen_is_delegation_and_a_call_is_still_flagged(): void
+    {
+        $doc = "WebhookReplayStoreInterface\n```php\n"
+            . "public function markSeen(string \$key): void { \$this->store()->markSeen(\$key); }\n"
+            . "if (!\$store->seen(\$id)) { \$store->markSeen(\$id); }\n"
+            . "public function markSeen(string \$k): void { if (!\$this->o->seen(\$k)) { \$this->o->markSeen(\$k); } }\n"
+            . "```\n";
+
+        $hits = self::scanFencedCodeBlocks($doc);
+
+        self::assertSame([4, 5], array_column($hits, 'line'), 'the call, and a markSeen() that races inside itself');
+        self::assertStringContainsString('markIfFirstSeen', $hits[0]['label']);
     }
 
     #[Test]

@@ -367,15 +367,29 @@ final class ReferenceGenerator
             // a prose argument — `ai:review-graph:context "adding a payment method"` — and an
             // unquoted <task> silently becomes three arguments instead of one. Quoting is
             // correct for every placeholder, so it does not need to be decided per command;
-            // the hand-written pages already write it this way.
+            // the hand-written pages already write it this way. A list argument says so
+            // under the block, not in it: `"<tags>"...` copied with a value in place of
+            // <tags> is the one word `products...` to Bash, not several tags.
             $usage = 'bin/semitexa ' . $command['name'];
+            $lists = [];
             foreach ($arguments as $argument) {
-                $usage .= ($argument['required'] ?? false)
+                $required = (bool) ($argument['required'] ?? false);
+                $usage .= $required
                     ? ' "<' . $argument['name'] . '>"'
                     : ' ["' . $argument['name'] . '"]';
+                if ($argument['array'] ?? false) {
+                    $lists[] = sprintf(
+                        '`%s` takes %s, each quoted on its own: `"first" "second"`.',
+                        $argument['name'],
+                        $required ? 'one value or more' : 'any number of values',
+                    );
+                }
             }
 
             $out .= sprintf("```bash\n%s\n```\n\n", $usage);
+            if ($lists !== []) {
+                $out .= implode(' ', $lists) . "\n\n";
+            }
 
             // The index already reports only the command's own options; the
             // runner's globals were subtracted there.

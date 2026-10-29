@@ -1,0 +1,325 @@
+---
+id: data/search
+section: data
+slug: search
+title: Search
+summary: Declare a search index over a table, run free-text and filtered searches through SearchManagerInterface, and know what SQL LIKE matching, page-local ranking, tenant scoping and the LLM planner really do.
+order: 130
+locale: en
+status: canonical
+verified_against: 2026.10.20.0340
+keywords:
+  - SearchManagerInterface
+  - SearchIndexDefinition
+  - SearchFieldDefinition
+  - searchText()
+  - SearchRequestFactory
+  - SearchTextParser
+  - OrmRankingStrategy
+  - SearchScope
+  - SEARCH_PLANNER_ENABLED
+  - search.query-planner
+---
+
+# Search
+
+`semitexa/search` turns "the user typed some words and ticked a few filters" into one search request: free text matched with SQL `LIKE` across the fields you declare, typed filters, sorting, pagination, a tenant predicate, and a relevance score per hit. It is installed in every project.
+
+Use it when people type text and expect ranked matches across several columns. For a lookup by one known column, a repository query is shorter to write and cheaper to run. It is not a full-text engine: there is no tokenising, stemming or inverted index (see [Performance](#performance)).
+
+**Before you start:** give each index an `entityClass` that is a resource model with `#[FromTable]`; the shipped ORM backend searches that table. An index without one fails with `SearchBackendException` naming what is missing. For anything else (another store, joins, a search engine), see [Providing the backend](#providing-the-backend).
+
+## Declaring an index
+
+An index is a `SearchIndexDefinition`: a name, a document type, and the fields.
+
+```php
+use Semitexa\Search\Domain\Enum\SearchFieldType;
+use Semitexa\Search\Domain\Enum\SearchMatchStrategy;
+use Semitexa\Search\Domain\Enum\SearchScope;
+use Semitexa\Search\Domain\Model\SearchFieldDefinition;
+use Semitexa\Search\Domain\Model\SearchIndexDefinition;
+
+final class ProductSearchIndex
+{
+    public const NAME = 'products';
+
+    public static function definition(): SearchIndexDefinition
+    {
+        return new SearchIndexDefinition(
+            name: self::NAME,
+            documentType: 'product',
+            fields: [
+                new SearchFieldDefinition('title', SearchFieldType::Keyword, searchable: true, sortable: true, weight: 2.0),
+                new SearchFieldDefinition('sku', SearchFieldType::Keyword, searchable: true, matchStrategy: SearchMatchStrategy::Prefix),
+                new SearchFieldDefinition('status', SearchFieldType::Enum, filterable: true),
+                new SearchFieldDefinition('price', SearchFieldType::Number, filterable: true, sortable: true),
+                new SearchFieldDefinition('created', SearchFieldType::Date, filterable: true, sortable: true, column: 'created_at'),
+            ],
+            scopeMode: SearchScope::Tenant,   // the default
+            entityClass: ProductResource::class, // a resource model with #[FromTable]: the table searched
+            defaultSort: ['created_at', 'id'], // ends on a unique column: stable pages
+        );
+    }
+}
+```
+
+`SearchIndexDefinition` constructor:
+
+| Argument | Default | Meaning |
+|---|---|---|
+| `name` | — | the index name requests refer to; must not be empty |
+| `documentType` | — | a label copied into every hit's `type`; must not be empty |
+| `fields` | — | at least one `SearchFieldDefinition`; duplicate names throw |
+| `scopeMode` | `SearchScope::Tenant` | see [Tenants](#tenants) |
+| `backend` | `'orm'` | the backend name; the shipped backend only accepts `'orm'` |
+| `repositoryClass`, `entityClass` | `null` | `entityClass`: a resource model with `#[FromTable]`, the table the shipped backend searches. `repositoryClass` is stored, but nothing reads it |
+| `defaultSort` | `[]` | **column** names, always ascending, used only when the request has no sort |
+| `plannerEnabled` | `false` | allows the planner for this index (see [The planner](#the-planner)) |
+
+`SearchFieldDefinition` constructor: `name`, `type`, then `searchable`, `filterable`, `sortable` (all `false`), `matchStrategy` (`Contains`), `weight` (`1.0`, negative throws) and `column` (`null`, meaning the field name).
+
+What each flag does:
+
+- **`searchable`** — the free-text query is matched against this field with `LIKE`, and it counts towards the relevance score.
+- **`filterable`** — the field may appear in `filters` and in `field:value` text syntax. Any other field in `filters` is rejected.
+- **`sortable`** — the field may appear in a `SortClause`. A sort on any other field is silently skipped.
+- **`matchStrategy`** — the `LIKE` pattern built from the query: `Exact` → `term`, `Prefix` → `term%`, `Contains` → `%term%`. `%`, `_` and `\` typed by the user are escaped, so they match literally.
+- **`weight`** — multiplies this field's relevance score. It never changes which rows the SQL returns.
+- **`column`** — the column name used in SQL, **and** the key read from each returned row. Both must agree (see [Watch out for](#watch-out-for)).
+
+`SearchFieldType` (`Exact`, `Prefix`, `Contains`, `Keyword`, `Enum`, `Date`, `Number`) does much less than its names suggest. It does **not** choose the match: only `matchStrategy` does. The type decides three things: range filters (`from`/`to`) are accepted only on `Date` and `Number`; a scalar filter on a `Number` must be numeric; and the type is listed in the planner prompt.
+
+### Registering it
+
+Indexes are not discovered. Register them in `SearchIndexRegistryInterface`, which is one instance per worker, shared with `SearchManager`. Registering the same name twice throws `InvalidArgumentException`, so guard with `has()`:
+
+```php
+use Semitexa\Core\Attribute\AsService;
+use Semitexa\Core\Attribute\InjectAsReadonly;
+use Semitexa\Search\Domain\Contract\SearchIndexRegistryInterface;
+use Semitexa\Search\Domain\Contract\SearchManagerInterface;
+use Semitexa\Search\Domain\Model\SearchResult;
+
+#[AsService]
+final class ProductSearch
+{
+    #[InjectAsReadonly]
+    protected SearchIndexRegistryInterface $indexes;
+
+    #[InjectAsReadonly]
+    protected SearchManagerInterface $search;
+
+    public function find(string $text): SearchResult
+    {
+        if (!$this->indexes->has(ProductSearchIndex::NAME)) {
+            $this->indexes->register(ProductSearchIndex::definition());
+        }
+
+        return $this->search->searchText(ProductSearchIndex::NAME, $text);
+    }
+}
+```
+
+Searching an index that was never registered throws `SearchIndexNotFoundException`.
+
+## Running a search
+
+`SearchManagerInterface` has two methods:
+
+```php
+search(SearchRequest $request): SearchResult
+searchText(string $index, string $rawQuery, int $limit = 20, array $filters = []): SearchResult
+```
+
+### searchText(): one string from a search box
+
+`searchText()` parses the raw input with `SearchTextParser`, merges the result with `$filters`, builds the request through `SearchRequestFactory` (so the configured limits apply) and calls `search()`.
+
+```php
+$result = $this->search->searchText('products', 'desk lamp status:active,draft');
+// query: "desk lamp", filters: ['status' => ['active', 'draft']]
+```
+
+The syntax `SearchTextParser` accepts:
+
+- The input is trimmed and split on whitespace. Empty input means no query and no filters.
+- A token `field:value` becomes a filter when `field` is a declared **filterable** field and `value` is not empty. Field names are case-sensitive.
+- A comma makes a list: `status:active,draft` → `['active', 'draft']` (items trimmed).
+- Every other token, including `unknown:value`, `Status:x` and `https://…`, stays in the text query.
+- Repeating a field keeps the last one: `status:a status:b` → `'b'`.
+- There are no quotes, ranges, negation or boolean operators. A value cannot contain a space.
+- The remaining tokens are joined with single spaces and matched **as one string**: `desk lamp` matches `…desk lamp…`, not a row with `desk` in one place and `lamp` in another.
+- On the same key, `$filters` passed to `searchText()` win over filters parsed from the text.
+
+`searchText()` takes no sort, offset or scope. For those, build the request yourself.
+
+### search(): a full request
+
+`SearchRequest` is an immutable value: `index`, `query` (`null` or non-empty), `filters`, `sort` (`list<SortClause>`), `limit` (≥ 1, default 20), `offset` (≥ 0), `scope`, `tenantId`. Build it with `SearchRequestFactory` to have `SEARCH_MAX_QUERY_LENGTH`, `SEARCH_MAX_FILTER_COUNT` and `SEARCH_MAX_RESULT_LIMIT` enforced:
+
+```php
+use Semitexa\Search\Application\Service\SearchRequestFactory;
+use Semitexa\Search\Domain\Model\SortClause;
+use Semitexa\Search\Exception\SearchValidationException;
+
+try {
+    $request = (new SearchRequestFactory())->create(
+        index: 'products',
+        query: 'lamp',
+        filters: [
+            'status' => ['active', 'draft'],            // list → IN (...)
+            'price'  => ['from' => 10, 'to' => 50],     // range → BETWEEN
+            'created' => ['from' => '2026-01-01'],      // open range → >=
+        ],
+        sort: [new SortClause('price', 'DESC')],
+        offset: 40,                                     // limit: null → SEARCH_DEFAULT_LIMIT
+    );
+    $result = $this->search->search($request);
+} catch (SearchValidationException $e) {
+    $problems = $e->getViolations();                    // list<string>
+}
+```
+
+Filter values are a scalar (`=`), a non-empty list of scalars (`IN`), or a range with `from`, `to` or both. Unknown fields, non-filterable fields, ranges on a field that is not `Date` or `Number`, empty lists and non-scalar items throw `SearchValidationException` from `search()`. `SortClause` accepts `ASC`/`DESC` in any case and throws on anything else.
+
+A `SearchRequest` built with `new` is held to the same limits: `search()` checks the query length, the number of filters and of values in one, `SEARCH_MAX_RESULT_LIMIT` and an offset of at most 10 000, and throws `SearchValidationException`.
+
+### What the backend receives
+
+For the request above, the shipped translator (`OrmSearchTranslator`) calls the query object in this order:
+
+```
+where('tenant_id', '=', <tenant>)          -- tenant indexes, see Tenants
+whereIn('status', ['active', 'draft'])
+whereBetween('price', 10, 50)
+where('created_at', '>=', '2026-01-01')
+whereAnyLike(['title' => '%lamp%', 'sku' => 'lamp%'])   -- one group, only when there is a query
+orderBy('price', 'DESC')                   -- or defaultSort, ascending, when the request has no sort
+limit(20)->offset(40)
+```
+
+then `fetchAll()` for the page and `count()` for the total. Both are called on the same query after `limit()` and `offset()`: an implementation's `count()` must ignore them, or `total` is the page size.
+
+## Results
+
+`SearchResult`:
+
+| Member | Meaning |
+|---|---|
+| `hits` | `list<SearchHit>` for this page |
+| `total` | the backend's `count()` |
+| `partial` | `true` when this page holds fewer rows than `total`, i.e. there are other pages. It does not signal an error |
+| `metadata` | `backend`, `index`, `latency_ms`, `query_used`, `filter_count`, `ranking_mode` (`relevance` with a query, `default` without) |
+| `isEmpty()` | `total === 0` |
+| `count()` | number of hits on this page |
+
+`SearchHit`: `documentId` (the row's `id`, else `uuid`, else a per-process object id), `index`, `type` (the index `documentType`), `score`, `fields` (declared fields keyed by field name, for every column present in the row) and `snippet` (always `null` from the ORM backend).
+
+Each row is turned into an array with its `toArray()` method when it has one, otherwise with an `(array)` cast.
+
+### Ranking
+
+`OrmRankingStrategy` scores each hit in PHP, after the rows are fetched. For every searchable field it compares the lower-cased value with the lower-cased query:
+
+| Value vs query | Points |
+|---|---|
+| equal | 3 |
+| starts with the query | 2 |
+| contains the query | 1 |
+
+Points are multiplied by the field's `weight` and summed. With a query, hits are then sorted by score descending, ties by `documentId`; without a query every score is `0` and the SQL order stands.
+
+Ranking happens **after `LIMIT`/`OFFSET`**. It orders the 20 rows of this page, not the whole match set: the best match may sit on page 3 while page 1 shows weaker ones in score order. With a query and no sort of the request's own, the score orders the page; a requested sort (`sort: price DESC`) keeps its order, and the score is not applied.
+
+## Tenants
+
+`SearchScope` has two cases, `Tenant` and `Global`. The index's `scopeMode` decides what happens to the request:
+
+- **Tenant index** (the default). The request's scope is forced to `Tenant`. If the request carries no `tenantId`, the current tenant from `semitexa/tenancy` is used. With no tenant context it searches tenant `default`, which is what tenancy means by no tenant; with `TENANCY_ENABLED` on, that logs a warning on the `search` channel once per process. The backend then adds `where('tenant_id', '=', $tenantId)`; the shipped backend maps `tenant_id` to a `#[TenantScoped]` model's own tenant column, and a backend of your own receives `tenant_id`.
+- **Global index.** The request is left as it is. A request with scope `Tenant` (the default) and a `tenantId` gets the same `tenant_id` predicate; any other gets none. The shipped backend refuses a Global index over a `#[TenantScoped]` model.
+
+The translator checks this again: a request for a tenant index that reaches it with scope `Global` or without a `tenantId` (a backend called directly, not through `SearchManager`) throws `LogicException` instead of searching every tenant.
+
+A `tenantId` set on the request must be the current tenant's inside a tenant's context: another one is refused with `SearchValidationException`, so a request on one site cannot search another site's rows. Under the default tenant (the root site, nothing resolved) and without a context (a command, a job) it is used as given. Never fill it from user input.
+
+## The planner
+
+The planner rewrites a natural-language query before it runs ("cheap red lamps" → query `lamp`, filters `colour: red`, sort by price) with a language model.
+
+When it runs: `SEARCH_PLANNER_ENABLED=1`, **and** the index has `plannerEnabled: true`, **and** the request has a query of two words or more (a single word has no filter or sort in it to find). All three; otherwise it is skipped. Both switches are off by default, and setting either back to off turns it off.
+
+What runs: `SearchManager` gets its `SearchQueryPlannerInterface` injected; the package binds `LlmSearchQueryPlanner`. It renders the catalog prompt `search.query-planner` (inspect it with `bin/semitexa prompt:show --id=search.query-planner`) with the index name, document type, field list and allowed operators, sends it as the system prompt with the visitor's query as the user message through `LlmPlannerMessageBridgeInterface::executeMessage()`, takes the JSON object out of the answer (a fenced code block or prose around it is fine) and checks it with `LlmPlannerSchemaValidator`: unknown or non-filterable filter fields, unknown or non-sortable sort fields, bad directions and a confidence outside 0–1 are refused. The model chosen is the one `semitexa/llm` resolves from `LLM_BACKEND`, through the shipped bridge `LlmProviderPlannerBridge`; `semitexa/llm` is only a suggested dependency, and without it every plan falls back.
+
+Anything that goes wrong (no `semitexa/llm`, a failed model call, an answer that is not JSON, a refused field or value) leaves the query as typed, and the reason is logged as a warning on the `search` channel. To use another planner or another model, bind your own `SearchQueryPlannerInterface`, or a bridge as `#[SatisfiesServiceContract(of: LlmPlannerBridgeInterface::class)]` (the contract the planner injects; see [Resolving Service Contracts](../di/contract-resolution.md)) whose class implements `LlmPlannerMessageBridgeInterface`. One that implements only `LlmPlannerBridgeInterface` (`execute()`) still works, but gets the query inside the system prompt, where a query such as "ignore the rules above" reads to the model as one more instruction: implement `executeMessage()` as well. Even as the user message, the query can still sway the model; what holds whatever it answers is the schema check above, which refuses any field the index does not declare as filterable or sortable.
+
+- `SearchPlannerPolicy`: `minConfidence` (0.5), `timeoutMs` (3000), `allowedOperators` (`=`, `in`, `between`, `like`), `perClientPerMinute` (20). The manager fills `perClientPerMinute` from `SEARCH_PLANNER_RATE_LIMIT`: model calls a minute per client (the signed-in user, otherwise the address, through core's `RateLimiter` and its store), `0` for no limit. An answer the worker remembers costs no call and is not counted. A client over its limit gets its query searched as typed, with the reason in the planner trace and nothing logged; a call that reached no model is not counted, and code without a request (a command, a job) is not limited. Behind a proxy that is not in `TRUSTED_PROXIES` every guest has the proxy's address and all share one budget. A search box that searches as the visitor types sends a new query on each keystroke: raise the limit, or plan only the submitted query. `minConfidence` and `timeoutMs` come from `SEARCH_PLANNER_MIN_CONFIDENCE` and `SEARCH_PLANNER_TIMEOUT_MS`. The shipped bridge asks `semitexa/llm`'s decider model with `timeoutMs` (rounded up to whole seconds), no retries, a 512-token answer and no thinking, on every provider that supports limits (`withLimits()`). One that does not, the local Ollama provider (`LLM_BACKEND=local`, the default) among them, is not asked at all: the planner falls back, so pick another backend for it.
+- The validator does not check operators.
+
+How the manager applies a plan: a planner that throws, reports confidence below the minimum, or returns any warning leaves the request unchanged. A usable plan replaces the query (a `null` query from the planner means "by its filters alone" and clears the text, unless the plan adds no filter the request did not already have, which keeps the text), adds its filters under the request's own (a filter the request already sets keeps the request's value), and supplies the sort only when the request has none. The planner's filters go through the same normalizer as a caller's; a value of the wrong type or shape makes the planner fall back. The trace is attached to the `SearchRequest` and does not appear in the `SearchResult`; a fallback is also logged as a warning on the `search` channel.
+
+## Providing the backend
+
+`SearchManager` sends every request to the one bound `SearchBackendInterface`:
+
+```php
+supports(SearchIndexDefinition $definition): bool
+search(SearchIndexDefinition $definition, SearchRequest $request): SearchResult
+```
+
+`OrmSearchQueryInterface`, which your query object implements, has `where`, `orWhere`, `whereAnyLike` (one parenthesised group of `column LIKE pattern` joined by `OR`, ANDed with the rest — the text match), `whereIn`, `whereBetween`, `orderBy`, `limit`, `offset`, `fetchAll` and `count`.
+
+The shipped `OrmSearchBackend` gets its `OrmSearchQueryFactoryInterface` injected. The package's own, `OrmTableSearchQueryFactory`, returns a `TableSearchQuery` over the index's `#[FromTable]` table: parameterised SQL through `OrmManager::getQueryAdapter()` (so a search inside a transaction sees its writes), `SELECT *` with every column checked as a plain identifier and quoted, the operators `=`, `!=`, `<>`, `<`, `<=`, `>`, `>=` and `LIKE`, and `COUNT(*)` over the same conditions for the total. A row's `id` (or `uuid`) becomes the hit's document id.
+
+To search something else, implement the factory (or `SearchBackendInterface`) yourself and bind it with `#[SatisfiesServiceContract(of: OrmSearchQueryFactoryInterface::class)]`. `OrmSearchTranslator` and `OrmRankingStrategy` are plain classes with no constructor; a backend of your own can reuse them by implementing `OrmSearchQueryInterface` over your repository's query.
+
+Two implementations then exist for one contract. Run `bin/semitexa contracts:list` and check that yours is the active one; [Resolving Service Contracts](../di/contract-resolution.md) explains how the winner is chosen and how to pick it with a generated resolver.
+
+When you write `whereAnyLike()`: it is one parenthesised group of `column LIKE pattern` conditions joined by `OR`, ANDed with everything before it, so the tenant predicate and the filters still hold for text matches. `ResourceModelQuery::whereAnyLike()` builds that group for a single pattern; with one pattern per column, build the group yourself.
+
+## Configuration
+
+| Variable | Default | Effect |
+|---|---|---|
+| `SEARCH_DEFAULT_LIMIT` | `20` | page size when `SearchRequestFactory::create()` gets `limit: null`; must be 1…`SEARCH_MAX_RESULT_LIMIT` |
+| `SEARCH_MAX_RESULT_LIMIT` | `100` | factory rejects a larger limit |
+| `SEARCH_MAX_QUERY_LENGTH` | `500` | factory rejects a longer query (characters); must be ≥ 1 |
+| `SEARCH_MAX_FILTER_COUNT` | `20` | factory rejects more filter fields; must be ≥ 1 |
+| `SEARCH_PLANNER_ENABLED` | `0` | `1` lets the planner run (see above) |
+| `SEARCH_PLANNER_TIMEOUT_MS` | `3000` | passed to the planner in its policy |
+| `SEARCH_PLANNER_RATE_LIMIT` | `20` | model calls a minute per client; `0` = no limit |
+| `SEARCH_PLANNER_MIN_CONFIDENCE` | `0.5` | plans below it are discarded; must be 0.0…1.0 |
+| `SEARCH_OBSERVABILITY_ENABLED` | `1` | read, but nothing uses it yet |
+
+Booleans are on only when the value is exactly `1`. The values are read on the first search in each worker, not at boot: an invalid one surfaces as an `InvalidArgumentException` from that first call.
+
+## Performance
+
+Matching is SQL `LIKE`, one predicate per searchable field, joined with `OR`. On a large table that means:
+
+- **`Contains` (`%term%`) cannot use a B-tree index.** The database reads every row left after the other predicates. Put a selective, indexed filter next to it (the tenant column plus `status`, a date range) so that set stays small.
+- **`Prefix` (`term%`)** can use an index on that column, depending on the column's collation. **`Exact`** is still `LIKE`, without wildcards: the collation decides whether it is case-sensitive.
+- **The `OR` across fields** usually stops the database from using any single-column index for the text part, even when every field is `Prefix`. Fewer searchable fields means less work.
+- **Every search runs two queries:** the page, and a `COUNT(*)` with the same predicates. Both pay for the scan.
+- **Deep pages cost more:** pagination is `OFFSET`, so at 20 rows a page, page 500 reads and discards about 10 000 rows first. See [Pagination](pagination.md).
+- **Ranking is bounded and shallow:** it runs in PHP over the page only, lower-casing and comparing each searchable field of every hit, so its cost grows with the page size and the number of searchable fields, not with the table; it also cannot surface a better match from another page.
+- **Multi-word queries are one substring.** `red lamp` will not find `lamp, red`.
+
+If you need word-level matching, stemming or ranking across the whole match set at millions of rows, this package does not provide it.
+
+## Watch out for
+
+- **The shipped backend searches one table with `LIKE`.** No joins, no full-text index, no stemming: a large table is scanned. Bind your own factory or backend for more.
+- **It follows the model, as a repository would.** A `#[SoftDelete]` model's deleted rows are never found; a `#[TenantScoped]` model is filtered on its own tenant column, and a Global index over one is refused. A Tenant index over a table with no `tenant_id` column fails with a `SearchBackendException` that says to make the model `#[TenantScoped]` or the index Global. Only the default connection is searched (`#[Connection]` is not followed).
+- **Set a sort with a unique last column for stable pages.** Without one (or `defaultSort`), `LIMIT`/`OFFSET` pages can repeat or skip rows.
+- **No tenant context means tenant `default`.** A tenant index searched from a CLI command or a job without a tenant context searches `tenant_id = 'default'`: rows written under no tenant (`''` or `NULL`) are not found. With `TENANCY_ENABLED` on, the first such search in a process logs a warning. Run it under the tenant (`bin/semitexa tenant:run <tenant> …`) or pass `tenantId`.
+- **A non-numeric value on a `Number` filter is refused.** `price:abc` (or `'price' => 'abc'`) throws `SearchValidationException` naming the field.
+- **Relevance orders only the page, and only without a sort.** With a query and no `SortClause`, the relevance score reorders the rows of the current page (after `LIMIT`/`OFFSET`), so page 2 is not ranked against page 1. An explicit `SortClause` is kept as given.
+- **`column` is used twice.** It is the SQL column and the key looked up in each fetched row. If your row's `toArray()` returns camelCase keys (`createdAt`) while the column is `created_at`, ranking reads nothing (score `0`) and the field is missing from `hits[].fields`. An object without `toArray()` is cast with `(array)`, where private and protected properties get mangled keys and are never found.
+- **Rows without `id` or `uuid`** get a `documentId` that is only an in-memory object id, different on every request.
+- **`query: ''` throws.** `SearchRequest` requires `null` or a non-empty query; whitespace-only queries are accepted and search for the spaces.
+- **`searchText()` ignores `SEARCH_DEFAULT_LIMIT`.** Its own `$limit` defaults to 20 and is always passed on; a value above `SEARCH_MAX_RESULT_LIMIT` throws `SearchValidationException`.
+- **Sorts on unknown or non-sortable fields vanish** instead of failing. And once a request has any sort, `defaultSort` is not used, even if every clause was skipped.
+- **A backend of your own must send the escape character.** The translator escapes `%`, `_` and `\` with a backslash; the shipped `TableSearchQuery` adds `ESCAPE` for MySQL and SQLite (which has no default), and a query object of your own must do the same.
+- **The planner calls a model on every search of two words or more.** With both switches on, each such search waits for the model (up to `SEARCH_PLANNER_TIMEOUT_MS`) and pays for it. Each worker remembers its last 256 answers for 10 minutes (the same index and query, case and surrounding spaces aside), so a reload or the next page asks again only after that. A refused or low-confidence answer is remembered too; a failed call is not. Turn it on per index, for searches typed by people.
+- **The user's text reaches the model.** The shipped bridge sends it as the user message, apart from the system prompt, which tells the model it is data; a bridge that only implements `execute()` gets it inside the system prompt, between quotes and not escaped. Either way a crafted query can still steer the model. What the model answers is checked against the index (fields, types, ranges) and never overrides the request's own filters or tenant, so the worst it does is search the right data differently.

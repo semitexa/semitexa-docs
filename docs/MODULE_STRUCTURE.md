@@ -254,12 +254,14 @@ The complete table follows. **"Allowed in packages"** means standard production 
 | `Csrf` | core-only | CSRF handling | only `semitexa-core` | no | Framework primitive |
 | `Error` | core-only | Error type definitions | only `semitexa-core` | no | Framework primitive |
 | `Event` | core-only | Event system | only `semitexa-core` | no | Framework primitive (modules use `Domain/Event/` or `Application/Payload/Event/`) |
+| `Feature` | core-only | Feature flags: contract, registry, default flags | only `semitexa-core` | no | Framework primitive |
 | `Http` | core-only | HTTP wrappers | only `semitexa-core` | no | Framework primitive |
 | `Lifecycle` | core-only | Server lifecycle | only `semitexa-core` | no | Framework runtime |
 | `Locale` (top-level) | core-only | Locale primitives | only `semitexa-core` | no | Other packages use `Application/View/locales/` |
 | `Log` | core-only | Logging primitives | only `semitexa-core` | no | Framework primitive |
 | `PHPStan` | core-only | PHPStan rule sources | only `semitexa-core` | no | Excluded from autoload classmap; only the framework ships rules |
 | `Queue` | core-only | Queue primitives | only `semitexa-core` | no | Framework primitive |
+| `RateLimit` | core-only | Rate limiting: limiter, counter stores | only `semitexa-core` | no | Framework primitive |
 | `Redis` | core-only | Redis adapter | only `semitexa-core` | no | Framework primitive |
 | `Registry` | core-only | Registry pattern types | only `semitexa-core` | no | Framework primitive |
 | `Request` | core-only | Request types | only `semitexa-core` | no | Framework primitive |
@@ -420,12 +422,15 @@ Beyond Application/Db (already covered above), the following layers have explici
 | `Support` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — no subdirectories. Phase 3 batch 1. |
 | `Validation` (top-level, semitexa-core) | — | — | Children: `Trait/` only. Phase 3 batch 1. |
 | `Validation/Trait` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Trait\.php$/` | — | LEAF — basename ends in Trait.php. Phase 3 batch 1. |
-| `Http` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Exception/`, `Response/` only + PascalCase root files. Phase 3 batch 1. |
+| `Http` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Client/`, `Exception/`, `Response/` only + PascalCase root files. Phase 3 batch 1. |
+| `Http/Client` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | drift deny-list | LEAF. The outbound HTTP client, its values, retry policy and test fake. |
 | `Http/Exception` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Exception\.php$/` | — | LEAF. Phase 3 batch 1. |
 | `Http/Response` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF. Phase 3 batch 1. |
 | `Queue` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | Children: `Message/`, `Transport/` only + PascalCase root files. Phase 3 batch 1. |
 | `Queue/Message` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Message\.php$/` | — | LEAF — basename ends in Message.php. Phase 3 batch 1. |
 | `Queue/Transport` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*Transport(?:Factory)?\.php$/` | — | LEAF — Transport / TransportFactory naming. Phase 3 batch 1. |
+| `Feature` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | drift deny-list | LEAF — feature flag contract, registry, default and in-memory flags. `#[AsFeatureFlag]` lives in `Attribute/`. |
+| `RateLimit` (top-level, semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — RateLimiter, its decision and key, the counter stores. The `#[RateLimit]` attribute lives in `Attribute/`. |
 | `Support` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | `/(Helper\|Helpers\|Util\|Utils\|Manager\|Managers\|Misc\|Common)\.php$/` | LEAF. Phase 3 batch 1 + tightening: drift-rejecting deny-list keeps Support from becoming a Helpers/Utils dumping ground. |
 | `Authorization` (semitexa-core) | `/^[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF. Phase 3 batch 2. |
 | `Cookie` (semitexa-core) | `/^Cookie[A-Z][A-Za-z0-9_]*\.php$/` | — | LEAF — basenames start with Cookie. Phase 3 batch 2. |

@@ -111,6 +111,8 @@ $byState = $q->countBy(ColumnRef::for(OrderResource::class, 'status'));
 
 ### Tenancy is fail-closed
 
+`#[TenantScoped]` has one strategy: the rows of every tenant share the table and are filtered on the tenant column it names (`column`, a property or column the model declares). `strategy` takes `'same_storage'` (the default) or its other name `'column'`; anything else (`'separate_db'`, `'separate_schema'`, `'connection_switch'`) is refused when the model is read, because a database or schema per tenant is the connection's job (the pool switches on `TenantResolved`), not a model's. Those values used to be accepted and ignored.
+
 A query on a `#[TenantScoped]` resource without tenant context throws a
 `LogicException`. Call `forTenant($value)`, or opt out explicitly with
 `withoutTenantScope(SystemScopeToken)` — there is no silent global read.
@@ -195,12 +197,52 @@ $orm->getTransactionManager()->run(function (DatabaseAdapterInterface $tx) {
 Nesting creates savepoints. All transaction state is per-coroutine
 (`CoroutineLocal`) — safe under Swoole concurrency.
 
+Raw SQL in a store that may run inside someone else's `run()` belongs on
+`$orm->getQueryAdapter()`: it joins the transaction open in this coroutine
+and is the pooled adapter otherwise. Under Swoole's pool, `$orm->getAdapter()`
+takes a connection of its own and autocommits even inside a transaction —
+nothing it writes is rolled back, and every coroutine that holds a
+transaction and calls it takes a second connection from the pool. In a CLI
+process (one shared connection) and on SQLite it joins the transaction
+instead, so it is not a way to commit on your own: a lock or lease that
+other workers must see at once needs to run outside any transaction. Use
+`getAdapter()` for dialect checks (`instanceof MysqlAdapter`):
+`getQueryAdapter()` is a decorator.
+
 The engine's `ResourceChangedEvent` auto-publish is commit-gated: a
 repository write that nests inside your `run()` buffers its signal on the
 TransactionManager and it flushes after YOUR commit (and is dropped on
-rollback). If you call `bufferEvent()` yourself, wire a dispatcher with
-`setEventDispatcher()` first — flushing with no dispatcher discards
-silently.
+rollback, including a rolled-back savepoint's). If you call `bufferEvent()`
+yourself, wire a dispatcher with `setEventDispatcher()` first — flushing
+with no dispatcher discards silently.
+
+The other way round, for something already done outside the database that a
+rollback should take back (a file stored for a row about to be written),
+`afterRollback(fn () => $storage->delete($path))` runs the work if the
+transaction rolls back, or the savepoint it was asked for in, and drops it on
+commit; with no transaction open it does nothing. It runs once the connection
+is back in the pool. A failure in it is logged and the rollback's own exception
+still reaches you. A failure of the commit itself does not run it: the commit
+may have gone through, so what it would undo is kept, and a warning says so.
+`semitexa/media` uses it for the original of an upload whose asset row was
+rolled back.
+
+For an effect a rollback cannot undo — a mail sent, a message published, a
+call to another service — hold it back until the commit:
+
+```php
+$orm->getTransactionManager()->afterCommit(fn () => $this->notifyWarehouse($orderId));
+```
+
+Outside a transaction it runs at once. Inside, it runs once the outermost
+transaction commits, after the connection is back in the pool; a rollback
+(or the rolled-back savepoint it was asked for in) drops it, so a
+`runWithRetry()` replay does not do it twice. A failure after the commit is
+logged and does not undo the committed write; outside a transaction the
+work's exception reaches you as from any call. It needs no event dispatcher. Inside a
+test transaction it never runs. A coroutine started inside the transaction
+(`go()`) has no transaction of its own: what it asks for runs at once, even if
+the transaction then rolls back.
 
 ## Wiring a store
 

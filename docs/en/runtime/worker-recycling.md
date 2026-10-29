@@ -10,9 +10,11 @@ status: published
 verified_against: 2026.10.15.2225
 keywords:
   - SWOOLE_MAX_REQUEST
+  - SWOOLE_MAX_WAIT_TIME
   - PHP_MEMORY_LIMIT
   - SWOOLE_MEMORY_WATCHDOG_RATIO
   - SWOOLE_MEMORY_WATCHDOG_INTERVAL
+  - SWOOLE_WORKER_NUM
   - WorkerMemoryWatchdog
   - InFlightRequests
 ---
@@ -39,12 +41,18 @@ Every `SWOOLE_MEMORY_WATCHDOG_INTERVAL` seconds (default `10`) a worker compares
 
 Set `SWOOLE_MEMORY_WATCHDOG_RATIO=0` to turn it off. With no memory limit (`-1`) it has nothing to measure against and stays off.
 
+## Run at least two workers
+
+The replacement comes from Swoole's manager, and the other workers serve while it boots. With `SWOOLE_WORKER_NUM=1` there are no others: while the one worker is recycled nothing serves, and every open connection, SSE streams included, is cut. With `SWOOLE_MAX_REQUEST=0` as well, Swoole runs that worker without a manager at all, so a watchdog recycle or a fatal error ends the server process. Docker's restart policy starts the container again, but until it is up requests are refused.
+
+So in production run two or more (the scaffold sets `4`). With `APP_ENV=prod` and one worker, `bin/semitexa server:start` warns before it starts the containers, and `system:doctor` warns in check `server.worker-count`. In development one worker is allowed and doctor only says what it would mean.
+
 ## What a leaving worker does with its requests
 
 Whatever started it (the request count, the watchdog, a reload), a leaving worker drains:
 
 - Timers are cleared and background coroutines (subscribers, warm-ups, timer bodies) are cancelled at once, so nothing holds the worker past its exit timeout.
-- A request being answered, and any coroutine it spawned, is left to finish for up to two seconds (one second less than the three the manager waits before it kills the worker). One still running after that is cancelled.
+- A request being answered, and any coroutine it spawned, is left to finish for up to nine seconds: one second less than `SWOOLE_MAX_WAIT_TIME` (10 by default, 2 to 300), the time the manager waits before it kills the worker. One still running after that is cancelled and answers 500. It was two seconds of three until October 2026: a long request (a slow report, a sync chain of handlers) was cancelled at every recycle. A stream is cut at once whatever the setting, so only requests hold a leaving worker that long; raise it for routes that run longer, and expect `server:stop` and a reload to wait as long for a request still running. Docker waits `stop_grace_period` (30 s in the project's `docker-compose.yml`) before it kills the container, so a value above about 25 needs that raised too, or the kill lands on the server's own shutdown.
 - An SSE stream is cancelled at once: it would never end by itself.
 
 A connection that reaches a worker at the instant it exits can still get an empty reply. That happens inside Swoole, and the client should retry it as any dropped connection.
