@@ -75,3 +75,7 @@ bin/semitexa update:changelog
 ## Why this matters
 
 An upgrade a project cannot see coming, or that writes over the files it changed, is one that gets put off. One command that shows its plan, leaves your edits in place and records what it did keeps a project on the current release.
+
+## Next steps
+
+- [Versions and stability](stability.md) — which code a release may change, and how long a deprecated part keeps working
