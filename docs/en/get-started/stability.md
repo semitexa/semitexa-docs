@@ -92,7 +92,7 @@ public function currentTime(): \DateTimeImmutable
 - The deprecated part keeps working, unchanged, for **at least 90 days** after that release's date.
 - It may be removed in the first release cut after those 90 days, not before. With the example above, that is a release on or after 31 January 2027.
 
-So a project that updates at least once a quarter always sees a deprecation, and its replacement, before the removal reaches it.
+So a project that updates at least every 90 days always sees a deprecation, and its replacement, before the removal reaches it.
 
 ## Fixes for older releases
 
