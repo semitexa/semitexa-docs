@@ -83,14 +83,14 @@ When a part of the `@api` surface has to change, the old form is deprecated firs
 ```php
 /**
  * @api
- * @deprecated 2026.11.02.0900 Use Clock::now() instead.
+ * @deprecated 2026.11.02 Use Clock::now() instead.
  */
 public function currentTime(): \DateTimeImmutable
 ```
 
-- `@deprecated` names the release that first shipped the deprecation and what to use instead.
-- The deprecated part keeps working, unchanged, for **at least 90 days** after that release's date.
-- It may be removed in the first release cut after those 90 days, not before. With the example above, that is a release on or after 31 January 2027.
+- `@deprecated` gives the date it was deprecated — `YYYY.MM.DD`, or the version of the release that shipped it — and what to use instead. phpstan's `semitexa.deprecatedApi` rule refuses one without either.
+- The deprecated part keeps working, unchanged, for **at least 90 days** after the first release that carries the deprecation, which is dated that day or later.
+- It may be removed in the first release cut after those 90 days, not before. With the example above, first shipped in a release on 2 November 2026, that is a release on or after 31 January 2027.
 
 So a project that updates at least every 90 days always sees a deprecation, and its replacement, before the removal reaches it.
 
