@@ -499,6 +499,23 @@ bin/semitexa ai:skills
 |---|---|
 | `--json` | no |
 
+## `ai:state`
+
+The project state, work · right · fast: every criterion with its points, evidence, age and expiry, and what would raise each phase most: show | score
+
+```bash
+bin/semitexa ai:state ["action"]
+```
+
+| option | takes a value |
+|---|---|
+| `--criterion` | yes |
+| `--points` | yes |
+| `--evidence` | yes |
+| `--by` | yes |
+| `--expires` | yes |
+| `--json` | no |
+
 ## `ai:task`
 
 Classify a task description into a recipe + suggested make:* invocation
