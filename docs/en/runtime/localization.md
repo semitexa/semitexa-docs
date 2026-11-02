@@ -199,7 +199,7 @@ With prefixing off, all of these return the path unchanged and nothing is redire
 
 ### A language switcher
 
-Because of the preference redirect, a plain link to the default-language page bounces a visitor whose cookie says otherwise straight back. Change the cookie in the same step as the navigation, and switch the current locale before redirecting: a bare `setRedirect()` path is prefixed with the locale being served, so after `setLocale()` it lands in the new language. This works for a `GET` link and a `POST` form alike; register the route for both if you use both, and, as with any `POST`, send the `_csrf` field for a signed-in visitor:
+Because of the preference redirect, a plain link to the default-language page bounces a visitor whose cookie says otherwise straight back. Change the cookie in the same step as the navigation, and switch the current locale before redirecting: a bare `setRedirect()` path is prefixed with the locale being served, so after `setLocale()` it lands in the new language. This works for a `GET` link and a `POST` form alike; register the route for both if you use both, and, as with any `POST`, send the `_csrf` field, signed in or not:
 
 ```php
 use Semitexa\Core\Attribute\InjectAsMutable;

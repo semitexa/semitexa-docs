@@ -76,7 +76,8 @@ The validator detects a module from a changed file path by walking up the direct
       Prompt/             # #[AsPrompt] prompt-catalog definitions (thin: metadata + optional few-shot; Twig body in resources/prompts/)
       Db/                 # persistence implementation (resource models, mappers, concrete repositories)
         MySQL/            # one storage adapter; declare additional adapters explicitly in the spec
-          Model/          # *Resource, *ResourceModel, *Mapper — feature-grouping allowed
+          Model/          # *Resource, *ResourceModel — feature-grouping allowed
+          Mapper/         # *Mapper — a peer of Model/, never inside it
           Repository/     # concrete database-backed repositories implementing Domain/Repository/ ports
     Domain/
       Model/              # domain entities (NO persistence implementation here — see Application/Db)
@@ -408,7 +409,7 @@ Beyond Application/Db (already covered above), the following layers have explici
 | Path | Allowed file patterns | Excluded file patterns | Notes |
 |---|---|---|---|
 | `Application/Console/Command` | `/^[A-Z][A-Za-z0-9_]*Command\.php$/` | — | Only `*Command.php` basenames; `allowAnyFile` removed |
-| `Domain/Model` | (any PascalCase via `allowAnyFile: true`) | `/(Resource\|ResourceModel\|Mapper)\.php$/` | Persistence resource models / mappers go to `Application/Db/<Adapter>/Model/`, not here |
+| `Domain/Model` | (any PascalCase via `allowAnyFile: true`) | `/(Resource\|ResourceModel\|Mapper)\.php$/` | Persistence resource models go to `Application/Db/<Adapter>/Model/` and mappers to `Application/Db/<Adapter>/Mapper/`, not here |
 | `Domain/Contract` | `/^[A-Z][A-Za-z0-9_]*Interface\.php$/` | — | Domain interfaces **other than** repository ports (those live in `Domain/Repository/`). No concrete implementations. |
 | `Domain/Exception` | `/^[A-Z][A-Za-z0-9_]*Exception\.php$/` | — | Exception classes only |
 | `Attribute` | `/^[A-Z][A-Za-z0-9_]*\.php$/` (PascalCase class file) | `/^(?!(As\|Inject))[A-Z][A-Za-z0-9_]*Command\.php$/` (reject misplaced commands) | Attribute classes; `*Command.php` basenames other than `As*Command` / `Inject*Command` are rejected here so the file-placement rule's intent isn't bypassed |
@@ -880,8 +881,9 @@ This local extension does **not** make `Adapter/`, `Query/`, `Repository/`,
 etc. valid in `semitexa-api`, `semitexa-cache`, `semitexa-mail`, or any
 other package — they continue to fail there with
 `module_structure.unknown_directory`. Consumer packages still use
-`Application/Db/<Adapter>/Model/` for `*Resource`, `*ResourceModel`,
-`*Mapper` files and `Application/Db/<Adapter>/Repository/` for concrete
+`Application/Db/<Adapter>/Model/` for `*Resource` and `*ResourceModel`
+files, `Application/Db/<Adapter>/Mapper/` for `*Mapper` files and
+`Application/Db/<Adapter>/Repository/` for concrete
 `*Repository` implementations. `Domain/Repository/` is allowed everywhere
 for `*RepositoryInterface.php` ports only.
 
