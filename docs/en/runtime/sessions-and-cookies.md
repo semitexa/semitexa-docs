@@ -61,7 +61,7 @@ Session methods:
    - `Session`, `CookieJar`, and `Request` are stored in the **request-scoped container**.
 
 2. **During request**:
-   - Handlers (and other request-scoped services) receive `SessionInterface` and `CookieJarInterface` via constructor. The container injects the **same** instances from the request-scoped cache (see [Request-scoped Session and CookieJar](#request-scoped-session-and-cookiejar)).
+   - Handlers (and other request-scoped services) receive `SessionInterface` and `CookieJarInterface` through properties marked `#[InjectAsMutable]`, never through the constructor. The container injects the **same** instances from the request-scoped cache (see [Request-scoped Session and CookieJar](#request-scoped-session-and-cookiejar)).
 
 3. **Request end**:
    - `finalizeSessionAndCookies($request, $response)` runs: `session->save()`, then the session cookie is added to the CookieJar, and all `Set-Cookie` lines from the jar are attached to the response.
@@ -158,7 +158,14 @@ Methods: `get`, `has`, `set`, `remove`, `getSetCookieLines()`.
 Session, CookieJar, and Request are **per-request** and must be the same instances for the whole pipeline:
 
 1. **Application** (`initSessionAndCookies`): creates `Session` and `CookieJar($request)`, puts them (and `Request`) into `RequestScopedContainer` via `set()`. When all three are set, the container’s **RequestContext** is updated so that mutable services receive them.
-2. **Handlers**: handlers are **mutable** services. When the container is asked for a handler, it returns a **clone** of the handler prototype and then injects the current **RequestContext** (Request, SessionInterface, CookieJarInterface) into that clone’s matching **protected** properties. So the handler uses the same Session/CookieJar/Request that `finalizeSessionAndCookies` later uses — cookies set in the handler are included in the response. Handlers do **not** use constructor injection for these; they declare e.g. `protected SessionInterface $session;` (no attribute); the container fills them from RequestContext.
+2. **Handlers**: handlers are **mutable** services. When the container is asked for a handler, it returns a **clone** of the handler prototype and then injects the current **RequestContext** (Request, SessionInterface, CookieJarInterface) into that clone’s matching **protected** properties. So the handler uses the same Session/CookieJar/Request that `finalizeSessionAndCookies` later uses — cookies set in the handler are included in the response. Handlers do **not** use constructor injection for these; they declare the property with `#[InjectAsMutable]`, and the container fills it from RequestContext:
+
+   ```php
+   #[InjectAsMutable]
+   protected SessionInterface $session;
+   ```
+
+   The attribute is required: a bare typed property receives nothing (injection is no longer inferred from the type name), and PHPStan's `semitexa.unannotatedServiceProperty` reports it.
 3. **After each request**: `RequestScopedContainer::reset()` is called (e.g. in `server.php` `finally`), clearing the cache so the next request gets new Session/CookieJar/Request.
 
 See **src/Container/README.md** for the full DI and RequestContext behaviour.
