@@ -583,6 +583,7 @@ bin/semitexa ai:verify:receipt ["id"]
 |---|---|
 | `--unread` | no |
 | `--hours` | yes |
+| `--commit` | yes |
 | `--json` | no |
 
 ## `ai:verify:rules`
