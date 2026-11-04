@@ -18,9 +18,9 @@ keywords:
 
 # UI Events and Transport
 
-## Events (`#[UiOn]`) — metadata only
+## Events (`#[UiOn]`)
 
-`#[UiOn]` declares which component method is the **intended** handler for a given (part, event) pair. The attribute is **metadata only** in this slice: no DOM listener is wired, no HTTP transport endpoint is registered, no `UiInteractionDispatcher` exists, and the declared method is **not invoked at runtime**.
+`#[UiOn]` declares which component method handles a given (part, event) pair. The browser captures the event, `UiInteractionDispatcher` verifies it and invokes the method on the server.
 
 ```php
 use Semitexa\PlatformUi\Attribute\UiOn;
