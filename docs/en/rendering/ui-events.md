@@ -79,7 +79,7 @@ When the part declares `bind: '<path>'` and the handler declares `updates: '<oth
 
 **Metadata model**
 
-`UiOnMetadata` records `componentName`, `class`, `partName`, `eventName`, `updatesPath` (a `UiValuePath` or `null`), `methodName`. It carries NO transport URL, NO handler-id — those belong to a future runtime slice and must not leak into the DOM. Access via `UiComponentMetadata::event($partName, $eventName)`, `::eventsForPart($partName)`, or the `events` map.
+`UiOnMetadata` records `componentName`, `class`, `partName`, `eventName`, `updatesPath` (a `UiValuePath` or `null`), `methodName`. It carries NO transport URL and NO handler-id. Access via `UiComponentMetadata::event($partName, $eventName)`, `::eventsForPart($partName)`, or the `events` map.
 
 **Twig helper for debug surfaces:** `ui_component_events('<component-name>')` returns a list of plain arrays (`{part, event, updates, method, runtime}`) for documentation panels. The helper is read-only and does NOT emit any DOM event-runtime attributes.
 
@@ -109,7 +109,7 @@ Every Platform UI component render emits a per-instance **signed event manifest*
 </div>
 ```
 
-**What stays server-side:** the method name (`onInputChanged`), the class FQCN (`Semitexa\PlatformUi\Application\Component\Builtin\FieldComponent`), and any handler resolution id. The future dispatcher resolves the method via `UiComponentRegistry::get($c)->event($p, $e)->methodName` — clients can never coerce a different method.
+**What stays server-side:** the method name (`onInputChanged`), the class FQCN (`Semitexa\PlatformUi\Application\Component\Builtin\FieldComponent`), and any handler resolution id. `UiInteractionDispatcher` resolves the method via `UiComponentRegistry::get($c)->event($p, $e)->methodName` — clients can never coerce a different method.
 
 **Signed-claim payload** (decoded `ctx`):
 
@@ -178,7 +178,7 @@ window.SemitexaUi.onCapture(fn)    // register listener; returns unsubscribe()
   part:            'input',
   event:           'change',
   updates:         'value',          // or null when the part is unbound
-  ctx:             'sc1.<b64>.<b64>',// opaque signed blob — exactly what the future server will receive
+  ctx:             'sc1.<b64>.<b64>',// opaque signed blob — exactly what the server receives
   value:           <part.value>,      // extracted from partEl.value or the value attribute
   originalEvent:   <DOM Event>,
   manifestVersion: 1

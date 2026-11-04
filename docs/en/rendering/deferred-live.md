@@ -39,6 +39,6 @@ Without a framework-level refresh mechanism, live regions require bespoke pollin
 
 ## What refreshInterval needs
 
-A live slot only refreshes with `SSR_DEFERRED_PERSISTENT_SSE=true`, which is off by default. Guests also need `SSR_DEFERRED_PERSISTENT_SSE_REQUIRE_AUTH=false` and `SSE_PUBLIC_ANONYMOUS=true`, as a persistent stream refuses an anonymous visitor otherwise. Without the first setting the slot renders once and stays as it is, with no error.
+A live slot only refreshes with `SSR_DEFERRED_PERSISTENT_SSE=true`, which is off by default. Guests also need `SSR_DEFERRED_PERSISTENT_SSE_REQUIRE_AUTH=false`. Without them the slot renders once and stays as it is, with no error.
 
 For a region that follows data as it changes, prefer a component implementing `UiIslandInterface` for signed-in visitors, or an SSE feed for public pages: `ai:ask mechanisms --id=ssr.transport`. They redraw on a write rather than on a timer, and they catch up after a lost connection.
