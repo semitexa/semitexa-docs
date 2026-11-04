@@ -25,14 +25,15 @@ keywords:
 ```php
 use Semitexa\PlatformUi\Attribute\UiOn;
 use Semitexa\PlatformUi\Attribute\UiPart;
+use Semitexa\PlatformUi\Domain\Model\Event\UiInteractionEvent;
 
 #[UiPart(name: 'input', uses: InputPrimitive::class, bind: 'value')]
 final class FieldComponent
 {
     #[UiOn(part: 'input', event: 'change')]
-    public function onInputChanged(array $event): void
+    public function onInputChanged(UiInteractionEvent $event): void
     {
-        // Metadata only — do not invoke yet.
+        $value = $event->value();
     }
 }
 ```
