@@ -59,6 +59,7 @@ bin/semitexa ai:ask ["subject"]
 | `--kind` | yes |
 | `--id` | yes |
 | `--area` | yes |
+| `--state` | yes |
 | `--json` | no |
 
 ## `ai:backlog`
