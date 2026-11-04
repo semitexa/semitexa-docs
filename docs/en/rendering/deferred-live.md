@@ -36,3 +36,9 @@ A deferred slot with `refreshInterval` set keeps its SSE connection open after t
 ## Why this matters
 
 Without a framework-level refresh mechanism, live regions require bespoke polling loops, reconnection handlers, and custom HTML replacement code. Declaring `refreshInterval` on the slot keeps the live behavior co-located with the slot contract and removes the need for per-widget polling infrastructure.
+
+## What refreshInterval needs
+
+A live slot only refreshes with `SSR_DEFERRED_PERSISTENT_SSE=true`, which is off by default. Guests also need `SSR_DEFERRED_PERSISTENT_SSE_REQUIRE_AUTH=false`. Without them the slot renders once and stays as it is, with no error.
+
+For a region that follows data as it changes, prefer a component implementing `UiIslandInterface` for signed-in visitors, or an SSE feed for public pages: `ai:ask mechanisms --id=ssr.transport`. They redraw on a write rather than on a timer, and they catch up after a lost connection.

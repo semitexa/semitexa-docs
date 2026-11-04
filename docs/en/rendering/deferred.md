@@ -33,6 +33,28 @@ A `skeletonTemplate` can be specified so the region shows a meaningful placehold
 - **SSE push** — the server streams rendered slot HTML fragments over a persistent HTTP connection.
 - **SSR-first live UI** — the page model stays server-driven from first byte to final slot render.
 
+## How page data reaches a slot
+
+A slot handler receives the slot and nothing else: `handle(object $slot)` has no request. What the page knows arrives as render context, from what the page's resource was given.
+
+```php
+// The page's resource
+public function withYear(int $year): self { return $this->with('year', $year); }
+
+// The page handler: a query value comes through the payload
+return $resource->withYear($payload->getYear());
+
+// The slot handler
+public function handle(object $slot): object
+{
+    $year = $slot->getRenderContext()['year'];
+
+    return $slot->withRenderContext(['revenue' => $this->total($year)]);
+}
+```
+
+So a value from the URL needs no route of its own, no script and no `fetch()`. A failure is the handler's to catch and show through the context: the rest of the page is already on screen.
+
 ## Deferred components
 
 A component class with `#[WithTransport(TransportType::Sse, deferred: true)]` is drawn as a
