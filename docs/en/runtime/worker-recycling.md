@@ -33,7 +33,7 @@ With `SEMITEXA_METRICS_ENABLED=1`, `/metrics` shows the figures of the worker th
 
 ## Recycling after N requests
 
-`SWOOLE_MAX_REQUEST` (default `10000`) restarts a worker after about that many requests: each worker picks its limit between that number and half as much again, so workers that started together do not leave together. `0` turns it off. It bounds slow leaks. It does nothing for a worker that stops finishing requests, for example one wedged on a blocking read: that worker never reaches the count.
+`SWOOLE_MAX_REQUEST` (default `10000`) restarts a worker after about that many requests: each worker picks its limit between that number and half as much again, so workers that started together do not leave together. `0` turns it off. It bounds slow leaks. It does nothing for a worker that stops taking requests, for example one wedged on a blocking read: that worker never reaches the count.
 
 With two or more workers a worker warns its clients before it goes. Near its limit it answers with `Connection: close`, and it leaves 100 ms later. A client that honours the header reconnects to another worker and loses nothing. A connection that was idle in those 100 ms hears nothing and is closed as the worker leaves, and a request longer than that hears nothing either, so slow routes gain less from this than fast ones.
 
