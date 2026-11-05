@@ -187,6 +187,16 @@ window.SemitexaUi.onCapture(fn)    // register listener; returns unsubscribe()
 
 **Part-element lookup**: the runtime first looks for `[data-ui-part="<part-name>"]` inside the component root (canonical — emitted by the server-side `ui_part()` Twig helper), then falls back to `[ui="<part-name>"]` for legacy templates that render the primitive directly via `primitive()` + `ui_part_props()`. The canonical path decouples the UiPart name from the primitive's `ui` alias, so a part can be named freely (e.g. `UiPart(name: 'main', uses: InputPrimitive::class)`) without breaking the runtime.
 
+**Rows that come and go**: a re-render morphs the DOM and pairs elements by `id`, then `data-key`, then `data-ui-part`, and otherwise by position. A part repeated across rows is paired by position, so removing a row moves a half-typed draft and the caret onto the next one, or loses them. Give each such row a stable key, unique among its siblings. An `id` on the row must come from the same stable value, not from its position, because `id` is paired first:
+
+```twig
+{% for line in lines %}
+    <li data-key="{{ line.id }}">...</li>
+{% endfor %}
+```
+
+A row that remains keeps its element and takes the server's markup. Only the control with focus keeps what was typed: a draft in any other field is replaced by the value the server sends, so a value worth keeping has to reach the server first. A row that moves keeps its focus without firing a `#[UiOn]` handler.
+
 ## KISS and HUG: the whole transport
 
 Two doors carry every byte between a page and the server, by design:
