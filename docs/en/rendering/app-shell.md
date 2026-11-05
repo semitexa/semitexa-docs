@@ -80,7 +80,7 @@ document.addEventListener('semitexa:navigation:swapped', (event) => {
 
 `committed` also carries `title` and `regions`. It can come late, because it waits for external scripts in the region, and it does not come at all when one of them fails to load or takes more than a second: the URL then goes back to the browser. A script that loads and then throws does not stop it.
 
-Register these listeners in an external script outside the regions, which runs once. A script inside a region runs after `swapped` has fired, so it would miss the swap that brought it, and a classic one runs again each time its region comes back, adding one more listener to `document` every time; an external module runs only once. A region script does its setup where it stands, when it runs. An inline script outside the regions of the arriving page does not run at all: of what stands there, only external files are loaded.
+Register these listeners in an external script outside the regions, which runs once. A script inside a region runs after `swapped` has fired, so it would miss the swap that brought it, and a classic one runs again each time its region comes back, adding one more listener to `document` every time; an external module runs only once. A region script does its setup where it stands, when it runs. An inline script outside the regions of the arriving page does not run at all: of what stands there, only external files are loaded. Those load before the swap, whatever their place in the document, so one that needs a script in a region or its markup belongs in the region too.
 
 ## One authority, not two negotiating
 
