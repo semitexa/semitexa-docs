@@ -27,7 +27,7 @@ These are the numbers of one release on one machine. They are here so a later re
 - **Server:** 4 workers, `SWOOLE_MAX_REQUEST=10000`, MySQL and Redis on the same host.
 - **Machine:** a laptop, Intel Core i7-1185G7 (4 cores, 8 threads), 31 GB of memory, otherwise idle.
 - **Load:** `bin/semitexa dev:bench`, on the same machine as the server, so the load generator takes CPU from it.
-- **Method:** a closed loop over keep-alive connections, opened 10 ms apart. Each route and level ran 5 windows of 10 seconds after a warm-up, and the table shows the median window.
+- **Method:** a closed loop over keep-alive connections, opened 10 ms apart. Each route and level ran 5 windows of 10 seconds after a 2-second warm-up, the defaults but for `--repeat`, and the table shows the median window.
 
 ## Results
 
