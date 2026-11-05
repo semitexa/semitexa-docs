@@ -60,6 +60,7 @@ handler, a JSON response class and a Resource DTO.
 | --- | --- |
 | `searchable()` fields | `?q=` searches them (`LIKE`, pushed down to SQL) |
 | `sortable()` fields | `?sort=field` / `-field` |
+| `defaultSort` on the route | the order a request with no `?sort=` gets, and the one the grid starts in. The field must be sortable, or the feed refuses to declare |
 | `filterable()` fields | `?filter=field:op:value`, with the operators of the field's [type](field-types.md) (`eq`, `in`, `contains`, and the range ends `gte` / `lte`) |
 | a filterable number, date or moment | a range: the grid shows "from" and "to" inputs (`?filter=price:gte:10;price:lte:20`). A moment's "to" a day includes that whole day (UTC), and an end that is not a number or a real day is a typed 400 |
 | a filterable `choice` | its options served as `meta.filterOptions`, so the grid shows a select |
@@ -71,6 +72,9 @@ refreshes live, through the one KISS stream, with no publish code.
 
 A field reads the model property of the same name, or its snake_case twin (`createdAt` reads
 `created_at`). Set `->set('property', 'other_name')` to read something else.
+
+A model whose primary key is not called `id` lists it as `Field::id('code')`. Paging and equal
+sort values fall back to the primary key, whatever its name.
 
 The row is JSON-plain: a moment is written `Y-m-d H:i:s` in UTC, an enum as its value. A value
 that cannot be a cell (an object, an array) fails with a message rather than rendering
@@ -89,6 +93,9 @@ public function row(object $model, UiFieldSet $fields): array
     return parent::row($model, $fields) + ['region' => explode(' · ', $model->label)[1] ?? ''];
 }
 ```
+
+`query()` narrows; it does not order. An `orderBy()` here runs before the request's sort and
+outranks the column the visitor clicked, so set `defaultSort` on the route instead.
 
 ## Tenancy
 
