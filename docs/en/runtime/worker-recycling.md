@@ -33,7 +33,13 @@ With `SEMITEXA_METRICS_ENABLED=1`, `/metrics` shows the figures of the worker th
 
 ## Recycling after N requests
 
-`SWOOLE_MAX_REQUEST` (default `10000`) restarts a worker after that many finished requests. It bounds slow leaks. It does nothing for a worker that stops finishing requests, for example one wedged on a blocking read: that worker never reaches the count.
+`SWOOLE_MAX_REQUEST` (default `10000`) restarts a worker after about that many requests: each worker picks its limit between that number and half as much again, so workers that started together do not leave together. `0` turns it off. It bounds slow leaks. It does nothing for a worker that stops finishing requests, for example one wedged on a blocking read: that worker never reaches the count.
+
+With two or more workers a worker warns its clients before it goes. Near its limit it answers with `Connection: close`, and it leaves 100 ms later. A client that honours the header reconnects to another worker and loses nothing. A connection that was idle in those 100 ms hears nothing and is closed as the worker leaves, and a request longer than that hears nothing either, so slow routes gain less from this than fast ones.
+
+A keep-alive connection also ends after a tenth of `SWOOLE_MAX_REQUEST` requests, so load keeps reaching the worker that replaced the last one. Without that, clients stay on the workers they moved to and the new one sits idle. Whenever a response says `Connection: close`, the server closes the connection a second later if the client has not.
+
+With one worker Swoole recycles it with no warning: see [Run at least two workers](#run-at-least-two-workers).
 
 ## The memory watchdog
 
@@ -55,4 +61,4 @@ Whatever started it (the request count, the watchdog, a reload), a leaving worke
 - A request being answered, and any coroutine it spawned, is left to finish for up to nine seconds: one second less than `SWOOLE_MAX_WAIT_TIME` (10 by default, 2 to 300), the time the manager waits before it kills the worker. One still running after that is cancelled and answers 500. It was two seconds of three until October 2026: a long request (a slow report, a sync chain of handlers) was cancelled at every recycle. A stream is cut at once whatever the setting, so only requests hold a leaving worker that long; raise it for routes that run longer, and expect `server:stop` and a reload to wait as long for a request still running. Docker waits `stop_grace_period` (30 s in the project's `docker-compose.yml`) before it kills the container, so a value above about 25 needs that raised too, or the kill lands on the server's own shutdown.
 - An SSE stream is cancelled at once: it would never end by itself.
 
-A connection that reaches a worker at the instant it exits can still get an empty reply. That happens inside Swoole, and the client should retry it as any dropped connection.
+A connection that reaches a worker as it leaves can still get an empty reply. That happens inside Swoole, and the client should retry it as any dropped connection.
