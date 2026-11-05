@@ -72,11 +72,12 @@ Applies to: class
 | `defaultSort` | `string` | no |
 
 ```php
-#[AsCrud(id: 'test.gadgets', path: '/crud/gadgets', model: CrudGadgetModel::class, label: 'Gadget', permission: 'gadgets', nav: 'Shop')]
-final class GadgetCrudFixture extends CrudDefinition
+        #[AsCrud(id: 'shop.products', path: '/products', model: ProductResource::class, label: 'Product',
+            permission: 'catalog', nav: 'Content', defaultSort: '-updatedAt')]
+        final class ProductCrud extends CrudDefinition
 ```
 
-— `vendor/semitexa/crud/tests/Unit/CrudScreenTest.php`
+— `vendor/semitexa/crud/src/Attribute/AsCrud.php`
 
 ## `#[AsCrudAction]`
 
@@ -114,9 +115,10 @@ Applies to: class
 | `doc` | `string` | no |
 
 ```php
-#[AsSettingsPage(id: 'test.shop', path: '/settings/shop', title: 'Shop', group: 'shop', permission: 'shop.settings', nav: 'Admin', order: 1)]
-final class ShopSettingsFixture extends SettingsDefinition
+        #[AsSettingsPage(id: 'shop.store', path: '/settings/store', title: 'Store', group: 'shop',
+            permission: 'settings.manage', nav: 'Account')]
+        final class StoreSettings extends SettingsDefinition
 ```
 
-— `vendor/semitexa/crud/tests/Unit/SettingsPageTest.php`
+— `vendor/semitexa/crud/src/Attribute/AsSettingsPage.php`
 
