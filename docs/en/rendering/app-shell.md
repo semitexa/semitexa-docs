@@ -14,6 +14,8 @@ keywords:
   - SemitexaNavigation
   - registerRegion()
   - data-nav="off"
+  - semitexa:navigation:swapped
+  - semitexa:navigation:committed
 ---
 # App Shell
 
@@ -54,6 +56,29 @@ That is the whole consumer-facing surface. A request carrying `X-Semitexa-Shell:
 - cross-fades the old region into the new with a **view transition** when the app opted in (`<body data-app-view-transitions>`, which the app-shell layout sets from `appViewTransitions`), the browser has one, and motion is not reduced. The synchronous commit — history and DOM together — runs inside the transition's update callback, and the navigation token is checked again there. An app that did not opt in keeps the immediate swap.
 
 `data-nav="off"` on a link is the escape hatch: a sign-out, a download, a different app.
+
+### What the page does after a swap
+
+A swap replaces regions, and what lives outside them stays: a component in the sidebar, a feed in the top bar. The arriving page still gets its own session and stream. The envelope carries the page's `semitexa-ui-sse-session` and `semitexa-ui-transport-mode` metas, and the client moves everything over:
+
+- deferred slots of the arriving page fill as on a full load, and the old page's stream closes;
+- a feed outside the regions moves to the new session. On a page with no session it pulls until a live page comes back;
+- a component outside the regions keeps the context it was drawn with, which names the first page's session. The client says which session it listens on, and the answer to that component's event comes back in the response instead of over a stream that is gone.
+
+Two events tell your own script where a swap has got to:
+
+| Event | When | Use it for |
+|---|---|---|
+| `semitexa:navigation:swapped` | The regions, title and metas are in place, before the region's scripts run | Anything that has to follow the page's session: a stream, a subscription |
+| `semitexa:navigation:committed` | The region's scripts have finished | Anything that needs those scripts: reading what they drew, analytics |
+
+```js
+document.addEventListener('semitexa:navigation:swapped', (event) => {
+    console.log('now on', event.detail.url);
+});
+```
+
+`committed` also carries `title` and `regions`. It can come late, because it waits for external scripts in the region, and it does not come at all when one of them fails: the URL then goes back to the browser.
 
 ## One authority, not two negotiating
 
