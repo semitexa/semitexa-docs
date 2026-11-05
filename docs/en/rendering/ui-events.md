@@ -195,7 +195,7 @@ window.SemitexaUi.onCapture(fn)    // register listener; returns unsubscribe()
 {% endfor %}
 ```
 
-A row that remains keeps its element and takes any change in the server's markup. One that moves keeps its focus without firing a `#[UiOn]` handler.
+A row that remains keeps its element and takes the server's markup. Only the control with focus keeps what was typed: a draft in any other field is replaced by the value the server sends, so a value worth keeping has to reach the server first. A row that moves keeps its focus without firing a `#[UiOn]` handler.
 
 ## KISS and HUG: the whole transport
 
