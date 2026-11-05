@@ -37,9 +37,9 @@ With `SEMITEXA_METRICS_ENABLED=1`, `/metrics` shows the figures of the worker th
 
 With two or more workers a worker warns its clients before it goes. Near its limit it answers with `Connection: close`, and it leaves 100 ms later. A client that honours the header reconnects to another worker and loses nothing. A connection that was idle in those 100 ms hears nothing and is closed as the worker leaves, and a request longer than that hears nothing either, so slow routes gain less from this than fast ones.
 
-A keep-alive connection also ends after a tenth of `SWOOLE_MAX_REQUEST` requests, so load keeps reaching the worker that replaced the last one. Without that, clients stay on the workers they moved to and the new one sits idle. Whenever a response says `Connection: close`, the server closes the connection a second later if the client has not.
+A keep-alive connection also ends after a tenth of `SWOOLE_MAX_REQUEST` requests, so load keeps reaching the worker that replaced the last one. Without that, clients stay on the workers they moved to and the new one sits idle. A connection the worker told to go this way is closed by the server a second later if the client has not left, unless a stream is still writing to it.
 
-With one worker Swoole recycles it with no warning: see [Run at least two workers](#run-at-least-two-workers).
+With one worker and a limit set, Swoole recycles it with no warning: see [Run at least two workers](#run-at-least-two-workers).
 
 ## The memory watchdog
 
