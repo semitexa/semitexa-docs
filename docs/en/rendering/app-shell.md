@@ -63,7 +63,7 @@ A swap replaces regions, and what lives outside them stays: a component in the s
 
 - deferred slots of the arriving page fill as on a full load, and the old page's stream closes;
 - a feed outside the regions moves to the new session. On a page with no session it pulls until a live page comes back;
-- a component outside the regions keeps the context it was drawn with, which names the first page's session. The client says which session it listens on, and the answer to that component's event comes back in the response instead of over a stream that is gone.
+- a component outside the regions keeps the context it was drawn with, which names the first page's session. The client says which session it listens on, and the answer to that component's event comes back in the response instead of over a stream that is gone. When that context expires, the component redraws itself on its next event, as it does on any page.
 
 Two events tell your own script where a swap has got to:
 
@@ -78,7 +78,9 @@ document.addEventListener('semitexa:navigation:swapped', (event) => {
 });
 ```
 
-`committed` also carries `title` and `regions`. It can come late, because it waits for external scripts in the region, and it does not come at all when one of them fails: the URL then goes back to the browser.
+`committed` also carries `title` and `regions`. It can come late, because it waits for external scripts in the region, and it does not come at all when one of them fails to load: the URL then goes back to the browser. A script that loads and then throws does not stop it.
+
+Register these listeners in a script outside the regions, which runs once. A script inside a region runs after `swapped` has fired, so it would miss the swap that brought it, and it runs again each time its region comes back, adding one more listener to `document` every time. A region script does its setup where it stands, when it runs.
 
 ## One authority, not two negotiating
 
