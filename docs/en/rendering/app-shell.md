@@ -70,7 +70,7 @@ Two events tell your own script where a swap has got to:
 | Event | When | Use it for |
 |---|---|---|
 | `semitexa:navigation:swapped` | The regions, title and metas are in place, before the region's scripts run | Anything that has to follow the page's session: a stream, a subscription |
-| `semitexa:navigation:committed` | The region's external scripts have loaded and inline ones have started | Anything that needs those scripts: reading what they drew, analytics |
+| `semitexa:navigation:committed` | The region's external scripts have loaded and classic inline ones have run; an inline module may still be pending | Anything that needs those scripts: reading what they drew, analytics |
 
 ```js
 document.addEventListener('semitexa:navigation:swapped', (event) => {
