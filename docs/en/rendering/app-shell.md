@@ -62,7 +62,7 @@ That is the whole consumer-facing surface. A request carrying `X-Semitexa-Shell:
 A swap replaces regions, and what lives outside them stays: a component in the sidebar, a feed in the top bar. The arriving page still gets its own session and stream. The envelope carries the page's `semitexa-ui-sse-session` and `semitexa-ui-transport-mode` metas, and the client moves everything over:
 
 - deferred slots of the arriving page fill as on a full load, and the old page's stream closes;
-- a feed outside the regions moves to the new session. On a page with no session it pulls until a live page comes back;
+- a feed outside the regions moves to the new session. On a page with no session it pauses, a grid fetching its rows once, and the next live page resumes it with the current view. A feed first opened on a page with no session stays on pull;
 - a component outside the regions keeps the context it was drawn with, which names the first page's session. The client says which session it listens on, and the answer to that component's event comes back in the response instead of over a stream that is gone. When that context expires, the component redraws itself on its next event, as it does on any page.
 
 Two events tell your own script where a swap has got to:
@@ -70,7 +70,7 @@ Two events tell your own script where a swap has got to:
 | Event | When | Use it for |
 |---|---|---|
 | `semitexa:navigation:swapped` | The regions, title and metas are in place, before the region's scripts run | Anything that has to follow the page's session: a stream, a subscription |
-| `semitexa:navigation:committed` | The region's scripts have finished | Anything that needs those scripts: reading what they drew, analytics |
+| `semitexa:navigation:committed` | The region's external scripts have loaded and inline ones have started | Anything that needs those scripts: reading what they drew, analytics |
 
 ```js
 document.addEventListener('semitexa:navigation:swapped', (event) => {
@@ -78,9 +78,9 @@ document.addEventListener('semitexa:navigation:swapped', (event) => {
 });
 ```
 
-`committed` also carries `title` and `regions`. It can come late, because it waits for external scripts in the region, and it does not come at all when one of them fails to load: the URL then goes back to the browser. A script that loads and then throws does not stop it.
+`committed` also carries `title` and `regions`. It can come late, because it waits for external scripts in the region, and it does not come at all when one of them fails to load or takes more than a second: the URL then goes back to the browser. A script that loads and then throws does not stop it.
 
-Register these listeners in a script outside the regions, which runs once. A script inside a region runs after `swapped` has fired, so it would miss the swap that brought it, and it runs again each time its region comes back, adding one more listener to `document` every time. A region script does its setup where it stands, when it runs.
+Register these listeners in an external script outside the regions, which runs once. A script inside a region runs after `swapped` has fired, so it would miss the swap that brought it, and a classic one runs again each time its region comes back, adding one more listener to `document` every time; an external module runs only once. A region script does its setup where it stands, when it runs. An inline script outside the regions of the arriving page does not run at all: of what stands there, only external files are loaded.
 
 ## One authority, not two negotiating
 
