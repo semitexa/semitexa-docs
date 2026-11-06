@@ -73,6 +73,7 @@ bin/semitexa dev:graph:capabilities
 | option | takes a value |
 |---|---|
 | `--json` | no |
+| `--search` | yes |
 
 ## `dev:graph:event`
 
