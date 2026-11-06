@@ -644,7 +644,7 @@ bin/semitexa ai:work "<action>"
 
 ## `ai:work:approve`
 
-Approve a task or a whole epic for implementation, or return it to ideas; only approved tasks count towards progress
+Approve a task or a whole epic for implementation, or return it to ideas; approved tasks and bugs count towards progress
 
 ```bash
 bin/semitexa ai:work:approve
