@@ -62,6 +62,22 @@ bin/semitexa ai:ask ["subject"]
 | `--state` | yes |
 | `--json` | no |
 
+## `ai:audit`
+
+Record that right or fast was audited, and what it covered, so an empty phase reads as clean and not as unread: record | list
+
+```bash
+bin/semitexa ai:audit "<action>"
+```
+
+| option | takes a value |
+|---|---|
+| `--phase` | yes |
+| `--covered` | yes |
+| `--by` | yes |
+| `--with-framework` | no |
+| `--json` | no |
+
 ## `ai:backlog`
 
 Backlog hygiene: stats + cleanup proposals (dry-run; --apply to commit)
