@@ -186,6 +186,19 @@ bin/semitexa ai:invoke
 | `--expect-field` | yes |
 | `--preview` | no |
 
+## `ai:make-it`
+
+What to do next in this project: interview on an empty backlog, the next approved task with its steps, ideas to offer, or all done
+
+```bash
+bin/semitexa ai:make-it
+```
+
+| option | takes a value |
+|---|---|
+| `--with-framework` | no |
+| `--json` | no |
+
 ## `ai:observe`
 
 Observatory for agents: ps (live snapshot) | tail (journal rows, --follow streams) | show --id (one process + its trace) | timeline [--id] (a page: its UI events, stream frames, re-runs)
