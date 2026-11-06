@@ -617,6 +617,7 @@ bin/semitexa ai:work "<action>"
 | `--title` | yes |
 | `--recipe` | yes |
 | `--risk` | yes |
+| `--phase` | yes |
 | `--status` | yes |
 | `--scope` | yes |
 | `--take-over` | no |
