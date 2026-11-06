@@ -517,20 +517,15 @@ bin/semitexa ai:skills
 
 ## `ai:state`
 
-The project state, work · right · fast: done over approved tasks per phase, for ./src, with the framework on request: show | score
+The project state, work · right · fast: done over approved tasks per phase, for ./src, with the framework on request
 
 ```bash
-bin/semitexa ai:state ["action"]
+bin/semitexa ai:state
 ```
 
 | option | takes a value |
 |---|---|
 | `--with-framework` | no |
-| `--criterion` | yes |
-| `--points` | yes |
-| `--evidence` | yes |
-| `--by` | yes |
-| `--expires` | yes |
 | `--json` | no |
 
 ## `ai:task`
