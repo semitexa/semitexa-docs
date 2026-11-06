@@ -504,7 +504,7 @@ bin/semitexa ai:skills
 
 ## `ai:state`
 
-The project state, work · right · fast: every criterion with its points, evidence, age and expiry, and what would raise each phase most: show | score
+The project state, work · right · fast: done over approved tasks per phase, for ./src, with the framework on request: show | score
 
 ```bash
 bin/semitexa ai:state ["action"]
@@ -512,6 +512,7 @@ bin/semitexa ai:state ["action"]
 
 | option | takes a value |
 |---|---|
+| `--with-framework` | no |
 | `--criterion` | yes |
 | `--points` | yes |
 | `--evidence` | yes |
