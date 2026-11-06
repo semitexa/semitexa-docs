@@ -213,6 +213,8 @@ bin/semitexa ai:make-it
 | option | takes a value |
 |---|---|
 | `--with-framework` | no |
+| `--phase` | yes |
+| `--except` | yes |
 | `--json` | no |
 
 ## `ai:observe`
