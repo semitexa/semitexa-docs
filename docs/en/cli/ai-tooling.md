@@ -302,9 +302,11 @@ A passing test does not see the page. When a template or a stylesheet changes, `
 - a package's file opens that package's pages;
 - a file with no pages of its own, such as the theme or a layout, opens the project's pages.
 
+For a template, the module is what chooses the page, not proof that the page renders that template. For a stylesheet, a page counts only when it loads the stylesheet in both modes. Make sure a page that shows your template is in the list.
+
 The shortest paths come first, and at most **8** pages are opened. Pages past the cap are not checked. `bin/semitexa ai:verify --files=… --list-pages` prints the list. Open the rest yourself when the change reaches further.
 
-**When it is not a pass.** A page counts as checked only when the change could show on it. These are reported as incomplete, never as a pass:
+**When it is not a pass.** A page counts as checked only when the change could show on it. A finding in either mode fails the page, even when the other mode could not be checked. Without a finding, these are reported as incomplete, never as a pass:
 
 - a page that could not be reached;
 - a page seen in one mode only;
@@ -312,6 +314,8 @@ The shortest paths come first, and at most **8** pages are opened. Pages past th
 - a page that does not load the stylesheet that changed.
 
 What the browser saw stays under `var/run/verify-e2e/<run>/pages/`, a screenshot per page and mode included.
+
+**The page check needs a matching `bin/semitexa`.** The launcher, not the app, opens the pages. `bin/semitexa update` replaces the launcher together with semitexa/dev. A launcher you edited is left alone: `bin/semitexa update --write-scaffold-candidates` writes the new one beside it as `bin/semitexa.new` to merge. Until you merge it, every page is reported as incomplete and the reason names what is missing.
 
 ## Report framework defects with evidence
 
