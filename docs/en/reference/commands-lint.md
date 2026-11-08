@@ -42,7 +42,7 @@ bin/semitexa lint:components
 
 ## `lint:css-tokens`
 
-Fail when CSS or a template under src/ uses a --ui-* token that no stylesheet under src/, packages/ or vendor/semitexa/ declares
+Fail when CSS or a template outside vendor/ uses a --ui-* token that no stylesheet under src/, packages/ or vendor/semitexa/ declares (node_modules and nested vendor/ are not read; in a template only <style> and style="" declare)
 
 ```bash
 bin/semitexa lint:css-tokens
