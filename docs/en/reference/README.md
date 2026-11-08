@@ -16,7 +16,7 @@ verified_against: 2026.11.05.1529
 
 What each part of the public surface is, generated from the code itself.
 
-This installation exposes 142 attributes, 237 commands and 13 events.
+This installation exposes 142 attributes, 238 commands and 13 events.
 
 Reference says what a thing is. For when you would want it, see the guides under `en/`.
 

@@ -283,6 +283,40 @@ Semitexa classifies the changed files and selects the relevant checks. Depending
 
 Verification runs in a fresh CLI process and sees saved files immediately. Restart the server only before exercising the long-running HTTP worker through a browser, `curl`, or E2E test.
 
+### What a person sees
+
+A passing test does not see the page. When a template or a stylesheet changes, `bin/semitexa ai:verify` also opens the pages it shows on:
+
+- **Where:** in the e2e-runner on the host, against the app that is already running. Verify never starts or restarts the app.
+- **How:** in light and in dark. A colour that fails only in dark is a real bug.
+- **What it checks:** axe checks contrast, labels, names, the title and the language. The page check adds what axe does not see:
+  - a page that uses `--ui-*` tokens with no skin linked;
+  - a form field with no edge;
+  - text against the window;
+  - console errors;
+  - an HTTP status of 400 or more.
+
+**Which pages.** Only public GET routes that need no parameter, produce HTML and do not act when opened (logout, a sign-in start, submit…):
+
+- a file in a module opens that module's pages;
+- a package's file opens that package's pages;
+- a file with no pages of its own, such as the theme or a layout, opens the project's pages.
+
+For a template, the module is what chooses the page, not proof that the page renders that template. For a stylesheet, a page counts only when it loads the stylesheet in both modes. Make sure a page that shows your template is in the list.
+
+The shortest paths come first, and at most **8** pages are opened. Pages past the cap are not checked. `bin/semitexa ai:verify --files=… --list-pages` prints the list. Open the rest yourself when the change reaches further.
+
+**When it is not a pass.** A page counts as checked only when the change could show on it. A finding in either mode fails the page, even when the other mode could not be checked. Without a finding, these are reported as incomplete, never as a pass:
+
+- a page that could not be reached;
+- a page seen in one mode only;
+- a page that redirected elsewhere, such as to a sign-in page;
+- a page that does not load the stylesheet that changed.
+
+What the browser saw stays under `var/run/verify-e2e/<run>/pages/`, a screenshot per page and mode included.
+
+**The page check needs a matching `bin/semitexa`.** The launcher, not the app, opens the pages. `bin/semitexa update` replaces the launcher together with semitexa/dev. A launcher you edited is left alone: `bin/semitexa update --write-scaffold-candidates` writes the new one beside it as `bin/semitexa.new` to merge. Until you merge it, every page is reported as incomplete and the reason names what is missing.
+
 ## Report framework defects with evidence
 
 When a project must work around a Semitexa defect, capture the defect as part of the fix:

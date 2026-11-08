@@ -600,6 +600,7 @@ bin/semitexa ai:verify
 | `--json` | no |
 | `--impact` | no |
 | `--list-e2e` | no |
+| `--list-pages` | no |
 
 ## `ai:verify:receipt`
 
