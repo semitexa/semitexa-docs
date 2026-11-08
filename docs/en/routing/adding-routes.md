@@ -189,6 +189,15 @@ If no route matches the request, or a handler throws `Semitexa\Core\Http\Excepti
 
 ---
 
+## Sign-in page for guests on protected pages (error.401 route)
+
+A page a guest must not see is `#[AsProtectedPayload]`: the auth gate refuses the guest before the page's handler runs. When that refusal reaches a browser (an HTML request), the framework looks for a **named route** `error.401` (`RoutePhase::ROUTE_NAME_401`) and runs it the way it runs `error.404`. Register one in the module that owns sign-in and render the sign-in form there; `ErrorPageContext::$requestPath` is the page the guest asked for, so the form can send them back after signing in. The response keeps status 401. Without the route the built-in 401 page is served; JSON and other non-HTML clients get the usual 401 body either way.
+
+- **Register a Payload** with `name: 'error.401'`, marked `#[AsPublicPayload]` (a guest has to be able to see it), plus a Response and handler that render the sign-in form.
+- **Do not** make a page public and branch on "is there a user" in its handler or template to greet guests. That page is open to anyone; keep it protected and let `error.401` do the greeting.
+
+---
+
 ## Common mistakes / FAQ
 
 **My payload in `src/` routes, but no tooling sees it.**  
