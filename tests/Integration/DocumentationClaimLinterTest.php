@@ -255,6 +255,33 @@ MD);
         );
     }
 
+    #[Test]
+    public function a_project_page_is_one_key_whether_named_relative_or_absolute(): void
+    {
+        // ai:verify names a changed page absolutely (/app/docs/guide.md); a
+        // person writing a baseline types --path=docs/guide.md. Read one way, a
+        // baseline written the other way reported its accepted findings as new.
+        $linter = new DocumentationClaimLinter();
+        $finding = ['kind' => 'attribute', 'claim' => 'AsInvented'];
+
+        foreach (['docs/guide.md', 'client/ubuntu/README.md'] as $page) {
+            self::assertSame(
+                $linter->fingerprint($finding + ['file' => $page], '/app'),
+                $linter->fingerprint($finding + ['file' => '/app/' . $page], '/app'),
+                $page,
+            );
+        }
+        // A corpus page keeps the key existing baselines hold.
+        self::assertSame(
+            'attribute:AsInvented@en/routing/basic.md',
+            $linter->fingerprint($finding + ['file' => '/app/vendor/semitexa/docs/docs/en/routing/basic.md'], '/app'),
+        );
+        self::assertSame(
+            'attribute:AsInvented@en/routing/basic.md',
+            $linter->fingerprint($finding + ['file' => '/app/packages/semitexa-docs/docs/en/routing/basic.md'], '/app'),
+        );
+    }
+
     /**
      * @return list<array<string, mixed>>
      */

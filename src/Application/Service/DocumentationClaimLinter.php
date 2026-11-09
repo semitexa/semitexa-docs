@@ -550,7 +550,18 @@ final class DocumentationClaimLinter
      */
     public function fingerprint(array $finding, string $relativeTo = ''): string
     {
-        return $finding['kind'] . ':' . $finding['claim'] . '@' . $this->documentPath((string) $finding['file']);
+        // From the project root first: a page named as `--path=docs/guide.md`
+        // and as `/var/www/html/docs/guide.md` (how ai:verify names a changed
+        // page) is one page, and must be one key, or a baseline written one way
+        // reports its accepted findings as new when read the other. Corpus
+        // pages keep the key they had (`en/x.md`), whichever root they sit under.
+        $file = (string) $finding['file'];
+        $root = rtrim($relativeTo, '/');
+        if ($root !== '' && str_starts_with($file, $root . '/')) {
+            $file = substr($file, strlen($root) + 1);
+        }
+
+        return $finding['kind'] . ':' . $finding['claim'] . '@' . $this->documentPath($file);
     }
 
     /**
