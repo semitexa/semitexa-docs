@@ -48,6 +48,24 @@ component('platform.field', {
 
 **Ordering**: first-failure-wins. The first rule whose `validate()` returns a non-null result short-circuits the pipeline. When all rules pass the validator returns a valid result with the configured success message (default: `Looks good.`).
 
+**The field's own words** — `messages` maps a rule name to the text that field shows when the rule fails, in place of the built-in English message; `valid` replaces `Looks good.`, and `''` clears the message slot when the value passes. Pass the text already translated; the app's templates have `trans()`:
+
+```php
+component('platform.field', {
+    label: trans('signup.username'),
+    name: 'username',
+    showValidationTarget: true,
+    rules: ['required', ['minLength', 3]],
+    messages: {
+        required: trans('form.required'),      // "Обов'язкове поле"
+        minLength: trans('form.min_3'),        // "Щонайменше 3 символи"
+        valid: '',
+    },
+})
+```
+
+The text is signed into each rule's spec (as `m`) with the rules themselves, so the client cannot change it, and the same text comes back on the live check and on submit: a field inside `platform.form` with `autoFields: true` carries it, and an entry of the form's own `fields:` prop takes the same `messages` key. A rule without an entry keeps its built-in message. The text is shown as it is written (no `{min}` placeholders), at most 500 characters each and 2048 bytes for all of a field's messages together (they ride in the signed context). `valid` belongs to the field itself: a submit clears the success text, so the form's `fields:` entries refuse it. A message for a rule the field does not have fails the render (`names rule "requierd", which the field does not have`), so a typo cannot fall back to English silently. For `sameAsField`, `messages.sameAsField` replaces every failure of the rule, the "complete the related field first" case included; its third parameter still works where no `messages` entry is given. Needs semitexa/platform-ui from the first release tagged after 2026.11.08.0141.
+
 **Rule interface** — `Semitexa\PlatformUi\Application\Service\Validation\UiFieldValidationRuleInterface`:
 
 ```php
