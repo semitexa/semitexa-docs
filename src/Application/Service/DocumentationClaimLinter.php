@@ -565,6 +565,24 @@ final class DocumentationClaimLinter
     }
 
     /**
+     * Every key a baseline may hold this finding under: today's, and the one
+     * written before the project root was stripped (2026-11-10). A project page
+     * under docs/ named absolutely keyed then as `@guide.md`, now as
+     * `@docs/guide.md`; a baseline recorded the old way must keep matching, or
+     * the change reports every finding it holds as new. New baselines are
+     * written with fingerprint() alone.
+     *
+     * @param array<string, mixed> $finding
+     * @return list<string>
+     */
+    public function baselineKeys(array $finding, string $relativeTo = ''): array
+    {
+        $legacy = $finding['kind'] . ':' . $finding['claim'] . '@' . $this->documentPath((string) $finding['file']);
+
+        return array_values(array_unique([$this->fingerprint($finding, $relativeTo), $legacy]));
+    }
+
+    /**
      * The path from the corpus root, not from the project root.
      *
      * The same page is `packages/semitexa-docs/docs/en/x.md` in the monorepo and

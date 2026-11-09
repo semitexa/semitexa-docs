@@ -256,6 +256,19 @@ MD);
     }
 
     #[Test]
+    public function a_baseline_written_before_the_root_was_stripped_still_matches(): void
+    {
+        // Recorded for /app/docs/guide.md by the previous linter: key @guide.md.
+        $linter = new DocumentationClaimLinter();
+        $finding = ['kind' => 'attribute', 'claim' => 'AsInvented', 'file' => '/app/docs/guide.md'];
+        $oldBaseline = ['attribute:AsInvented@guide.md'];
+
+        self::assertSame('attribute:AsInvented@docs/guide.md', $linter->fingerprint($finding, '/app'));
+        self::assertNotSame([], array_intersect($linter->baselineKeys($finding, '/app'), $oldBaseline));
+        self::assertContains($linter->fingerprint($finding, '/app'), $linter->baselineKeys($finding, '/app'));
+    }
+
+    #[Test]
     public function a_project_page_is_one_key_whether_named_relative_or_absolute(): void
     {
         // ai:verify names a changed page absolutely (/app/docs/guide.md); a

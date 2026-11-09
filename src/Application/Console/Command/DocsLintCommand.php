@@ -88,11 +88,11 @@ final class DocsLintCommand extends BaseCommand
         if ($baseline !== []) {
             $findings = array_values(array_filter(
                 $findings,
-                fn (array $finding): bool => !in_array(
-                    $this->linter->fingerprint($finding, $projectRoot),
+                // Today's key or the one an older baseline was written with.
+                fn (array $finding): bool => array_intersect(
+                    $this->linter->baselineKeys($finding, $projectRoot),
                     $baseline,
-                    true,
-                ),
+                ) === [],
             ));
         }
 
