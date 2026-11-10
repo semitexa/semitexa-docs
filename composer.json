@@ -27,6 +27,11 @@
         "semitexa-module": {
             "name": "Semitexa Docs",
             "description": "Canonical Semitexa documentation content and runtime document services"
+        },
+        "semitexa": {
+            "floors": {
+                "semitexa/core": "next"
+            }
         }
     },
     "keywords": [
