@@ -110,8 +110,10 @@ use Semitexa\Core\Auth\PayloadAccessType;
     access: PayloadAccessType::Public, reason: 'the public price list')]
 ```
 
-A public feed's live updates reach guests too, with no `SSE_PUBLIC_ANONYMOUS`: the grid subscribes
-on its own channel id, not on the anonymous page stream.
+A public feed's live updates reach guests too, with no `SSE_PUBLIC_ANONYMOUS`. There is no
+connection per feed: the grid subscribes on the page's shared stream with its own subscriber
+channel id, and the stream admits that for a guest. Where the page has no stream to subscribe on,
+the grid falls back to plain GET requests and shows no live updates.
 
 `Public` without a `reason` is refused, and so is `Service`, because a grid reads its feed with a
 browser session. A feed over admin rows names who may read them. Signed in alone is not enough for
