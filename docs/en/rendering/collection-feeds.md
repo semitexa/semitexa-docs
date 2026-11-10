@@ -104,13 +104,25 @@ does its live channel: every subscriber is checked with its own session, on subs
 refresh. A feed behind a public page says so, and why:
 
 ```php
+use Semitexa\Core\Auth\PayloadAccessType;
+
 #[AsCollectionFeed(path: '/prices/feed', name: 'prices.feed', model: PriceResource::class,
     access: PayloadAccessType::Public, reason: 'the public price list')]
 ```
 
+A public feed's live updates reach guests too, with no `SSE_PUBLIC_ANONYMOUS`: the grid subscribes
+on its own channel id, not on the anonymous page stream.
+
 `Public` without a `reason` is refused, and so is `Service`, because a grid reads its feed with a
-browser session. A feed over admin rows names who may read them with
-`#[RequiresPermission('orders.read')]` on the class. Signed in alone is not enough for those.
+browser session. A feed over admin rows names who may read them. Signed in alone is not enough for
+those:
+
+```php
+use Semitexa\Authorization\Attribute\RequiresPermission;
+
+#[AsCollectionFeed(path: '/admin/orders/feed', name: 'admin.orders.feed', model: OrderResource::class)]
+#[RequiresPermission('orders.read')]
+```
 
 ## Tenancy
 
