@@ -97,6 +97,35 @@ public function row(object $model, UiFieldSet $fields): array
 `query()` narrows; it does not order. An `orderBy()` here runs before the request's sort and
 outranks the column the visitor clicked, so set `defaultSort` on the route instead.
 
+## Who may read it
+
+A feed is for signed-in visitors unless it says otherwise. A guest asking for it gets 401, and so
+does its live channel: every subscriber is checked with its own session, on subscribe and on each
+refresh. A feed behind a public page says so, and why:
+
+```php
+use Semitexa\Core\Auth\PayloadAccessType;
+
+#[AsCollectionFeed(path: '/prices/feed', name: 'prices.feed', model: PriceResource::class,
+    access: PayloadAccessType::Public, reason: 'the public price list')]
+```
+
+A public feed's live updates reach guests too, with no `SSE_PUBLIC_ANONYMOUS`. There is no
+connection per feed: the grid subscribes on the page's shared stream with its own subscriber
+channel id, and the stream admits that for a guest. Where the page has no stream to subscribe on,
+the grid falls back to plain GET requests and shows no live updates.
+
+`Public` without a `reason` is refused, and so is `Service`, because a grid reads its feed with a
+browser session. A feed over admin rows names who may read them. Signed in alone is not enough for
+those:
+
+```php
+use Semitexa\Authorization\Attribute\RequiresPermission;
+
+#[AsCollectionFeed(path: '/admin/orders/feed', name: 'admin.orders.feed', model: OrderResource::class)]
+#[RequiresPermission('orders.read')]
+```
+
 ## Tenancy
 
 A model marked `#[TenantScoped]` is read for the request's tenant only. The handler adds the scope
