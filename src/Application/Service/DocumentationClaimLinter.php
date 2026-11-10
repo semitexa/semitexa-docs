@@ -572,14 +572,25 @@ final class DocumentationClaimLinter
      * the change reports every finding it holds as new. New baselines are
      * written with fingerprint() alone.
      *
-     * @param array<string, mixed> $finding
+     * The previous key depended on how the page was named, so both of its
+     * spellings count: as given, and absolute from the project root (an old
+     * baseline recorded `/app/docs/guide.md` as `@guide.md`, which a page now
+     * named `--path=docs/guide.md` must still match).
+     *
+     * @param array{file: string, kind: string, claim: string} $finding
      * @return list<string>
      */
     public function baselineKeys(array $finding, string $relativeTo = ''): array
     {
-        $legacy = $finding['kind'] . ':' . $finding['claim'] . '@' . $this->documentPath((string) $finding['file']);
+        $prefix = $finding['kind'] . ':' . $finding['claim'] . '@';
+        $file = $finding['file'];
+        $keys = [$this->fingerprint($finding, $relativeTo), $prefix . $this->documentPath($file)];
+        $root = rtrim($relativeTo, '/');
+        if ($root !== '' && !str_starts_with($file, '/')) {
+            $keys[] = $prefix . $this->documentPath($root . '/' . $file);
+        }
 
-        return array_values(array_unique([$this->fingerprint($finding, $relativeTo), $legacy]));
+        return array_values(array_unique($keys));
     }
 
     /**

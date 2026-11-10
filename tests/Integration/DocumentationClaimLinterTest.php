@@ -264,8 +264,12 @@ MD);
         $oldBaseline = ['attribute:AsInvented@guide.md'];
 
         self::assertSame('attribute:AsInvented@docs/guide.md', $linter->fingerprint($finding, '/app'));
+        self::assertSame(['attribute:AsInvented@docs/guide.md', 'attribute:AsInvented@guide.md'], $linter->baselineKeys($finding, '/app'));
         self::assertNotSame([], array_intersect($linter->baselineKeys($finding, '/app'), $oldBaseline));
-        self::assertContains($linter->fingerprint($finding, '/app'), $linter->baselineKeys($finding, '/app'));
+
+        // The same page named relatively, as --path=docs/guide.md, still meets that old entry.
+        $relative = ['file' => 'docs/guide.md'] + $finding;
+        self::assertSame(['attribute:AsInvented@docs/guide.md', 'attribute:AsInvented@guide.md'], $linter->baselineKeys($relative, '/app'));
     }
 
     #[Test]

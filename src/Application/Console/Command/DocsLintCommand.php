@@ -98,7 +98,9 @@ final class DocsLintCommand extends BaseCommand
 
         if ((bool) $input->getOption('json')) {
             $output->writeln((string) json_encode(
-                ['artifact' => DocumentationClaimLinter::ARTIFACT] + $report + ['findings' => $findings],
+                // array_merge, not +: the report carries its own unfiltered
+                // `findings`, and a union kept those over the baseline-filtered ones.
+                array_merge(['artifact' => DocumentationClaimLinter::ARTIFACT], $report, ['findings' => $findings]),
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
             ), OutputInterface::OUTPUT_RAW);
 
