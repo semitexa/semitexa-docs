@@ -287,6 +287,31 @@ MD);
     }
 
     #[Test]
+    public function two_project_pages_never_share_a_new_key(): void
+    {
+        $linter = new DocumentationClaimLinter();
+        $finding = ['kind' => 'attribute', 'claim' => 'AsInvented'];
+        $key = static fn (string $file): string => $linter->fingerprint($finding + ['file' => $file], '/app');
+
+        self::assertSame('attribute:AsInvented@guide.md', $key('/app/guide.md'));
+        self::assertSame('attribute:AsInvented@src/modules/M/docs/guide.md', $key('/app/src/modules/M/docs/guide.md'));
+        self::assertSame('attribute:AsInvented@semitexa-docs/en/x.md', $key('/app/vendor/semitexa/docs/docs/en/x.md'));
+        self::assertSame('attribute:AsInvented@en/x.md', $key('/app/en/x.md'), 'a project page at en/x.md is not the corpus page');
+    }
+
+    #[Test]
+    public function an_old_baseline_written_with_dot_slash_still_matches_a_page_outside_docs(): void
+    {
+        // The old code kept ./README.md as @./README.md (no docs/ to cut at).
+        $linter = new DocumentationClaimLinter();
+        $finding = ['kind' => 'attribute', 'claim' => 'AsInvented'];
+
+        foreach (['/app/README.md', 'README.md', './README.md'] as $named) {
+            self::assertTrue($linter->matchesBaseline($finding + ['file' => $named], '/app', ['attribute:AsInvented@./README.md'], legacyBaseline: true), $named);
+        }
+    }
+
+    #[Test]
     public function a_dot_slash_names_the_same_page(): void
     {
         $linter = new DocumentationClaimLinter();
@@ -315,15 +340,12 @@ MD);
                 $page,
             );
         }
-        // A corpus page keeps the key existing baselines hold.
-        self::assertSame(
-            'attribute:AsInvented@en/routing/basic.md',
-            $linter->fingerprint($finding + ['file' => '/app/vendor/semitexa/docs/docs/en/routing/basic.md'], '/app'),
-        );
-        self::assertSame(
-            'attribute:AsInvented@en/routing/basic.md',
-            $linter->fingerprint($finding + ['file' => '/app/packages/semitexa-docs/docs/en/routing/basic.md'], '/app'),
-        );
+        // A corpus page is one key under packages/ and vendor/, and an existing
+        // baseline still finds it under the key it was written with.
+        foreach (['/app/vendor/semitexa/docs/docs/en/routing/basic.md', '/app/packages/semitexa-docs/docs/en/routing/basic.md'] as $corpus) {
+            self::assertSame('attribute:AsInvented@semitexa-docs/en/routing/basic.md', $linter->fingerprint($finding + ['file' => $corpus], '/app'));
+            self::assertTrue($linter->matchesBaseline($finding + ['file' => $corpus], '/app', ['attribute:AsInvented@en/routing/basic.md'], legacyBaseline: true));
+        }
     }
 
     /**

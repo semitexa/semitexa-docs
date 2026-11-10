@@ -489,7 +489,7 @@ final class DocumentationClaimLinter
     }
 
     /**
-     * @param list<array{kind: string}> $findings
+     * @param list<array<string, mixed>> $findings
      *
      * @return array<string, int>
      */
@@ -497,7 +497,8 @@ final class DocumentationClaimLinter
     {
         $counts = [];
         foreach ($findings as $finding) {
-            $counts[$finding['kind']] = ($counts[$finding['kind']] ?? 0) + 1;
+            $kind = (string) ($finding['kind'] ?? '');
+            $counts[$kind] = ($counts[$kind] ?? 0) + 1;
         }
 
         ksort($counts);
@@ -557,12 +558,29 @@ final class DocumentationClaimLinter
         // pages keep the key they had (`en/x.md`), whichever root they sit under.
         $file = self::withoutDotSlash((string) $finding['file']);
         $root = rtrim($relativeTo, '/');
+        $inProject = !str_starts_with($file, '/');
         if ($root !== '' && str_starts_with($file, $root . '/')) {
             $file = substr($file, strlen($root) + 1);
+            $inProject = true;
+        }
+        // The framework corpus keys from its own root, under packages/ in the
+        // workspace and vendor/ in a project alike. Any other page keys from the
+        // project root, whole: cut at its last docs/ like the corpus, the root
+        // guide.md and src/modules/M/docs/guide.md were one key.
+        // Named as the corpus's own (semitexa-docs/en/x.md), so a project page
+        // at en/x.md is another key; a baseline from before this keyed corpus
+        // pages en/x.md, which baselineKeys() still offers it.
+        if (preg_match(self::CORPUS_ROOT, $file, $m) === 1) {
+            $path = 'semitexa-docs/' . $m[1];
+        } else {
+            $path = $inProject ? $file : $this->documentPath($file);
         }
 
-        return $finding['kind'] . ':' . $finding['claim'] . '@' . $this->documentPath($file);
+        return $finding['kind'] . ':' . $finding['claim'] . '@' . $path;
     }
+
+    /** Where the framework's own pages sit, in the workspace or in a project's vendor/. */
+    private const CORPUS_ROOT = '#(?:^|/)(?:packages/semitexa-docs/docs|vendor/semitexa/docs/docs)/(.+)$#';
 
     /**
      * Every key a baseline may hold this finding under: today's, and the one
@@ -586,8 +604,16 @@ final class DocumentationClaimLinter
         $file = $finding['file'];
         $keys = [$this->fingerprint($finding, $relativeTo), $prefix . $this->documentPath($file)];
         $root = rtrim($relativeTo, '/');
-        if ($root !== '' && !str_starts_with($file, '/')) {
-            $keys[] = $prefix . $this->documentPath($root . '/' . self::withoutDotSlash($file));
+        $relative = self::withoutDotSlash($file);
+        if ($root !== '' && str_starts_with($relative, $root . '/')) {
+            $relative = substr($relative, strlen($root) + 1);
+        }
+        if ($root !== '' && !str_starts_with($relative, '/')) {
+            // How the old code keyed this page when it was named absolutely,
+            // and when it was named with ./ (a --path=. scan kept the ./ for a
+            // page outside any docs/ folder).
+            $keys[] = $prefix . $this->documentPath($root . '/' . $relative);
+            $keys[] = $prefix . $this->documentPath('./' . $relative);
         }
 
         return array_values(array_unique($keys));

@@ -32,10 +32,10 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class DocsLintCommand extends BaseCommand
 {
-    /** Why this check exists, and what taught us; ai:verify prints it when the gate fails. */
     /** Marks a baseline written with project-rooted keys (see DocumentationClaimLinter::baselineKeys()). */
     private const BASELINE_KEYS = 'rooted';
 
+    /** Why this check exists, and what taught us; ai:verify prints it when the gate fails. */
     public const RATIONALE = 'Why: a rename is invisible to prose: the code moves on and the page keeps teaching the old name until a reader copies it. Learned 2026-08-11: the corpus already held broken claims when the gate arrived, so a project can record a baseline (var/docs/docs-lint-baseline.json, which ai:verify passes when it exists) and then fail only on claims missing from it; without one, every finding fails.';
 
     #[InjectAsReadonly]
@@ -76,6 +76,7 @@ final class DocsLintCommand extends BaseCommand
         $projectRoot = ProjectRoot::get();
 
         /** @var list<array<string, mixed>> $findings */
+        /** @var list<array{file: string, line: int, kind: string, claim: string, suggestion: ?string}> $findings */
         $findings = $report['findings'];
 
         $writeBaseline = $input->getOption('write-baseline');
