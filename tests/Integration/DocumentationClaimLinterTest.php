@@ -273,6 +273,33 @@ MD);
     }
 
     #[Test]
+    public function only_a_baseline_from_before_rooted_keys_answers_to_old_spellings(): void
+    {
+        $linter = new DocumentationClaimLinter();
+        $inDocs = ['kind' => 'attribute', 'claim' => 'AsInvented', 'file' => '/app/docs/guide.md'];
+        // A new baseline entry for /app/guide.md is `@guide.md`, the old spelling of /app/docs/guide.md.
+        $entry = [$linter->fingerprint(['kind' => 'attribute', 'claim' => 'AsInvented', 'file' => '/app/guide.md'], '/app')];
+
+        self::assertSame(['attribute:AsInvented@guide.md'], $entry);
+        self::assertFalse($linter->matchesBaseline($inDocs, '/app', $entry, legacyBaseline: false), 'a new baseline does not hide another page');
+        self::assertTrue($linter->matchesBaseline($inDocs, '/app', $entry, legacyBaseline: true), 'an old one still holds what it recorded');
+        self::assertTrue($linter->matchesBaseline($inDocs, '/app', ['attribute:AsInvented@docs/guide.md'], legacyBaseline: false));
+    }
+
+    #[Test]
+    public function a_dot_slash_names_the_same_page(): void
+    {
+        $linter = new DocumentationClaimLinter();
+        $finding = ['kind' => 'attribute', 'claim' => 'AsInvented'];
+
+        self::assertSame(
+            $linter->fingerprint($finding + ['file' => '/app/docs/guide.md'], '/app'),
+            $linter->fingerprint($finding + ['file' => './docs/guide.md'], '/app'),
+        );
+        self::assertContains('attribute:AsInvented@guide.md', $linter->baselineKeys($finding + ['file' => './docs/guide.md'], '/app'));
+    }
+
+    #[Test]
     public function a_project_page_is_one_key_whether_named_relative_or_absolute(): void
     {
         // ai:verify names a changed page absolutely (/app/docs/guide.md); a

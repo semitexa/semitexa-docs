@@ -493,7 +493,7 @@ final class DocumentationClaimLinter
      *
      * @return array<string, int>
      */
-    private function countByKind(array $findings): array
+    public function countByKind(array $findings): array
     {
         $counts = [];
         foreach ($findings as $finding) {
@@ -555,7 +555,7 @@ final class DocumentationClaimLinter
         // page) is one page, and must be one key, or a baseline written one way
         // reports its accepted findings as new when read the other. Corpus
         // pages keep the key they had (`en/x.md`), whichever root they sit under.
-        $file = (string) $finding['file'];
+        $file = self::withoutDotSlash((string) $finding['file']);
         $root = rtrim($relativeTo, '/');
         if ($root !== '' && str_starts_with($file, $root . '/')) {
             $file = substr($file, strlen($root) + 1);
@@ -587,10 +587,36 @@ final class DocumentationClaimLinter
         $keys = [$this->fingerprint($finding, $relativeTo), $prefix . $this->documentPath($file)];
         $root = rtrim($relativeTo, '/');
         if ($root !== '' && !str_starts_with($file, '/')) {
-            $keys[] = $prefix . $this->documentPath($root . '/' . $file);
+            $keys[] = $prefix . $this->documentPath($root . '/' . self::withoutDotSlash($file));
         }
 
         return array_values(array_unique($keys));
+    }
+
+    /**
+     * Whether a baseline holds this finding. A baseline written with rooted keys
+     * is matched by today's key alone; only one written before them (no `keys`
+     * marker) also answers to the old spellings, so an old alias cannot let a
+     * new entry for /app/guide.md (`@guide.md`) hide /app/docs/guide.md.
+     *
+     * @param array{file: string, kind: string, claim: string} $finding
+     * @param list<string> $baseline
+     */
+    public function matchesBaseline(array $finding, string $relativeTo, array $baseline, bool $legacyBaseline): bool
+    {
+        $keys = $legacyBaseline ? $this->baselineKeys($finding, $relativeTo) : [$this->fingerprint($finding, $relativeTo)];
+
+        return array_intersect($keys, $baseline) !== [];
+    }
+
+    /** `./docs/guide.md` is `docs/guide.md`: one page, one key. */
+    private static function withoutDotSlash(string $file): string
+    {
+        while (str_starts_with($file, './')) {
+            $file = substr($file, 2);
+        }
+
+        return $file;
     }
 
     /**
