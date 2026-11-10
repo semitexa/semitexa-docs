@@ -32,6 +32,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class DocsLintCommand extends BaseCommand
 {
+    /** Marks a baseline written with project-rooted keys (see DocumentationClaimLinter::baselineKeys()). */
+    private const BASELINE_KEYS = 'rooted';
+
     /** Why this check exists, and what taught us; ai:verify prints it when the gate fails. */
     public const RATIONALE = 'Why: a rename is invisible to prose: the code moves on and the page keeps teaching the old name until a reader copies it. Learned 2026-08-11: the corpus already held broken claims when the gate arrived, so a project can record a baseline (var/docs/docs-lint-baseline.json, which ai:verify passes when it exists) and then fail only on claims missing from it; without one, every finding fails.';
 
@@ -73,6 +76,7 @@ final class DocsLintCommand extends BaseCommand
         $projectRoot = ProjectRoot::get();
 
         /** @var list<array<string, mixed>> $findings */
+        /** @var list<array{file: string, line: int, kind: string, claim: string, suggestion: ?string}> $findings */
         $findings = $report['findings'];
 
         $writeBaseline = $input->getOption('write-baseline');
@@ -85,27 +89,26 @@ final class DocsLintCommand extends BaseCommand
             return self::FAILURE;
         }
 
-        if ($baseline !== []) {
+        [$baselineKeys, $legacyBaseline] = $baseline;
+        if ($baselineKeys !== []) {
             $findings = array_values(array_filter(
                 $findings,
-                fn (array $finding): bool => !in_array(
-                    $this->linter->fingerprint($finding, $projectRoot),
-                    $baseline,
-                    true,
-                ),
+                fn (array $finding): bool => !$this->linter->matchesBaseline($finding, $projectRoot, $baselineKeys, $legacyBaseline),
             ));
         }
 
         if ((bool) $input->getOption('json')) {
             $output->writeln((string) json_encode(
-                ['artifact' => DocumentationClaimLinter::ARTIFACT] + $report + ['findings' => $findings],
+                // array_merge, not +: the report carries its own unfiltered
+                // `findings`, and a union kept those over the baseline-filtered ones.
+                array_merge(['artifact' => DocumentationClaimLinter::ARTIFACT], $report, ['findings' => $findings, 'by_kind' => $this->linter->countByKind($findings)]),
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
             ), OutputInterface::OUTPUT_RAW);
 
             return $findings === [] ? self::SUCCESS : self::FAILURE;
         }
 
-        return $this->report($io, $report, $findings, $projectRoot, $baseline !== []);
+        return $this->report($io, $report, $findings, $projectRoot, $baselineKeys !== []);
     }
 
     /**
@@ -191,13 +194,15 @@ final class DocsLintCommand extends BaseCommand
     }
 
     /**
-     * @return list<string>|null
+     * The keys a baseline holds, and whether it predates project-rooted keys.
+     *
+     * @return array{0: list<string>, 1: bool}|null
      */
     private function loadBaseline(InputInterface $input, SymfonyStyle $io): ?array
     {
         $path = $input->getOption('baseline');
         if (!is_string($path) || $path === '') {
-            return [];
+            return [[], false];
         }
 
         if (!is_file($path)) {
@@ -216,7 +221,8 @@ final class DocsLintCommand extends BaseCommand
         /** @var list<string> $ignored */
         $ignored = array_values(array_filter($decoded['ignored'], 'is_string'));
 
-        return $ignored;
+        // Written with project-rooted keys (`keys: rooted`) or before them.
+        return [$ignored, ($decoded['keys'] ?? null) !== self::BASELINE_KEYS];
     }
 
     /**
@@ -241,7 +247,7 @@ final class DocsLintCommand extends BaseCommand
         }
 
         $encoded = json_encode(
-            ['artifact' => DocumentationClaimLinter::ARTIFACT . '.baseline', 'ignored' => $ignored],
+            ['artifact' => DocumentationClaimLinter::ARTIFACT . '.baseline', 'keys' => self::BASELINE_KEYS, 'ignored' => $ignored],
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
         );
 

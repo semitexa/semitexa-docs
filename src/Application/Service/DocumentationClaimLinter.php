@@ -489,15 +489,16 @@ final class DocumentationClaimLinter
     }
 
     /**
-     * @param list<array{kind: string}> $findings
+     * @param list<array<string, mixed>> $findings
      *
      * @return array<string, int>
      */
-    private function countByKind(array $findings): array
+    public function countByKind(array $findings): array
     {
         $counts = [];
         foreach ($findings as $finding) {
-            $counts[$finding['kind']] = ($counts[$finding['kind']] ?? 0) + 1;
+            $kind = (string) ($finding['kind'] ?? '');
+            $counts[$kind] = ($counts[$kind] ?? 0) + 1;
         }
 
         ksort($counts);
@@ -550,7 +551,98 @@ final class DocumentationClaimLinter
      */
     public function fingerprint(array $finding, string $relativeTo = ''): string
     {
-        return $finding['kind'] . ':' . $finding['claim'] . '@' . $this->documentPath((string) $finding['file']);
+        // From the project root first: a page named as `--path=docs/guide.md`
+        // and as `/var/www/html/docs/guide.md` (how ai:verify names a changed
+        // page) is one page, and must be one key, or a baseline written one way
+        // reports its accepted findings as new when read the other. Corpus
+        // pages keep the key they had (`en/x.md`), whichever root they sit under.
+        $file = self::withoutDotSlash((string) $finding['file']);
+        $root = rtrim($relativeTo, '/');
+        $inProject = !str_starts_with($file, '/');
+        if ($root !== '' && str_starts_with($file, $root . '/')) {
+            $file = substr($file, strlen($root) + 1);
+            $inProject = true;
+        }
+        // The framework corpus keys from its own root, under packages/ in the
+        // workspace and vendor/ in a project alike. Any other page keys from the
+        // project root, whole: cut at its last docs/ like the corpus, the root
+        // guide.md and src/modules/M/docs/guide.md were one key.
+        // Named as the corpus's own (semitexa-docs/en/x.md), so a project page
+        // at en/x.md is another key; a baseline from before this keyed corpus
+        // pages en/x.md, which baselineKeys() still offers it.
+        if (preg_match(self::CORPUS_ROOT, $file, $m) === 1) {
+            $path = 'semitexa-docs/' . $m[1];
+        } else {
+            $path = $inProject ? $file : $this->documentPath($file);
+        }
+
+        return $finding['kind'] . ':' . $finding['claim'] . '@' . $path;
+    }
+
+    /** Where the framework's own pages sit, in the workspace or in a project's vendor/. */
+    private const CORPUS_ROOT = '#(?:^|/)(?:packages/semitexa-docs/docs|vendor/semitexa/docs/docs)/(.+)$#';
+
+    /**
+     * Every key a baseline may hold this finding under: today's, and the one
+     * written before the project root was stripped (2026-11-10). A project page
+     * under docs/ named absolutely keyed then as `@guide.md`, now as
+     * `@docs/guide.md`; a baseline recorded the old way must keep matching, or
+     * the change reports every finding it holds as new. New baselines are
+     * written with fingerprint() alone.
+     *
+     * The previous key depended on how the page was named, so both of its
+     * spellings count: as given, and absolute from the project root (an old
+     * baseline recorded `/app/docs/guide.md` as `@guide.md`, which a page now
+     * named `--path=docs/guide.md` must still match).
+     *
+     * @param array{file: string, kind: string, claim: string} $finding
+     * @return list<string>
+     */
+    public function baselineKeys(array $finding, string $relativeTo = ''): array
+    {
+        $prefix = $finding['kind'] . ':' . $finding['claim'] . '@';
+        $file = $finding['file'];
+        $keys = [$this->fingerprint($finding, $relativeTo), $prefix . $this->documentPath($file)];
+        $root = rtrim($relativeTo, '/');
+        $relative = self::withoutDotSlash($file);
+        if ($root !== '' && str_starts_with($relative, $root . '/')) {
+            $relative = substr($relative, strlen($root) + 1);
+        }
+        if ($root !== '' && !str_starts_with($relative, '/')) {
+            // How the old code keyed this page when it was named absolutely,
+            // and when it was named with ./ (a --path=. scan kept the ./ for a
+            // page outside any docs/ folder).
+            $keys[] = $prefix . $this->documentPath($root . '/' . $relative);
+            $keys[] = $prefix . $this->documentPath('./' . $relative);
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    /**
+     * Whether a baseline holds this finding. A baseline written with rooted keys
+     * is matched by today's key alone; only one written before them (no `keys`
+     * marker) also answers to the old spellings, so an old alias cannot let a
+     * new entry for /app/guide.md (`@guide.md`) hide /app/docs/guide.md.
+     *
+     * @param array{file: string, kind: string, claim: string} $finding
+     * @param list<string> $baseline
+     */
+    public function matchesBaseline(array $finding, string $relativeTo, array $baseline, bool $legacyBaseline): bool
+    {
+        $keys = $legacyBaseline ? $this->baselineKeys($finding, $relativeTo) : [$this->fingerprint($finding, $relativeTo)];
+
+        return array_intersect($keys, $baseline) !== [];
+    }
+
+    /** `./docs/guide.md` is `docs/guide.md`: one page, one key. */
+    private static function withoutDotSlash(string $file): string
+    {
+        while (str_starts_with($file, './')) {
+            $file = substr($file, 2);
+        }
+
+        return $file;
     }
 
     /**
