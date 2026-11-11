@@ -28,6 +28,9 @@ final class ReferenceGenerator
 
     private string $releaseVersion = 'unverified';
 
+    /** The stamp of a page whose surface is newer than the last release. */
+    public const NEXT = 'next';
+
     /**
      * The example applications teach better than framework internals, so a
      * usage from one of these wins. They are ordinary installed packages, which
@@ -45,6 +48,13 @@ final class ReferenceGenerator
     {
         $releaseVersion = $index['release_version'] ?? null;
         $this->releaseVersion = is_string($releaseVersion) ? $releaseVersion : 'unverified';
+        // Read from a source checkout: the surface is newer than that release,
+        // so a page written now is verified against the next one, which the
+        // release dates (tk-reference-stamp-ahead-of-release). A consumer
+        // resolves an installed release and never sees `next`.
+        if (($index['release_version_from_checkout'] ?? false) === true) {
+            $this->releaseVersion = self::NEXT;
+        }
         $usages = $this->harvestAttributeUsages($index);
 
         $files = [];
@@ -542,9 +552,12 @@ final class ReferenceGenerator
         // while a past one is still true (and dropping it would turn every
         // page stale on an unversioned tree).
         $kept = $this->stampOf($onDisk);
-        $ceiling = $this->releaseVersion === 'unverified' ? gmdate('Y.m.d.Hi') : $this->releaseVersion;
-        $valid = $kept !== null && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $kept) === 1
-            && strcmp($kept, $ceiling) <= 0;
+        $ceiling = in_array($this->releaseVersion, ['unverified', self::NEXT], true) ? gmdate('Y.m.d.Hi') : $this->releaseVersion;
+        // `next` is kept too, wherever this runs: with the body unchanged it is
+        // still true until the release dates it, and dropping it where a dated
+        // release resolves (the release clone) turned --check red (Fable review).
+        $valid = $kept === self::NEXT || ($kept !== null && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $kept) === 1
+            && strcmp($kept, $ceiling) <= 0);
 
         return $valid ? $onDisk : $generated;
     }
