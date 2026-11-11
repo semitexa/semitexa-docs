@@ -129,11 +129,14 @@ final class TruthIndexBuilder
 
         $decoded = json_decode($contents, true);
         $coreVersion = is_array($decoded) ? ($decoded['require']['semitexa/core'] ?? null) : null;
+        if (!is_string($coreVersion) || preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $coreVersion) !== 1) {
+            // No exact version to be newer than: the page stays `unverified`,
+            // never `next`, which a release would date (review, docs#139).
+            return null;
+        }
         $this->releaseFromCheckout = true;
 
-        return is_string($coreVersion) && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $coreVersion) === 1
-            ? $coreVersion
-            : null;
+        return $coreVersion;
     }
 
     /**

@@ -48,6 +48,34 @@ final class TruthIndexBuilderTest extends TestCase
         }
     }
 
+    /** A checkout counts only with an exact version to be newer than (review, docs#139). */
+    #[Test]
+    public function a_checkout_is_named_only_when_its_manifest_pins_an_exact_core(): void
+    {
+        $root = new \ReflectionProperty(ProjectRoot::class, 'root');
+        $previous = $root->getValue();
+        $previousRelease = getenv('SEMITEXA_RELEASE_VERSION');
+        putenv('SEMITEXA_RELEASE_VERSION');
+        $workspace = sys_get_temp_dir() . '/semitexa-checkout-' . bin2hex(random_bytes(4));
+        mkdir($workspace . '/packages/semitexa-ultimate', 0755, true);
+        $root->setValue(null, $workspace);
+        $seen = [];
+        try {
+            foreach (['2026.11.10.0849', '^2026.11.10.0849'] as $core) {
+                file_put_contents($workspace . '/packages/semitexa-ultimate/composer.json', json_encode(['require' => ['semitexa/core' => $core]]));
+                $index = $this->build($this->applicationWithSampleCommand());
+                $seen[$core] = [$index['release_version'], $index['release_version_from_checkout']];
+            }
+        } finally {
+            $root->setValue(null, $previous);
+            putenv($previousRelease === false ? 'SEMITEXA_RELEASE_VERSION' : 'SEMITEXA_RELEASE_VERSION=' . $previousRelease);
+            exec('rm -rf ' . escapeshellarg($workspace));
+        }
+
+        self::assertSame(['2026.11.10.0849', true], $seen['2026.11.10.0849']);
+        self::assertSame([null, false], $seen['^2026.11.10.0849'], 'a constraint is no release: the pages stay unverified, never next');
+    }
+
     #[Test]
     public function console_commands_keep_their_arguments_and_options(): void
     {

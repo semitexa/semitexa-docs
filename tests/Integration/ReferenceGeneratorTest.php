@@ -122,12 +122,15 @@ final class ReferenceGeneratorTest extends TestCase
     {
         $generator = new ReferenceGenerator();
         $page = $generator->generate($this->index())['reference/attributes-core.md'];
+        // Each replacement must change the page, or the assertion compares it with itself (review, docs#139).
+        self::assertStringContainsString('verified_against: 2026.09.19.1020', $page);
         $next = str_replace('verified_against: 2026.09.19.1020', 'verified_against: next', $page);
 
         self::assertSame($next, $generator->preserveStamp($page, $next));
 
         $checkout = new ReferenceGenerator();
         $fromCheckout = $checkout->generate(['release_version_from_checkout' => true] + $this->index())['reference/attributes-core.md'];
+        self::assertStringContainsString('verified_against: next', $fromCheckout);
         $dated = str_replace('verified_against: next', 'verified_against: 2026.09.01.0900', $fromCheckout);
         self::assertSame($dated, $checkout->preserveStamp($fromCheckout, $dated), 'a true older date stays');
     }
