@@ -101,6 +101,37 @@ final class ReferenceGeneratorTest extends TestCase
         self::assertSame($page, $generator->preserveStamp($page, null));
     }
 
+    /**
+     * From a source checkout the surface is newer than the release the version
+     * names, so a page it writes says `next`, which the release dates; an
+     * installed release never writes it (tk-reference-stamp-ahead-of-release).
+     */
+    #[Test]
+    public function a_page_written_from_a_checkout_is_verified_against_the_next_release(): void
+    {
+        $fromCheckout = (new ReferenceGenerator())->generate(['release_version_from_checkout' => true] + $this->index())['reference/attributes-core.md'];
+        $installed = (new ReferenceGenerator())->generate($this->index())['reference/attributes-core.md'];
+
+        self::assertStringContainsString("verified_against: next\n", $fromCheckout);
+        self::assertStringContainsString("verified_against: 2026.09.19.1020\n", $installed, 'an installed release stamps itself');
+    }
+
+    /** `next` on an unchanged page is kept wherever this runs, a dated release included (Fable review). */
+    #[Test]
+    public function an_unchanged_page_keeps_next_until_the_release_dates_it(): void
+    {
+        $generator = new ReferenceGenerator();
+        $page = $generator->generate($this->index())['reference/attributes-core.md'];
+        $next = str_replace('verified_against: 2026.09.19.1020', 'verified_against: next', $page);
+
+        self::assertSame($next, $generator->preserveStamp($page, $next));
+
+        $checkout = new ReferenceGenerator();
+        $fromCheckout = $checkout->generate(['release_version_from_checkout' => true] + $this->index())['reference/attributes-core.md'];
+        $dated = str_replace('verified_against: next', 'verified_against: 2026.09.01.0900', $fromCheckout);
+        self::assertSame($dated, $checkout->preserveStamp($fromCheckout, $dated), 'a true older date stays');
+    }
+
     #[Test]
     public function a_command_page_shows_the_arguments_the_console_defines(): void
     {

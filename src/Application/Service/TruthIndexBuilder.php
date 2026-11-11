@@ -66,6 +66,11 @@ final class TruthIndexBuilder
         return [
             'artifact' => self::ARTIFACT,
             'release_version' => $this->releaseVersion(),
+            // The version came from a source checkout (packages/semitexa-ultimate),
+            // so what the index reads is newer than that release: generated
+            // reference says `next`, and the release dates it
+            // (tk-reference-stamp-ahead-of-release).
+            'release_version_from_checkout' => $this->releaseFromCheckout,
             'attributes' => $this->attributes(),
             'foreign_attributes' => $this->foreignAttributes(),
             'commands' => $this->commands($console, $notes),
@@ -81,8 +86,12 @@ final class TruthIndexBuilder
         ];
     }
 
+    /** Set when releaseVersion() read it from a source checkout's ultimate manifest. */
+    private bool $releaseFromCheckout = false;
+
     private function releaseVersion(): ?string
     {
+        $this->releaseFromCheckout = false;
         $fromEnvironment = getenv('SEMITEXA_RELEASE_VERSION');
         if (is_string($fromEnvironment) && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $fromEnvironment) === 1) {
             return $fromEnvironment;
@@ -120,6 +129,7 @@ final class TruthIndexBuilder
 
         $decoded = json_decode($contents, true);
         $coreVersion = is_array($decoded) ? ($decoded['require']['semitexa/core'] ?? null) : null;
+        $this->releaseFromCheckout = true;
 
         return is_string($coreVersion) && preg_match('/^\d{4}\.\d{2}\.\d{2}\.\d{4}$/', $coreVersion) === 1
             ? $coreVersion
