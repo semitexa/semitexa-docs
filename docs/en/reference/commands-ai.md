@@ -255,6 +255,7 @@ bin/semitexa ai:orient
 | `--json` | no |
 | `--human` | no |
 | `--traces` | yes |
+| `--full` | no |
 
 ## `ai:plan`
 
