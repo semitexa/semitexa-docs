@@ -244,7 +244,7 @@ bin/semitexa ai:observe "<action>"
 
 ## `ai:orient`
 
-Session dashboard: git + active epic + in-progress tasks + recent traces + next step. Run this first on a cold start.
+Session dashboard: git + active epic + in-progress tasks + recent traces + next step. Run this first on a cold start. --json answers a brief; --json --full gives every field.
 
 ```bash
 bin/semitexa ai:orient
