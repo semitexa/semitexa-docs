@@ -19,6 +19,9 @@ keywords:
 
 # E2E Data
 
+> E2E fixtures and the runner that applies them are available from Semitexa
+> **2026.11.15.0920**; `bin/semitexa update` brings them.
+
 `bin/semitexa test:run` runs the end-to-end phase on an app and a database of
 its own, not the ones you work in. Whatever a spec reads has to be in that
 database when it runs. This page is about where those rows come from.
@@ -137,9 +140,11 @@ E2E app and waits for it as its condition says (`service_healthy`,
 MySQL, are yours and are left alone.
 
 Such a service runs with your development environment, not the E2E app's. A
-one-shot that seeds data through it writes into your development database, and
-the E2E database never sees those rows: on `copy` they arrive with the snapshot,
-on `clean` they are missing. Move that seeding into an `#[AsE2eFixture]`.
+one-shot that seeds data through it writes into your development database, not
+the E2E one. On `copy` the rows reach the E2E database only because the snapshot
+carries them, as of the last time the one-shot ran (rates seeded two days ago
+are two days old). On `clean` they are missing. Move that seeding into an
+`#[AsE2eFixture]`, which runs on the E2E database on every run.
 
 See also [Test Data Factories](factories.md) for building rows inside a PHPUnit
 test.
