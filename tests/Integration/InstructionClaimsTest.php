@@ -106,6 +106,27 @@ final class InstructionClaimsTest extends TestCase
         self::assertSame([], $this->lint('AGENTS.md', "See [docs](docs/README.md) and `docs/README.md`.\n"));
     }
 
+    /**
+     * tk-instructions-lint-scaffold-paths: a consumer's AGENTS.md is the scaffold's, written for the
+     * framework workspace. Outside it, its paths are not claims anyone there can keep true; inside
+     * it (packages/semitexa-ultimate exists) they are checked; a command is checked either way.
+     */
+    #[Test]
+    public function a_scaffold_doc_s_workspace_paths_are_checked_where_it_is_written(): void
+    {
+        $doc = "# AGENTS.md\n\n> Scaffold doc (`semitexa/ultimate`). Edit root.\n\nDocs live in `packages/semitexa-gone/docs/`. Run `ai:vanished`.\n";
+        self::assertSame(['ai:vanished'], array_column($this->lint('AGENTS.md', $doc), 'claim'), 'a consumer: the path is the workspace\'s, the command is anyone\'s');
+
+        mkdir($this->root . '/packages/semitexa-ultimate', 0777, true);
+        $claims = array_column($this->lint('AGENTS.md', $doc), 'claim');
+        sort($claims);
+        self::assertSame(['ai:vanished', 'packages/semitexa-gone/docs/'], $claims, 'the workspace: both are checked');
+
+        // A project's own instructions are checked as before.
+        rmdir($this->root . '/packages/semitexa-ultimate');
+        self::assertSame(['packages/semitexa-gone/docs/'], array_column($this->lint('AGENTS.md', "Docs live in `packages/semitexa-gone/docs/`.\n"), 'claim'));
+    }
+
     #[Test]
     public function a_skill_s_shell_environment_is_not_the_framework_s(): void
     {
