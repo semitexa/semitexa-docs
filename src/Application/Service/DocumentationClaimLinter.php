@@ -101,8 +101,17 @@ final class DocumentationClaimLinter
                 $claims = array_values(array_filter($claims, static fn (array $claim): bool => $claim['kind'] !== 'env'));
             }
             if ($instructionsRoot !== null) {
+                // A file the scaffold ships (AGENTS.md, CLAUDE.md, ...) names the framework
+                // workspace's paths. It is written and checked there; in a project built on
+                // Semitexa those paths do not exist and nobody there can change the file
+                // (tk-instructions-lint-scaffold-paths, found by a consumer). Its commands,
+                // attributes and env keys are still checked: those exist in any project.
+                $scaffoldElsewhere = self::isScaffoldDoc($lines) && !is_dir(rtrim($instructionsRoot, '/') . '/packages/semitexa-ultimate');
                 foreach ($this->instructionClaims($lines) as $claim) {
                     if ($claim['kind'] === 'path') {
+                        if ($scaffoldElsewhere) {
+                            continue;
+                        }
                         if (!$this->pathExists($claim['value'], ($claim['from'] ?? 'root') === 'file' ? dirname($path) : $instructionsRoot, $instructionsRoot)) {
                             $findings[] = ['file' => $path, 'line' => $claim['line'], 'kind' => 'path', 'claim' => $claim['value'], 'suggestion' => null];
                         }
@@ -421,6 +430,19 @@ final class DocumentationClaimLinter
      * `packages/semitexa-docs/...`; a consumer project has the same file at
      * `vendor/semitexa/docs/...`, and it is not missing there.
      */
+    /**
+     * Whether the file says, in its first lines, that the semitexa/ultimate scaffold ships it
+     * ("Scaffold doc (`semitexa/ultimate`)", "Source: `semitexa/ultimate` scaffold").
+     *
+     * @param list<string> $lines
+     */
+    private static function isScaffoldDoc(array $lines): bool
+    {
+        $head = implode("\n", array_slice($lines, 0, 8));
+
+        return preg_match('/scaffold doc \(`semitexa\/ultimate`\)|source: `semitexa\/ultimate` scaffold/i', $head) === 1;
+    }
+
     private function pathExists(string $value, string $base, string $projectRoot): bool
     {
         $value = rtrim($value, '/.,;:');
