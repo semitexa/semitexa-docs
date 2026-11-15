@@ -20,7 +20,8 @@ keywords:
 # E2E Data
 
 > E2E fixtures and the runner that applies them are available from Semitexa
-> **2026.11.15.0920**; `bin/semitexa update` brings them.
+> **2026.11.15.0920**; `clean` is the default mode from the release after it.
+> `bin/semitexa update` brings both.
 
 `bin/semitexa test:run` runs the end-to-end phase on an app and a database of
 its own, not the ones you work in. Whatever a spec reads has to be in that
@@ -33,16 +34,18 @@ default) and fills it as `SEMITEXA_E2E_DB` says:
 
 | Mode | What the database holds |
 |---|---|
-| `copy` (default) | A snapshot of your development database, then the schema and data patches. Outbound work (queued jobs, mail, webhooks) is emptied so nothing is sent twice. |
-| `clean` | The schema and data patches only. |
+| `clean` (default) | The schema and data patches only. |
+| `copy` | A snapshot of your development database, then the schema and data patches. Outbound work (queued jobs, mail, webhooks) is emptied so nothing is sent twice. |
 
 In both modes the runner then applies the E2E fixtures (below).
 
 A spec that passes on `copy` and fails on `clean` is reading rows your
-development database grew through use. Run the suite on `clean` to find them:
+development database grew through use. Until it sets them up itself, or a
+fixture does, run that project's suite on a copy, and the clean run tells you
+how:
 
 ```bash
-SEMITEXA_E2E_DB=clean bin/semitexa test:run
+SEMITEXA_E2E_DB=copy bin/semitexa test:run
 ```
 
 ## Where a spec's rows come from
