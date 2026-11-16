@@ -100,7 +100,7 @@ The rule of thumb:
 
 Measure before deciding, and do not estimate: a request with `?__trace=1` records a `slot.render` span per region rendered inline and a `slot.resolve` span per deferred region, both visible at `/__trace` and through `ai:observe show --id=<process>`. A console measured this way in September 2026 rendered every page in 13–31 ms as a fragment and 24–50 ms as a full document. Not one of its regions was slow enough to deserve a skeleton — and all fifty of its slot resources carried `deferred: true`.
 
-`lint:deferred-slots` reports a slot that declares `deferred: true` while its page renders it inline: the flag reads as a decision and changes nothing until a template calls `layout_slot_deferred()`.
+`lint:deferred-slots` reports a slot that declares `deferred: true` while its page renders it inline: the flag reads as a decision and changes nothing until a template calls `layout_slot_deferred()`. It also reports a slot with `refreshInterval` above zero while `SSR_DEFERRED_PERSISTENT_SSE` is off: that slot renders once and is never refreshed, because the stream closes after its first delivery.
 
 ## Deferral and live updates are two decisions
 
