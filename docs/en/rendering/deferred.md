@@ -76,7 +76,8 @@ skeleton in the page and rendered over the page's KISS stream afterwards.
   answer as on the page. Before this, they answered as for a guest.
 - **Not lost with the stream.** When the stream ends before it drew a component (an early
   `done`, a refused or dropped connection, or no deferred `done` within 6 s on a page whose
-  stream platform-ui owns), the browser asks `GET /__semitexa_hug?components=<instance ids>`
+  stream platform-ui owns), the browser asks
+  `GET /__semitexa_hug?components=<instance ids>&deferred_request_id=<page's deferred request>`
   for the ones still pending, as deferred slots already did with `?slots=`. It names instances,
   never props: the server renders the props the page recorded, only for the browser holding
   that page's bind cookie, and refuses an instance the page did not record. Before this, the
