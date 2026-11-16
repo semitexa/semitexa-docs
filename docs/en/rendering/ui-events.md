@@ -205,7 +205,7 @@ Two doors carry every byte between a page and the server, by design:
 |---|---|---|---|
 | **KISS** | `GET /__semitexa_kiss` | server → browser | the one SSE stream per page: deferred slots, UI patches, component state, live feeds |
 | **HUG** | `POST /__semitexa_hug` | browser → server | every UI event and action (the envelope below), feed control as `{"stream": {…}}`, and file uploads as multipart `{upload, file}` (see UI Forms → Uploads) |
-| **HUG** | `GET /__semitexa_hug` | browser → server | the pull fallback for deferred slots when a page has no stream |
+| **HUG** | `GET /__semitexa_hug` | browser → server | the pull fallback for deferred slots (`?slots=`) and deferred components (`?components=`) the stream did not draw |
 
 A feature that needs a verb HUG lacks extends HUG — it does not add a route. (`/__ui/event`, `/__ui/dispatch`, `/__semitexa_component_event` and `/__ui/form-doc` were removed in 2026-10 for exactly that reason, and the `{"componentEvent"}` body with them: a component's events are its `#[UiOn]` methods.)
 

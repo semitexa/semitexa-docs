@@ -74,6 +74,13 @@ skeleton in the page and rendered over the page's KISS stream afterwards.
   the visitor of the browser that opened the stream (`RouteExecutor::establishVisitor()`): its
   session first, then who it is, best-effort, as for a public page. `can()` and `signed_in()`
   answer as on the page. Before this, they answered as for a guest.
+- **Not lost with the stream.** When the stream ends before it drew a component (an early
+  `done`, a refused or dropped connection, or no deferred `done` within 6 s on a page whose
+  stream platform-ui owns), the browser asks `GET /__semitexa_hug?components=<instance ids>`
+  for the ones still pending, as deferred slots already did with `?slots=`. It names instances,
+  never props: the server renders the props the page recorded, only for the browser holding
+  that page's bind cookie, and refuses an instance the page did not record. Before this, the
+  component kept its skeleton for good.
 - **Measure first.** Deferred content arrives after the page, over the KISS stream. Measured on
   the whoami lab page (2026-10-06): about 26 ms after DOMContentLoaded (it was about 380 ms
   until the stream loop learned to wake when a frame is queued, instead of waiting out its
