@@ -167,6 +167,37 @@ cascade-owned children + pivot sync commit or roll back together
 as a savepoint). The `ResourceChangedEvent` auto-publish signal fires
 strictly AFTER commit.
 
+### Deleting by criteria
+
+`deleteWhere()` removes every row a query selects, in one statement, and
+returns how many went. The closure shapes the repository's own `query()`,
+so its tenant scope applies (fail-closed, as for reads):
+
+```php
+$deleted = $sessions->forTenant($tenantId)->deleteWhere(fn (ResourceModelQuery $q) => $q
+    ->where(SessionResource::column('expiresAt'), Operator::LessThan, $now)
+    ->limit(500));
+```
+
+- The rows are the ones the query would read. A `#[SoftDelete]` model is
+  soft-deleted (the timestamp is set and a `#[Version]` is bumped), and
+  `onlySoftDeleted()->deleteWhere(...)` purges rows that are already deleted.
+- `limit()` deletes in batches. Which matching rows go first is the
+  database's choice. Each row is checked again as it is written, so a batch
+  whose rows changed under it comes back short, even empty while other rows
+  still match. Repeat until a call returns 0 and `query()->exists()` with the
+  same criteria answers false.
+- One `ResourceChangedEvent` is sent when rows went, after commit.
+- These are refused with a `LogicException` that names the alternative
+  (fetch the rows and `delete()` each):
+  - a query with no condition of its own;
+  - `orderBy()`, `offset()`, `withRelation()` or `forUpdate()`;
+  - `includeSoftDeleted()`;
+  - `onlySoftDeleted()` on a model without soft delete;
+  - a model with a `CascadeOwned` or `SyncPivotOnly` relation;
+  - a `#[Replicated]` model.
+- On MySQL, a `whereRaw()` subquery on the same table fails (error 1093).
+
 ### Optimistic locking
 
 Declare one int column as `#[Version]`. Updates then guard on the
