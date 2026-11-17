@@ -2105,7 +2105,7 @@ final class LoginEmailFormatStrategy implements TestingStrategyInterface
 
 ### Auth guards on payloads
 
-Access is explicit at the type level. Every payload picks exactly one of three access attributes:
+Access is explicit at the type level. A payload's route attribute names its access. A plain payload picks exactly one of three access attributes; a CRUD screen, a settings page and a feed use their own route attribute, which names its access, and take none of the three on top (below):
 
 ```php
 // Anonymous endpoint — opt in explicitly.
@@ -2127,7 +2127,7 @@ class IncomingWebhookPayload {}
 class AdminUsersPayload {}
 ```
 
-The access attributes (`#[AsPublicPayload]`, `#[AsProtectedPayload]`, `#[AsServicePayload]`) and the RBAC attributes (`#[RequiresCapability]`, `#[RequiresPermission]`) live in `Semitexa\Authorization\Attribute`. There is no implicit default-protected fallback — a payload that declares none of the three access attributes never reaches the route registry.
+`#[AsPublicPayload]` lives in `Semitexa\Core\Attribute`; `#[AsProtectedPayload]`, `#[AsServicePayload]` and the RBAC attributes (`#[RequiresCapability]`, `#[RequiresPermission]`) live in `Semitexa\Authorization\Attribute`. There is no implicit default-protected fallback: a class reaches the route registry only through an attribute that extends `AbstractPayloadRoute`, and every such attribute names its access. Besides the three above, semitexa/crud's route attributes carry their own: `#[AsCrud]`, `#[AsSettingsPage]` and `#[AsProtectedFeed]` are Protected, `#[AsPublicFeed]` is Public and requires a `reason`, and `#[AsCollectionFeed]` takes an `access` argument (Protected by default; Public requires a `reason`; Service is refused). A class without an attribute that extends `AbstractPayloadRoute` never reaches the route registry.
 
 User-domain auth and service-domain auth are distinct:
 
@@ -2179,7 +2179,7 @@ All exceptions are caught by ExceptionMapper → content-negotiated error respon
 
 ### Rules
 
-- **Do** declare exactly one access attribute (`#[AsPublicPayload]` / `#[AsProtectedPayload]` / `#[AsServicePayload]`) on every payload — there is no implicit fallback.
+- **Do** declare exactly one route attribute on every payload — there is no implicit fallback: `#[AsPublicPayload]` / `#[AsProtectedPayload]` / `#[AsServicePayload]` on a plain payload; a CRUD screen, settings page or feed declares its own (`#[AsCrud]`, `#[AsSettingsPage]`, `#[AsProtectedFeed]`, `#[AsPublicFeed]`, `#[AsCollectionFeed]`) and none of the three.
 - **Do** use `#[RequiresPermission]` for fine-grained RBAC on user-domain protected payloads.
 - **Do** use `#[RequiresCapability]` for coarse-grained gates (works on both user-domain and service-domain payloads).
 - **Do** call `$session->regenerate()` after authentication state changes.

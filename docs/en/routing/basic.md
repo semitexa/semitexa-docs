@@ -20,7 +20,7 @@ keywords:
 ---
 # Basic Route
 
-A single access attribute on a PHP class creates a fully routed HTTP endpoint — no XML, no YAML, no config files. Access is explicit at the type level: every payload picks one of `#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]`.
+A single access attribute on a PHP class creates a fully routed HTTP endpoint — no XML, no YAML, no config files. Access is explicit at the type level: a plain payload picks one of `#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]`. A CRUD screen, a settings page or a feed uses its own route attribute from semitexa/crud, which names its access, and takes none of the three on top.
 
 ```semitexa-diagram
 title: HTTP request lifecycle
@@ -37,7 +37,7 @@ edge: resource -> template | render
 
 ## How it works
 
-The framework scans the Composer classmap for classes carrying any of the three access attributes, extracts path and method metadata, resolves `env::` placeholders if present, and registers routes at boot. The route compiler then turns path patterns into optimized regex matchers cached in memory.
+The framework scans the Composer classmap for classes carrying a route attribute (one that extends `AbstractPayloadRoute`: the three access attributes, and semitexa/crud's `#[AsCrud]`, `#[AsSettingsPage]` and feed attributes, which carry their own access), extracts path and method metadata, resolves `env::` placeholders if present, and registers routes at boot. The route compiler then turns path patterns into optimized regex matchers cached in memory.
 
 ## Why this matters
 
