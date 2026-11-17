@@ -83,6 +83,7 @@ final class InstructionClaimsTest extends TestCase
     public function a_workspace_package_named_as_a_directory_is_the_installed_package(): void
     {
         self::assertSame([], $this->lint('AGENTS.md', "`packages/semitexa-docs/` is the single official documentation source.\n"));
+        self::assertSame([], $this->lint('README.md', "Hub: [docs](./packages/semitexa-docs/)\n"), 'a link written ./packages/... is the same path');
         self::assertSame(['packages/semitexa-gone/'], array_column($this->lint('AGENTS.md', "Open `packages/semitexa-gone/`.\n"), 'claim'), 'a package nobody installed is still missing');
     }
 
