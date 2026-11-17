@@ -48,6 +48,7 @@ The validator detects a module from a changed file path by walking up the direct
     Application/
       Payload/
         Request/          # payload DTOs (one of #[AsPublicPayload] / #[AsProtectedPayload] / #[AsServicePayload])
+          Feed/           # #[AsCollectionFeed] feeds: the rows a grid reads
         Event/            # event classes
         Part/             # #[AsPayloadPart] traits
       Resource/
@@ -544,6 +545,11 @@ Until all three are done, the validator rejects the new adapter directory.
 classes and the value objects they carry — session state is payload-shaped data, not a service. Note
 `Application/Payload/Response/` is **not** accepted: responses are resources and live under
 `Application/Resource/Response/`.
+
+Collection feeds (`#[AsCollectionFeed]`, a class extending `CollectionFeed`) are request payloads
+too, and their home is `Application/Payload/Request/Feed/` (`Request/` allows feature grouping).
+A feed answers rows for a grid, not a page, and who may read them (Protected unless the attribute
+says Public, with a reason) is easiest to review where only feeds are, apart from the page payloads.
 
 ### Allowed Domain children
 
