@@ -20,7 +20,7 @@ keywords:
 ---
 # Basic Route
 
-A single access attribute on a PHP class creates a fully routed HTTP endpoint — no XML, no YAML, no config files. Access is explicit at the type level: every payload picks one of `#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]`.
+A single access attribute on a PHP class creates a fully routed HTTP endpoint — no XML, no YAML, no config files. Access is explicit at the type level: a plain payload picks one of `#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]`. A CRUD screen, a settings page or a feed uses its own route attribute from semitexa/crud, which names its access, and takes none of the three on top.
 
 ```semitexa-diagram
 title: HTTP request lifecycle
