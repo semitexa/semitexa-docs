@@ -72,6 +72,21 @@ final class InstructionClaimsTest extends TestCase
         self::assertSame([], $this->lint('README.md', "Hub: [docs](packages/semitexa-docs/docs/README.md)\n"));
     }
 
+    /**
+     * tk-docs-instructions-fail-in-consumers: the scaffold's AGENTS.md and
+     * AI_ENTRY.md name the package itself, `packages/semitexa-docs/`. Its
+     * trailing slash was trimmed before the workspace-to-vendor mapping, which
+     * wanted a slash after the package name, so every consumer's
+     * docs:instructions gate reported it missing and could never pass.
+     */
+    #[Test]
+    public function a_workspace_package_named_as_a_directory_is_the_installed_package(): void
+    {
+        self::assertSame([], $this->lint('AGENTS.md', "`packages/semitexa-docs/` is the single official documentation source.\n"));
+        self::assertSame([], $this->lint('README.md', "Hub: [docs](./packages/semitexa-docs/)\n"), 'a link written ./packages/... is the same path');
+        self::assertSame(['packages/semitexa-gone/'], array_column($this->lint('AGENTS.md', "Open `packages/semitexa-gone/`.\n"), 'claim'), 'a package nobody installed is still missing');
+    }
+
     #[Test]
     public function a_tilde_fence_is_an_example_too(): void
     {

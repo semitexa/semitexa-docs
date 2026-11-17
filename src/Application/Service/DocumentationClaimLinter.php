@@ -454,8 +454,10 @@ final class DocumentationClaimLinter
         if (!str_starts_with($candidate, $root)) {
             return false;
         }
-        $relative = substr($candidate, strlen($root));
-        $installed = preg_replace('#^packages/semitexa-([a-z0-9-]+)/#', 'vendor/semitexa/$1/', $relative) ?? $relative;
+        // A link written ./packages/... is the same path.
+        $relative = (string) preg_replace('#^(?:\./)+#', '', substr($candidate, strlen($root)));
+        // The package itself too: `packages/semitexa-docs/` reaches here with its slash trimmed.
+        $installed = preg_replace('#^packages/semitexa-([a-z0-9-]+)(?=/|$)#', 'vendor/semitexa/$1', $relative) ?? $relative;
 
         return $installed !== $relative && file_exists($root . $installed);
     }
