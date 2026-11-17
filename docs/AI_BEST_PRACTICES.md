@@ -2105,7 +2105,7 @@ final class LoginEmailFormatStrategy implements TestingStrategyInterface
 
 ### Auth guards on payloads
 
-Access is explicit at the type level. Every payload picks exactly one of three access attributes:
+Access is explicit at the type level. A payload picks exactly one of three access attributes (a CRUD screen, a settings page and a feed carry theirs in their own attribute, below):
 
 ```php
 // Anonymous endpoint — opt in explicitly.
@@ -2127,7 +2127,7 @@ class IncomingWebhookPayload {}
 class AdminUsersPayload {}
 ```
 
-The access attributes (`#[AsPublicPayload]`, `#[AsProtectedPayload]`, `#[AsServicePayload]`) and the RBAC attributes (`#[RequiresCapability]`, `#[RequiresPermission]`) live in `Semitexa\Authorization\Attribute`. There is no implicit default-protected fallback — a payload that declares none of the three access attributes never reaches the route registry.
+`#[AsPublicPayload]` lives in `Semitexa\Core\Attribute`; `#[AsProtectedPayload]`, `#[AsServicePayload]` and the RBAC attributes (`#[RequiresCapability]`, `#[RequiresPermission]`) live in `Semitexa\Authorization\Attribute`. There is no implicit default-protected fallback: a class reaches the route registry only through an attribute that extends `AbstractPayloadRoute`, and every such attribute names its access. Besides the three above, semitexa/crud's route attributes carry their own: `#[AsCrud]`, `#[AsSettingsPage]` and `#[AsProtectedFeed]` are Protected, `#[AsPublicFeed]` is Public and requires a `reason`, and `#[AsCollectionFeed]` takes an `access` argument (Protected by default; Public requires a `reason`; Service is refused). A class with none of these never reaches the route registry.
 
 User-domain auth and service-domain auth are distinct:
 

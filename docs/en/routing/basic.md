@@ -37,7 +37,7 @@ edge: resource -> template | render
 
 ## How it works
 
-The framework scans the Composer classmap for classes carrying any of the three access attributes, extracts path and method metadata, resolves `env::` placeholders if present, and registers routes at boot. The route compiler then turns path patterns into optimized regex matchers cached in memory.
+The framework scans the Composer classmap for classes carrying a route attribute (one that extends `AbstractPayloadRoute`: the three access attributes, and semitexa/crud's `#[AsCrud]`, `#[AsSettingsPage]` and feed attributes, which carry their own access), extracts path and method metadata, resolves `env::` placeholders if present, and registers routes at boot. The route compiler then turns path patterns into optimized regex matchers cached in memory.
 
 ## Why this matters
 

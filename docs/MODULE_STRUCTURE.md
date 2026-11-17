@@ -48,7 +48,7 @@ The validator detects a module from a changed file path by walking up the direct
     Application/
       Payload/
         Request/          # payload DTOs (one of #[AsPublicPayload] / #[AsProtectedPayload] / #[AsServicePayload])
-          Feed/           # #[AsCollectionFeed] feeds: the rows a grid reads
+          Feed/           # #[AsProtectedFeed] / #[AsPublicFeed] / #[AsCollectionFeed] feeds: the rows a grid reads
         Event/            # event classes
         Part/             # #[AsPayloadPart] traits
       Resource/
