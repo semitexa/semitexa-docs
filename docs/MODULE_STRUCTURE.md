@@ -548,8 +548,10 @@ classes and the value objects they carry — session state is payload-shaped dat
 
 Collection feeds (`#[AsCollectionFeed]`, a class extending `CollectionFeed`) are request payloads
 too, and their home is `Application/Payload/Request/Feed/` (`Request/` allows feature grouping).
-A feed answers rows for a grid, not a page, and who may read them (Protected unless the attribute
-says Public, with a reason) is easiest to review where only feeds are, apart from the page payloads.
+A feed answers rows for a grid, not a page. Who may read them is the attribute's `access` argument:
+its default is `PayloadAccessType::Protected` (signed-in visitors), and `Public` must give a
+`reason` (see [Who may read it](en/rendering/collection-feeds.md#who-may-read-it)). That is easiest
+to review where only feeds are, apart from the page payloads.
 
 ### Allowed Domain children
 
