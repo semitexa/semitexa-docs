@@ -179,7 +179,7 @@ The priority comes from `LOCALE_STRATEGY` and `LOCALE_COOKIE_ENABLED`:
 
 With `LOCALE_URL_PREFIX=true`, `path` is moved to the front and becomes **authoritative**: a prefixed URL uses its prefix, and an unprefixed URL is the default locale. The cookie and header resolvers are never reached.
 
-The framework does not read the session or a user profile for the locale, and it never writes the `locale` cookie. Storing a person's choice is the application's job (see the switcher below). A `LocaleResolved` event (`locale`, `resolvedBy`) is dispatched once a locale is chosen, including the default chosen for an unprefixed URL when prefixing is on; it is not dispatched when no resolver matched.
+The framework does not read the session or a user profile for the locale, and it never creates the `locale` cookie: storing a person's choice is the application's job. The one write it makes is to update a cookie that already exists when the visitor uses the language switcher (see below). A `LocaleResolved` event (`locale`, `resolvedBy`) is dispatched once a locale is chosen, including the default chosen for an unprefixed URL when prefixing is on; it is not dispatched when no resolver matched.
 
 With tenancy, the tenant's locale layer is read from the same URL prefix (`TENANCY_LOCALE_PREFIXES`), and `TenantResolvedLocaleListener` copies it into the context when the tenant is resolved. The locale phase then resolves the prefix itself, so the layer only matters with `LOCALE_ENABLED=false`. To give a tenant its own default language, set its pack (`default`, `supported`).
 
@@ -192,47 +192,56 @@ With `LOCALE_URL_PREFIX=true`:
 - **A stored preference redirects.** A `GET`/`HEAD` page request (its `Accept` contains `text/html`) on an unprefixed path, carrying a `locale` cookie with a supported, non-default code, is answered with `302` to the prefixed URL and `Vary: Cookie, Accept`. Requests without the cookie (crawlers) are not redirected. This check reads the cookie even when `LOCALE_COOKIE_ENABLED` is not set.
 - **`url('route.name')`** and `RouteUrlBuilder::to()` prefix the current locale, unless it is the default.
 - **`locale_url(path, locale)`** prefixes `path` with `locale` (the current one by default), unless it is the default.
-- **`locale_switch_url(locale)`** strips any prefix from the current path, drops the query string, and prefixes the target. As a plain link it is bounced back by the preference redirect when it targets the default language and the visitor's cookie says otherwise; use the switcher below. `locale_switch_url(<default>)` is also the unprefixed current path the switcher needs.
+- **`locale_switch_url(locale)`** strips any prefix from the current path, drops the query string, prefixes the target, and adds `?_locale=<locale>`, which marks the link as the visitor's choice (see the switcher below). For the same page as an ordinary link, use `locale_url(path, locale)`.
 - **Handler redirects**: `$resource->setRedirect('/account')` becomes `/uk/account` while serving `uk`. Absolute URLs and paths that already start with a supported locale are left alone.
 
 With prefixing off, all of these return the path unchanged and nothing is redirected. The sitemap emits per-locale alternates only when prefixing is on.
 
 ### A language switcher
 
-Because of the preference redirect, a plain link to the default-language page bounces a visitor whose cookie says otherwise straight back. Change the cookie in the same step as the navigation, and switch the current locale before redirecting: a bare `setRedirect()` path is prefixed with the locale being served, so after `setLocale()` it lands in the new language. This works for a `GET` link and a `POST` form alike; register the route for both if you use both, and, as with any `POST`, send the `_csrf` field, signed in or not:
+Link each language with `locale_switch_url()`:
+
+```twig
+{% for code in ['en', 'uk', 'de'] %}
+  <a href="{{ locale_switch_url(code) }}" rel="nofollow">{{ code }}</a>
+{% endfor %}
+```
+
+With `LOCALE_URL_PREFIX=true` the links are `/catalog?_locale=en`, `/uk/catalog?_locale=uk`. The `_locale` parameter is what tells a click on a language from a bookmark: without it, the bare path of the default language is exactly what the preference redirect sends a visitor with `locale=uk` away from. A `GET`/`HEAD` page request (`Accept` contains `text/html`) whose `_locale` is a supported code, spelled exactly, is answered before routing:
+
+- `302` to the same page in that language without the parameter (`/catalog`, `/uk/catalog`), with `Cache-Control: no-store`. The other parameters are kept, rebuilt from their parsed values (`%0d` comes back as `%0D`, `a b` as `a+b`). The target is built from the request's own path and the supported list, never from the parameter's text. Such a request is always redirected, so a browser or a crawler never gets a page under a marker URL to index or cache; `rel="nofollow"` saves crawlers the extra hop.
+- If the request carries a `locale` cookie with another value, the cookie is updated: `locale=<code>; Max-Age=31536000; Path=/; SameSite=lax`, `Secure` under the same rule as the session cookie (`SESSION_COOKIE_SECURE`), `Domain` from `SESSION_COOKIE_DOMAIN` when set, not `HttpOnly`. A browser keeps a host-only `locale` and a `Domain` one side by side and sends the older first, so the same answer expires the other variant: the host-only cookie when `SESSION_COOKIE_DOMAIN` is set, otherwise a `Domain` cookie for this host or a parent of it. Still write your own `locale` cookie with the same `Path` and `Domain` (below).
+- A visitor without the cookie gets the redirect only. No cookie is created for them.
+- The cookie is not changed by a `HEAD`, or when the browser says another site started the navigation (`Sec-Fetch-Site` other than `same-origin` or `none`): in a browser that sends `Sec-Fetch-Site`, a link on another site cannot change the stored language. The page it opens is the one its URL names: `/de/catalog?_locale=de` is served in German. Only an unprefixed path is redirected to the visitor's stored language, as before. A browser that does not send it is believed, so there such a link can change the language, and nothing else.
+- A prefetch (`Sec-Purpose` or `Purpose: prefetch`) that would change the cookie is answered `503`; the browser makes the real request on the click.
+
+Any other `_locale` value, a `POST`, or a request that does not ask for a page (`Accept` without `text/html`, such as `*/*`) is handled as if the parameter were not there, and is served with it. `_locale` is reserved: do not use it for a parameter of your own. With prefixing off, `locale_switch_url()` adds nothing and the parameter means nothing.
+
+A prefixed URL without the marker (`/uk/catalog`, opened from a shared link) never changes the cookie: following a link is not a choice.
+
+**Storing the first choice** stays yours: the framework updates the cookie, it does not create it. Write it where the person tells you their language (sign-in, a profile form, a route of your own):
 
 ```php
 use Semitexa\Core\Attribute\InjectAsMutable;
 use Semitexa\Core\Cookie\CookieJarInterface;
-use Semitexa\Core\Http\Response\ResourceResponse;
-use Semitexa\Locale\Context\LocaleContextStore;
+use Semitexa\Core\Environment;
 
-// Handler for /language, fields: locale, path (e.g. "/catalog")
 #[InjectAsMutable]
 protected CookieJarInterface $cookies;
 
-public function handle(SwitchLanguagePayload $payload, ResourceResponse $resource): ResourceResponse
-{
-    $locale = $payload->getLocale();
-    if (!in_array($locale, LocaleContextStore::getSupportedLocales(), true)) {
-        $locale = LocaleContextStore::getDefaultLocale();
-    }
+$options = ['path' => '/', 'maxAge' => 31536000, 'sameSite' => 'lax'];
 
-    $this->cookies->set('locale', $locale, ['path' => '/', 'maxAge' => 31536000, 'sameSite' => 'lax']);
-    LocaleContextStore::setLocale($locale);
-
-    // A path that still carries a locale is left alone by the redirect, so the
-    // page would stay in the old language: drop the prefix here.
-    $segments = explode('/', ltrim($payload->getPath(), '/'), 2);
-    if (in_array($segments[0], LocaleContextStore::getSupportedLocales(), true)) {
-        $segments = [$segments[1] ?? ''];
-    }
-
-    return $resource->setRedirect('/' . implode('/', $segments));
+// The same Domain as the framework's update and the session cookie: without
+// it, a site with SESSION_COOKIE_DOMAIN holds two `locale` cookies.
+$domain = (string) Environment::getEnvValue('SESSION_COOKIE_DOMAIN', '');
+if ($domain !== '') {
+    $options['domain'] = $domain;
 }
+
+$this->cookies->set('locale', $locale, $options);
 ```
 
-A browser `GET` to `/language` from a visitor whose cookie names a supported language other than the default is first redirected to `/uk/language?…` (query kept); the handler still runs, and its redirect uses the new locale, not the cookie's. A `GET` switch is a state change any link can trigger, which here only changes a visitor's language.
+A switch is answered before routing, so it never reaches a handler. If the choice also lives in a user profile, do not copy the cookie into the profile on a later request: the cookie on one device can be older than a profile change made on another. Write the profile only from a choice the signed-in person makes explicitly (a profile form, or a switch route of your own that sets both), and write the cookie from the profile at sign-in.
 
 ## The locale under Swoole
 
@@ -279,8 +288,8 @@ Values are read once per worker; restart after changing them. A tenant's pack (p
 - **`{count}` is not a placeholder.** Only `{{count}}` and `:count` are replaced.
 - **Catalog edits need a worker restart.** So do `LOCALE_*` changes.
 - **With `LOCALE_URL_PREFIX=true`, `Accept-Language` and the cookie resolver are ignored.** A first-time visitor gets the default language on an unprefixed URL; only a `locale` cookie your application wrote triggers the preference redirect.
-- **The preference redirect beats a plain link.** A visitor with `locale=uk` who follows a link to `/catalog` is sent to `/uk/catalog`. Switch languages by updating the cookie (above), not by linking to the bare path.
-- **A redirect follows the locale being served.** `setRedirect('/catalog')` on a Ukrainian page goes to `/uk/catalog`. A language switcher must call `LocaleContextStore::setLocale()` with the new locale first (see above).
+- **The preference redirect beats a plain link.** A visitor with `locale=uk` who follows a link to `/catalog` is sent to `/uk/catalog`. Switch languages with `locale_switch_url()`, not `locale_url()` or a hand-written path: only its `_locale` marker outranks the cookie.
+- **A redirect follows the locale being served.** `setRedirect('/catalog')` on a Ukrainian page goes to `/uk/catalog`. A handler that changes the language itself must call `LocaleContextStore::setLocale()` with the new locale first, and write the `locale` cookie with it (as in "Storing the first choice"). Otherwise the next request to the unprefixed page is sent back to the old language by the preference redirect.
 - **`locale_url()` replaces a prefix that is already there.** `locale_url('/uk/a', 'de')` is `/de/a`. A first segment that is not a supported locale (`/ukraine/a`) is kept.
 - **Supported codes must be spelled as the header resolver normalizes them.** It compares `pt-BR`, so `LOCALE_SUPPORTED=pt-br` never matches a full tag. Only the primary subtag fallback can, and only when `pt` is in the list too.
 - **`Accept-Language: uk;q=0` never selects `uk`.** A zero quality excludes the language; a weight that is not a number (`q=x`) counts as `1`.
