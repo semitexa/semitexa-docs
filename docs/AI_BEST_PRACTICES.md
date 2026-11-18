@@ -506,7 +506,7 @@ What not to do:
 ### Rules
 
 - **Do** always provide `responseWith:` — it links the payload to its resource.
-- **Do** validate user input in setters: throw `Semitexa\Core\Exception\ValidationException` from any `setX()` that receives an invalid value. The framework converts the exception to a `422` response with a `{ errors: { field: [...] } }` envelope.
+- **Do** validate user input in setters: throw `Semitexa\Core\Exception\ValidationException` from any `setX()` that receives an invalid value. The framework converts the exception to a `422` response with a `{ errors: { field: [...] } }` envelope. That answer is JSON: a payload posted by an HTML form uses `validate()` plus the handler's `invalid()` instead (§11).
 - **Do** use `protected` properties with explicit getters/setters. The `RequestDtoHydrator` calls setters to populate the DTO, so setter-time validation runs before the handler ever sees the payload.
 - **Do** use `requirements:` for path params — it constrains what the router will match.
 - **Don't** implement `PayloadInterface` — it is deprecated (v2.0). Payloads no longer need a marker interface; the pipeline accepts `object` typed parameters.
@@ -1442,6 +1442,65 @@ On failure, the framework returns HTTP 422:
 {"errors": {"email": ["Must not be blank."]}}
 ```
 
+### HTML forms: `validate()` plus `invalid()`
+
+A setter-time `ValidationException` is the right tool for a payload a
+program calls: it fails on the first bad field and the client reads the
+JSON. It is the wrong tool for a form a browser posts, for two reasons:
+
+- the 422 is **always JSON**. Without `invalid()` on the handler, a visitor
+  who mistypes a field sees `{"errors": {...}}` as text;
+- a setter that throws stops hydration: one error is reported, and the
+  fields after it are never set, so the form cannot be shown again with
+  what was typed.
+
+For a browser form, the payload implements
+`Semitexa\Core\Contract\ValidatablePayloadInterface`: setters only store
+(and trim), and `validate(): array` checks every field with the accumulator
+traits (`validateNotBlank($errors, 'name', $this->name)`, …) and returns
+the `field => [messages]` map. The handler implements
+`Semitexa\Core\Contract\HandlesInvalidPayloadInterface`:
+
+```php
+#[AsPayloadHandler(payload: ContactSendPayload::class, resource: ContactPageResource::class)]
+final class ContactSendHandler implements TypedHandlerInterface, HandlesInvalidPayloadInterface
+{
+    public function handle(ContactSendPayload $payload, ContactPageResource $resource): ContactPageResource
+    {
+        // valid input only
+        return $resource;
+    }
+
+    // The interface's signature; it cannot be narrowed to the concrete classes.
+    public function invalid(object $payload, array $errors, ResourceInterface $resource): ResourceInterface
+    {
+        if (!$payload instanceof ContactSendPayload || !$resource instanceof ContactPageResource) {
+            return $resource;
+        }
+
+        return $resource
+            ->withValues(['name' => $payload->getName(), 'email' => $payload->getEmail(), 'message' => $payload->getMessage()])
+            ->withErrors($errors);   // typed with*() methods of the page resource
+    }
+}
+```
+
+When the request prefers HTML (`Accept` lists `text/html`; `*/*` or no
+`Accept` does not count), `invalid()` runs in place of `handle()`, on a
+resource already at 422, and the page template renders as usual. A JSON
+request to the same route keeps the flat `{"errors": {...}}` 422. Because
+`handle()` did not run, `invalid()` must give the resource everything the
+template needs.
+
+| Endpoint | Where the rules go |
+|---|---|
+| JSON API, webhook, machine client | setter, throwing `ValidationException` |
+| Rule across fields, or a required field (an absent key never calls its setter) | `validate()` |
+| HTML form posted by a browser | `validate()` **and** the handler's `invalid()` |
+
+Full pattern with payload, resource and template:
+[`docs/en/validation/core-validators.md`](en/validation/core-validators.md#an-html-form-show-it-again-with-its-errors).
+
 ### Type enforcement
 
 `RequestDtoHydrator` casts values to setter parameter types. In strict mode (testing only), `TypeMismatchException` is thrown for mismatches → 422.
@@ -1452,8 +1511,9 @@ On failure, the framework returns HTTP 422:
 - **Do** reach for the framework traits (`Semitexa\Core\Validation\Trait\…`) when an assertion is reusable — and add new traits there instead of pasting an inline helper into a payload.
 - **Do** keep each setter responsible for one field's constraints — the first failure short-circuits hydration with a clear, scoped error.
 - **Do** use `protected` properties with explicit getters/setters so the `RequestDtoHydrator` can drive validation.
-- **Don't** add a separate post-hydration `validate()` method — validation is a setter-time contract now.
-- **Don't** validate in handlers — validate in the setter itself.
+- **Do** give a browser-posted HTML form `validate()` on the payload and `invalid()` on the handler (`HandlesInvalidPayloadInterface`). Without `invalid()`, the browser gets the JSON 422.
+- **Don't** add a post-hydration `validate()` to a payload whose setters can state the rule — keep `validate()` for cross-field rules, required fields and HTML forms.
+- **Don't** validate in `handle()` — not even to keep a form on screen; that is what `invalid()` is for. Rules stay in the payload.
 - **Don't** rely on type casting for validation — write the business rule explicitly in the setter.
 
 ---

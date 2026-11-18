@@ -17,17 +17,22 @@ keywords:
   - ConditionalValidationTrait
   - CompositeValidationTrait
   - validation envelope
+  - HandlesInvalidPayloadInterface
+  - HTML form validation
+  - invalid()
   - nested validation paths
   - "Path::join"
 ---
 
 # Core Validators
 
-Semitexa ships a dependency-free, trait-based validation surface. Drop a category trait into a Payload DTO, return an error map from `validate()`, and the framework converts it into a 422 response automatically.
+Semitexa ships a dependency-free, trait-based validation surface. Drop a category trait into a Payload DTO, return an error map from `validate()`, and the framework answers 422 before any handler's `handle()` runs.
+
+**The 422 is JSON unless the handler says otherwise.** A browser that posts an HTML form to such a payload gets the raw `{"errors": {...}}` body on screen. To show the form again with its errors and the values the visitor typed, the route's handler implements `HandlesInvalidPayloadInterface::invalid()`: see [An HTML form: show it again with its errors](#an-html-form-show-it-again-with-its-errors).
 
 ## Philosophy
 
-- **Validation lives on the payload.** Handlers receive validated payloads; they do not re-validate, and they do not return 422 themselves.
+- **Validation lives on the payload.** `handle()` receives a validated payload; it does not re-validate, and it does not return 422 itself. The one thing a handler may add is `invalid()`, which only *presents* errors the payload already found.
 - **Errors are aggregated, not thrown.** Every category-trait validator appends to an `array<string, list<string>> $errors` accumulator so a single request reports every problem at once.
 - **Validators are composable.** Every method shares the same signature shape, so composite rules (`anyOf`, `oneOf`, `sequentially`) and conditional rules (`requiredIf`, `validateSometimes`) take callbacks that match every other validator.
 - **No metadata graph.** A validator is a method on a trait. There is no constraint registry, no annotation engine, no Symfony Validator dependency. The traits are the API.
@@ -65,8 +70,8 @@ Exceptions:
 
 ## Validation flow
 
-1. The HTTP request reaches `RouteExecutor::fillAndValidatePayload()`.
-2. `PayloadHydrator::hydrate()` invokes setters; setter-time `ValidationException` becomes 422 before `validate()` runs.
+1. The HTTP request reaches `PayloadAdmission::gateAndHydrate()` (called by `RouteExecutor`), after the pre-hydration auth gate.
+2. `PayloadHydrator::hydrate()` invokes a setter for every key the request carries; setter-time `ValidationException` becomes 422 before `validate()` runs. A field the request does not carry never reaches its setter, so "required" can only be checked in `validate()`.
 3. If the payload implements `ValidatablePayloadInterface`, its `validate()` runs after hydration.
 4. A non-empty error map turns into a 422 response with envelope:
 
@@ -79,7 +84,8 @@ Exceptions:
 }
 ```
 
-5. The payload reaches the handler only when `validate()` returned `[]`.
+5. The payload reaches `handle()` only when `validate()` returned `[]`.
+6. The envelope above is what a JSON client gets, and what a browser gets too, unless the request prefers HTML and the route's handler implements `HandlesInvalidPayloadInterface`. Then `invalid()` runs in place of `handle()`: see [An HTML form: show it again with its errors](#an-html-form-show-it-again-with-its-errors).
 
 ## Nested error paths
 
@@ -172,6 +178,183 @@ final class ContactFormPayload implements ValidatablePayloadInterface
 ```
 
 A non-string entry inside `tags` produces `tags[1]: ["This value should be a string."]`, demonstrating nested paths through `validateArrayOf`.
+
+## An HTML form: show it again with its errors
+
+**The trap:** `validate()` alone is an API answer. A browser form posted to the `ContactFormPayload` above shows the visitor a page of raw JSON, because the 422 is written before any handler runs and it is always JSON. Without `invalid()`, a browser gets JSON.
+
+The fix is one method on the handler. When the request prefers HTML and a handler of the route implements `Semitexa\Core\Contract\HandlesInvalidPayloadInterface`, the pipeline carries on as for a valid request (every phase, authorization included) and calls `invalid()` where it would have called `handle()`:
+
+```php
+public function invalid(object $payload, array $errors, ResourceInterface $resource): ResourceInterface;
+```
+
+- `$payload` is the hydrated payload: it still holds what was submitted.
+- `$errors` is the `array<string, list<string>>` map, field name to messages, exactly as `validate()` returned it.
+- `$resource` is the same resource `handle()` would get, with its status already set to 422.
+
+### The payload
+
+Setters only store (and trim); every rule is in `validate()`, so all errors come back at once and every submitted value is still on the payload. Give each property a default: a field missing from the post never reaches its setter.
+
+```php
+namespace App\Contact\Application\Payload\Request;
+
+use App\Contact\Application\Resource\Response\ContactPageResource;
+use Semitexa\Core\Attribute\AsPublicPayload;
+use Semitexa\Core\Contract\ValidatablePayloadInterface;
+use Semitexa\Core\Validation\Trait\FormatValidationTrait;
+use Semitexa\Core\Validation\Trait\PresenceValidationTrait;
+use Semitexa\Core\Validation\Trait\StringValidationTrait;
+
+#[AsPublicPayload(path: '/contact', methods: ['POST'], responseWith: ContactPageResource::class)]
+final class ContactSendPayload implements ValidatablePayloadInterface
+{
+    use PresenceValidationTrait;
+    use StringValidationTrait;
+    use FormatValidationTrait;
+
+    protected string $name = '';
+    protected string $email = '';
+    protected string $message = '';
+
+    public function getName(): string { return $this->name; }
+    public function setName(string $name): void { $this->name = trim($name); }
+
+    public function getEmail(): string { return $this->email; }
+    public function setEmail(string $email): void { $this->email = trim($email); }
+
+    public function getMessage(): string { return $this->message; }
+    public function setMessage(string $message): void { $this->message = trim($message); }
+
+    public function validate(): array
+    {
+        $errors = [];
+
+        $this->validateNotBlank($errors, 'name', $this->name);
+        $this->validateLength($errors, 'name', $this->name, min: 2, max: 100);
+
+        $this->validateNotBlank($errors, 'email', $this->email);
+        $this->validateRfcEmail($errors, 'email', $this->email);
+
+        $this->validateNotBlank($errors, 'message', $this->message);
+        $this->validateMaxLength($errors, 'message', $this->message, 2000);
+
+        return $errors;
+    }
+}
+```
+
+### The resource
+
+`HtmlResponse::with()` is protected, so the page resource publishes typed `with*()` methods, as every SSR resource does:
+
+```php
+namespace App\Contact\Application\Resource\Response;
+
+use Semitexa\Core\Attribute\AsResource;
+use Semitexa\Ssr\Application\Service\Http\Response\HtmlResponse;
+
+#[AsResource(handle: 'contact', template: '@project-layouts-Contact/pages/contact.html.twig')]
+class ContactPageResource extends HtmlResponse
+{
+    /** @param array<string, string> $values */
+    public function withValues(array $values): static
+    {
+        return $this->with('values', $values);
+    }
+
+    /** @param array<string, list<string>> $errors */
+    public function withErrors(array $errors): static
+    {
+        return $this->with('errors', $errors);
+    }
+}
+```
+
+### The handler
+
+```php
+namespace App\Contact\Application\Handler\PayloadHandler;
+
+use App\Contact\Application\Payload\Request\ContactSendPayload;
+use App\Contact\Application\Resource\Response\ContactPageResource;
+use Semitexa\Core\Attribute\AsPayloadHandler;
+use Semitexa\Core\Contract\HandlesInvalidPayloadInterface;
+use Semitexa\Core\Contract\ResourceInterface;
+use Semitexa\Core\Contract\TypedHandlerInterface;
+
+#[AsPayloadHandler(payload: ContactSendPayload::class, resource: ContactPageResource::class)]
+final class ContactSendHandler implements TypedHandlerInterface, HandlesInvalidPayloadInterface
+{
+    public function handle(ContactSendPayload $payload, ContactPageResource $resource): ContactPageResource
+    {
+        // Reached only with a valid payload: save, send, then leave the POST.
+        $resource->setRedirect('/contact/sent');
+
+        return $resource;
+    }
+
+    public function invalid(object $payload, array $errors, ResourceInterface $resource): ResourceInterface
+    {
+        if (!$payload instanceof ContactSendPayload || !$resource instanceof ContactPageResource) {
+            return $resource;
+        }
+
+        return $resource
+            ->pageTitle('Contact')
+            ->withValues([
+                'name' => $payload->getName(),
+                'email' => $payload->getEmail(),
+                'message' => $payload->getMessage(),
+            ])
+            ->withErrors($errors);
+    }
+}
+```
+
+The signature of `invalid()` is the interface's and cannot be narrowed: PHP refuses `invalid(ContactSendPayload $payload, ...)` as an incompatible declaration. Narrow inside with `instanceof`, as above.
+
+### The template
+
+The page that showed the empty form shows it again; `values` and `errors` are simply empty on the first GET.
+
+```twig
+<form method="post" action="/contact">
+  <label for="name">Name</label>
+  <input id="name" name="name" value="{{ values.name|default('') }}"
+         {% if errors.name is defined %}aria-invalid="true"{% endif %}>
+  {% for message in errors.name|default([]) %}
+    <p role="alert">{{ message }}</p>
+  {% endfor %}
+  {# email and message the same way #}
+  <button type="submit">Send</button>
+</form>
+```
+
+### Who gets what
+
+| Request | Handler implements `invalid()` | Answer |
+|---|---|---|
+| Browser form post (`Accept` lists `text/html`) | yes | the page from `invalid()`, status 422 |
+| Browser form post | no | JSON `{"errors": {...}}`, 422, shown as text |
+| `Accept: application/json` | either | JSON `{"errors": {...}}`, 422 |
+| `Accept: */*`, or no `Accept` (a bare `fetch()`, `curl`) | either | JSON `{"errors": {...}}`, 422 |
+
+The JSON body is the flat envelope from [Validation flow](#validation-flow); it is the same for a failed `validate()`, a `ValidationException` thrown by a setter and a value of the wrong type.
+
+### What `invalid()` does and does not do
+
+- **It runs instead of `handle()`.** Nothing `handle()` loads is there: `invalid()` must give the resource everything the template needs (select options, the page title).
+- **Only handlers that implement the interface run.** Other handlers of the route are skipped; the request was not valid.
+- **Authorization and the other pipeline phases still run**, as for a valid request.
+- **The status is 422.** Returning a resource at 200 is turned back into 422; any other status `invalid()` sets is kept (a redirect through `setRedirect()`, for one).
+- **The resource must be a `ResourceResponse`** (`HtmlResponse` is one). On anything else the JSON 422 stays.
+- **Errors from setters and type mismatches arrive here too**, under the same field keys, but a setter that throws stops hydration: one error is reported, and the fields after it are never set, so their old values are lost. That is why a form keeps its rules in `validate()`.
+- **A body that cannot be read at all** is reported under the key `_body`. Show errors whose key is not one of your fields somewhere on the page.
+- **Messages are English literals.** The bundled validators take no message argument (`'This value should not be blank.'`). For another language, map the messages in `invalid()` or in the template, or write the rule as a [custom validator](#custom-validators) with your own text.
+
+Where validation belongs for each kind of endpoint: [Payload Validation](payload-validation.md).
 
 ## A protected payload — profile update
 

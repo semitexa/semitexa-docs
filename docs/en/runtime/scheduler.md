@@ -35,7 +35,7 @@ Both kinds end up as rows in `scheduler_runs`. A `scheduler:work` process claims
 A job implements `ScheduledJobInterface` and **must be an `#[AsService]`**. The worker builds it from its class name through the container, and the container only builds registered services.
 
 ```php
-namespace App\Modules\Reports\Application\Service\Job;
+namespace App\Modules\Reports\Application\Job;
 
 use Semitexa\Core\Attribute\AsService;
 use Semitexa\Core\Attribute\InjectAsReadonly;

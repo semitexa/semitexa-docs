@@ -75,6 +75,8 @@ The validator detects a module from a changed file path by walking up the direct
           deferred/
       Component/          # #[AsComponent]
       Prompt/             # #[AsPrompt] prompt-catalog definitions (thin: metadata + optional few-shot; Twig body in resources/prompts/)
+      Job/                # #[AsScheduledJob] scheduled jobs (feature grouping allowed; Application/Service/**/ stays valid)
+      DataProvider/       # SSR DataProvider implementations for deferred slots and #[WithDataProvider] components
       Db/                 # persistence implementation (resource models, mappers, concrete repositories)
         MySQL/            # one storage adapter; declare additional adapters explicitly in the spec
           Model/          # *Resource, *ResourceModel — feature-grouping allowed
@@ -490,7 +492,9 @@ The rule is intentional and absolute: **do not** add forbidden names to the spec
 
 ### Allowed Application children
 
-Allowed direct children of `Application/`: `Payload`, `Resource`, `Handler`, `Service`, `Console`, `Update`, `Static`, `View`, `Component`, `Db`, `Enum`. `Command` is **not** allowed at this level — console commands live under `Application/Console/Command/` (see file-placement rule below). `Application/Enum/` holds application/runtime enums (orchestration modes, runtime states, pipeline phases) — see "Enum placement" above. Sub-feature grouping inside a leaf (e.g. `Application/Service/Customer/`, `Application/Resource/Response/Customer/`) is permitted because those leaves declare `allowFeatureGrouping: true` in the spec; `Application/Enum/` is leaf-only and does **not** allow sub-folders.
+Allowed direct children of `Application/`: `Payload`, `Resource`, `Handler`, `Service`, `Console`, `Update`, `Static`, `View`, `Component`, `Prompt`, `Job`, `DataProvider`, `Db`, `Enum`. `Command` is **not** allowed at this level — console commands live under `Application/Console/Command/` (see file-placement rule below). `Application/Enum/` holds application/runtime enums (orchestration modes, runtime states, pipeline phases) — see "Enum placement" above. Sub-feature grouping inside a leaf (e.g. `Application/Service/Customer/`, `Application/Resource/Response/Customer/`) is permitted because those leaves declare `allowFeatureGrouping: true` in the spec; `Application/Enum/` is leaf-only and does **not** allow sub-folders.
+
+`Application/Job/` is the canonical home for `#[AsScheduledJob]` classes. A scheduled job is an entry point the scheduler worker calls, not a service other code calls, so it has its own directory, with feature grouping (`Application/Job/Cleanup/`). The rule is additive: a job that already lives under `Application/Service/` (for example `Application/Service/Job/`) stays valid and does not need to move.
 
 ### Application/Db — persistence implementation layer
 

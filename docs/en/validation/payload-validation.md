@@ -12,6 +12,8 @@ keywords:
   - payload rules
   - hydration
   - validation pipeline
+  - HandlesInvalidPayloadInterface
+  - HTML form validation
 ---
 
 # Payload Validation
@@ -22,19 +24,28 @@ Payload DTOs are the boundary between external data and application code. Semite
 
 Invalid input is still rejected as `422 Unprocessable Entity`, but the rejection should be expressed by the field that failed, not by a monolithic post-hydration pass.
 
+The post-hydration pass is the right tool where a setter cannot see the rule:
+
+- **A required field.** The hydrator calls a setter only for a key the request carries, so a setter never learns that its field is missing.
+- **A rule across fields**, such as two passwords that must match, or an end date after the start date.
+- **An HTML form a browser posts.** It needs every error at once and every value the visitor typed, and a setter that throws gives neither. That case uses `validate()` plus the handler's `invalid()`; see [HTML forms](#html-forms).
+
+The table in [Which one to use](#which-one-to-use) sums these up.
+
 ## Pipeline
 
 1. **Hydrate** - `PayloadHydrator::hydrate($dto, $request)` fills the DTO using the setter convention: for each key in raw data (JSON/POST/query + path params), the hydrator calls `set{CamelCase}($value)` if the method exists.
 2. **Normalize and guard** - each setter can normalize its input and reject invalid values immediately with a field-aware exception such as `Semitexa\Core\Exception\ValidationException`.
-3. **Return 422 on failure** - `RouteExecutor` or the surrounding request pipeline converts the field error into an HTTP 422 response before the handler runs.
-4. **Handle** - the handler receives a DTO whose individual fields have already been normalized and guarded by their own setters.
+3. **Validate across fields** - if the payload implements `Semitexa\Core\Contract\ValidatablePayloadInterface`, its `validate()` runs once, after every setter.
+4. **Return 422 on failure** - the request pipeline answers 422 before `handle()` runs: as JSON, or, for an HTML request whose handler implements `HandlesInvalidPayloadInterface`, through that handler's `invalid()`.
+5. **Handle** - the handler receives a DTO whose individual fields have already been normalized and guarded by their own setters.
 
 ## Payload rules
 
 - **Fields:** `private` or `protected` only.
 - **Access:** only through **getters** (`get*`) and **setters** (`set*`).
 - **Validation ownership:** field-level rules belong in the setter for that field.
-- **Cross-field rules:** keep them explicit and local. If a rule spans multiple fields, prefer a dedicated helper method or a small field-specific exception path over a hidden DTO-wide validation bag.
+- **Cross-field rules:** they belong in `validate()`, which runs after every setter and sees all the fields. Keep each rule explicit there, one named check per rule, rather than a hidden validation bag.
 
 ## Validation helpers
 
@@ -99,6 +110,8 @@ class ContactFormPayload
 }
 ```
 
+These setters check a value the request sends. A POST that leaves out `email` never calls `setEmail()`, so the handler gets an empty string and no error. A field the request must carry is checked in `validate()`; see [Which one to use](#which-one-to-use).
+
 ## Hydration
 
 - Data keys such as `email` and `flash_message` are converted to setter names such as `setEmail` and `setFlashMessage`.
@@ -108,9 +121,35 @@ class ContactFormPayload
 ## Response on validation failure
 
 - **Status:** 422 Unprocessable Entity.
-- **Default Core body example:** `{ "error": "validation_exception", "message": "The given data was invalid.", "context": { "errors": { "fieldName": ["message1", "message2"], ... } } }`.
+- **Body:** `{ "errors": { "fieldName": ["message1", "message2"], ... } }`. It is the same flat body for a `ValidationException` thrown by a setter, a value of the wrong type, and a non-empty map from `validate()`.
+- **Always JSON**, whatever the client asked for, unless the handler implements `invalid()` (next section).
 
-Setter-thrown `ValidationException` is the field-level signal used by this model, and the Core route pipeline maps it to the 422 envelope above.
+A `ValidationException` thrown later, from inside `handle()`, is a domain rule and not a malformed request. It gets the domain error envelope, `{ "error": ..., "message": ..., "context": { "errors": {...} } }`, also with 422.
+
+## HTML forms
+
+Without `invalid()`, a browser gets JSON: a visitor who posts a form with a mistake in it sees `{"errors": {...}}` as text. Do not answer that by moving the checks into `handle()`. Keep them on the payload and let the handler show the form again:
+
+- the payload implements `ValidatablePayloadInterface` and checks every field in `validate()` with the accumulator traits (`Semitexa\Core\Validation\Trait\*`), so all errors are reported together and all submitted values stay on the payload;
+- the handler implements `Semitexa\Core\Contract\HandlesInvalidPayloadInterface`:
+
+```php
+public function invalid(object $payload, array $errors, ResourceInterface $resource): ResourceInterface
+```
+
+For a request that prefers HTML (`Accept` lists `text/html`; a wildcard or no `Accept` does not count), `invalid()` runs in place of `handle()` with the hydrated payload, the `field => [messages]` map and the route's resource, already at status 422. It puts the old values and the errors on the resource and returns it; the page template renders as usual. A JSON request to the same route still gets the flat JSON 422.
+
+The full pattern, with payload, resource, handler and template, and the limits of `invalid()`: [Core Validators: an HTML form](core-validators.md#an-html-form-show-it-again-with-its-errors).
+
+## Which one to use
+
+| Endpoint | Where the rules go | Why |
+|---|---|---|
+| JSON API, webhook, machine client | the setter, throwing `ValidationException` | fails fast; the client gets the field and fixes it |
+| Rule across several fields | `validate()` | it runs after every setter |
+| Required field | `validate()` | a key the request does not carry never calls its setter |
+| HTML form posted by a browser | `validate()` plus the handler's `invalid()` | all errors at once, old values kept, an HTML answer |
+| Rule about stored state ("this email is already registered") | `handle()`, throwing a domain exception | it is a domain rule, not a malformed request |
 
 ## Session / Cookie payloads
 
@@ -118,4 +157,4 @@ The same rules apply: protected fields, getters/setters, and explicit field guar
 
 ## Authoring note
 
-`validate()` is not the authoring model for new payloads. New payloads should prefer setter-owned validation and should keep field normalization, field-shape checks, and cross-field guards explicit in the payload itself.
+Setter-owned validation is the default for a payload a program calls. `validate()` is for what a setter cannot see (another field, a missing key) and for HTML forms, where it is paired with `invalid()`. In every case the rules stay in the payload: `handle()` is never where input is checked.
