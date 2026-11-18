@@ -76,6 +76,7 @@ The validator detects a module from a changed file path by walking up the direct
       Component/          # #[AsComponent]
       Prompt/             # #[AsPrompt] prompt-catalog definitions (thin: metadata + optional few-shot; Twig body in resources/prompts/)
       Job/                # #[AsScheduledJob] scheduled jobs (feature grouping allowed; Application/Service/**/ stays valid)
+      DataProvider/       # SSR DataProvider implementations for deferred slots and #[WithDataProvider] components
       Db/                 # persistence implementation (resource models, mappers, concrete repositories)
         MySQL/            # one storage adapter; declare additional adapters explicitly in the spec
           Model/          # *Resource, *ResourceModel — feature-grouping allowed

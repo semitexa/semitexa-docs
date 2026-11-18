@@ -1479,7 +1479,7 @@ final class ContactSendHandler implements TypedHandlerInterface, HandlesInvalidP
         }
 
         return $resource
-            ->withValues(['name' => $payload->getName(), 'email' => $payload->getEmail()])
+            ->withValues(['name' => $payload->getName(), 'email' => $payload->getEmail(), 'message' => $payload->getMessage()])
             ->withErrors($errors);   // typed with*() methods of the page resource
     }
 }

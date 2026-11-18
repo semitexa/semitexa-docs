@@ -24,7 +24,13 @@ Payload DTOs are the boundary between external data and application code. Semite
 
 Invalid input is still rejected as `422 Unprocessable Entity`, but the rejection should be expressed by the field that failed, not by a monolithic post-hydration pass.
 
-There is one case where the post-hydration pass is the right tool: **an HTML form a browser posts**. It needs every error at once and every value the visitor typed, and a setter that throws gives neither. That case uses `validate()` plus the handler's `invalid()`; see [HTML forms](#html-forms).
+The post-hydration pass is the right tool where a setter cannot see the rule:
+
+- **A required field.** The hydrator calls a setter only for a key the request carries, so a setter never learns that its field is missing.
+- **A rule across fields**, such as two passwords that must match, or an end date after the start date.
+- **An HTML form a browser posts.** It needs every error at once and every value the visitor typed, and a setter that throws gives neither. That case uses `validate()` plus the handler's `invalid()`; see [HTML forms](#html-forms).
+
+The table in [Which one to use](#which-one-to-use) sums these up.
 
 ## Pipeline
 
@@ -39,7 +45,7 @@ There is one case where the post-hydration pass is the right tool: **an HTML for
 - **Fields:** `private` or `protected` only.
 - **Access:** only through **getters** (`get*`) and **setters** (`set*`).
 - **Validation ownership:** field-level rules belong in the setter for that field.
-- **Cross-field rules:** keep them explicit and local. If a rule spans multiple fields, prefer a dedicated helper method or a small field-specific exception path over a hidden DTO-wide validation bag.
+- **Cross-field rules:** they belong in `validate()`, which runs after every setter and sees all the fields. Keep each rule explicit there, one named check per rule, rather than a hidden validation bag.
 
 ## Validation helpers
 
