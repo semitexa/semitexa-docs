@@ -144,8 +144,14 @@ $states  = $q->aggregate()->distinctValues(ColumnRef::for(OrderResource::class, 
 ```
 
 `sumBy()` and `maxBy()` come biggest first, ties by group, as `countBy()`
-does; a group whose values are all NULL sums to 0. As with `countBy()`, a
-NULL group comes back under the `''` key.
+does. A group whose values are all NULL sums to 0; its `maxBy()` value is
+null, and it comes after the other groups on MySQL and SQLite.
+
+As with `countBy()`, a NULL group comes back under the `''` key, so a NULL
+group and an empty-string group share one array key and the second
+overwrites the first. When both can occur, query them apart:
+`whereNull($group)` for the one, `where($group, Operator::Equals, '')` for
+the other.
 
 ### Tenancy is fail-closed
 
