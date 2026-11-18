@@ -99,6 +99,27 @@ Available: `where` (eq/neq/gt/gte/lt/lte/like/notlike), `whereIn`,
 pagination (`paginate`) and keyset cursors (through the collection feed
 compiler).
 
+### Ordering by listed values
+
+`orderByValues()` orders rows by where a column's value stands in a list:
+the first place's rows first, rows whose value is not listed after every
+place (`Direction::Desc` reverses both). A place is a value or a list of
+values that share it, and an `orderBy()` after it breaks the ties: "un-worked
+first, then newest" needs no raw SQL.
+
+```php
+$leads = $repo->query()
+    ->orderByValues(ColumnRef::for(LeadResource::class, 'status'), ['new', ['contacted', 'called']], Direction::Asc)
+    ->orderBy(ColumnRef::for(LeadResource::class, 'createdAt'), Direction::Desc)
+    ->paginate($page, 25);
+```
+
+The values are bound like a `where()`'s (an enum case or a date is converted
+the same way), and `count()`, `exists()`, the count of `paginate()` and the
+aggregates leave the ordering out. An empty list and a `null` are refused:
+`CASE … WHEN NULL` never matches, so a null would rank nothing; rows with a
+NULL value come with the unlisted ones.
+
 ### Aggregations (single-table)
 
 ```php
@@ -108,6 +129,29 @@ $oldest  = $q->min(...);  $newest = $q->max(...);                     // null on
 $byState = $q->countBy(ColumnRef::for(OrderResource::class, 'status'));
 // ['open' => 12, 'done' => 30] — same WHERE/tenant/soft-delete state as fetchAll()
 ```
+
+Grouped and distinct reads are on `aggregate()`, which reads the query's
+WHERE, tenant and soft-delete state as it stands (never its ORDER BY, LIMIT
+or OFFSET):
+
+```php
+$region  = ColumnRef::for(OrderResource::class, 'region');
+$amount  = ColumnRef::for(OrderResource::class, 'amount');
+$sums    = $q->aggregate()->sumBy($region, $amount);   // ['north' => 115, 'south' => 45]
+$biggest = $q->aggregate()->maxBy($region, $amount);   // the driver's raw value per group
+$states  = $q->aggregate()->distinctValues(ColumnRef::for(OrderResource::class, 'status'));
+// ['done', 'open', null] — ascending, NULL last on every driver
+```
+
+`sumBy()` and `maxBy()` come biggest first, ties by group, as `countBy()`
+does. A group whose values are all NULL sums to 0; its `maxBy()` value is
+null, and it comes after the other groups on MySQL and SQLite.
+
+As with `countBy()`, a NULL group comes back under the `''` key, so a NULL
+group and an empty-string group share one array key and the second
+overwrites the first. When both can occur, query them apart:
+`whereNull($group)` for the one, `where($group, Operator::Equals, '')` for
+the other.
 
 ### Tenancy is fail-closed
 
