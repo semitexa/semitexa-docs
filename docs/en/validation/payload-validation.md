@@ -110,6 +110,8 @@ class ContactFormPayload
 }
 ```
 
+These setters check a value the request sends. A POST that leaves out `email` never calls `setEmail()`, so the handler gets an empty string and no error. A field the request must carry is checked in `validate()`; see [Which one to use](#which-one-to-use).
+
 ## Hydration
 
 - Data keys such as `email` and `flash_message` are converted to setter names such as `setEmail` and `setFlashMessage`.
