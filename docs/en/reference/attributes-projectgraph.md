@@ -54,9 +54,9 @@ Applies to: class
 | `reason` | `string` | yes |
 
 ```php
-            #[UiEntryPoint]
-            final class BareEntryPayload {}
+        #[UiEntryPoint(reason: 'Posted by the import script on the orders page.')]
+        final class ImportOrdersPayload {}
 ```
 
-— `vendor/semitexa/project-graph/tests/Integration/UiFlowGapReportTest.php`
+— `vendor/semitexa/project-graph/tests/Support/UiFlowProject.php`
 

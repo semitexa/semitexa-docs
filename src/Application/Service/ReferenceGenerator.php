@@ -124,8 +124,16 @@ final class ReferenceGenerator
     private function harvestAttributeUsages(array $index): array
     {
         $names = [];
+        // An attribute with a required parameter written bare (`#[X]`) is a
+        // declaration PHP refuses to build: a negative fixture, never the example.
+        $needsArguments = [];
         foreach ($index['attributes'] ?? [] as $attribute) {
             $names[(string) $attribute['name']] = true;
+            foreach ((array) ($attribute['parameters'] ?? []) as $parameter) {
+                if (is_array($parameter) && ($parameter['optional'] ?? false) !== true) {
+                    $needsArguments[(string) $attribute['name']] = true;
+                }
+            }
         }
 
         $found = [];
@@ -143,6 +151,9 @@ final class ReferenceGenerator
 
                 $name = $match[1];
                 if (!isset($names[$name])) {
+                    continue;
+                }
+                if (isset($needsArguments[$name]) && preg_match('/^\s*#\[' . $name . '\s*\]/', $line) === 1) {
                     continue;
                 }
 
