@@ -36,7 +36,7 @@ bin/semitexa ai:agent ["action"]
 
 ## `ai:ask`
 
-Agent-facing introspection aggregator (capabilities, mechanisms, components, project, module, route, event, path, api, logs)
+Agent-facing introspection aggregator (capabilities, mechanisms, components, project, module, route, event, path, api, logs, ui-flow)
 
 ```bash
 bin/semitexa ai:ask ["subject"]
@@ -45,6 +45,8 @@ bin/semitexa ai:ask ["subject"]
 | option | takes a value |
 |---|---|
 | `--name` | yes |
+| `--screen` | yes |
+| `--module` | yes |
 | `--search` | yes |
 | `--path` | yes |
 | `--method` | yes |
@@ -510,6 +512,21 @@ bin/semitexa ai:review-graph:stats
 | option | takes a value |
 |---|---|
 | `--json` | no |
+
+## `ai:review-graph:ui-flow`
+
+The UI flow as JSON: modules with screens, one module (--module) or one screen with its links and forms (--screen)
+
+```bash
+bin/semitexa ai:review-graph:ui-flow
+```
+
+| option | takes a value |
+|---|---|
+| `--screen` | yes |
+| `--module` | yes |
+| `--json` | no |
+| `--no-refresh` | no |
 
 ## `ai:review-graph:watch`
 
