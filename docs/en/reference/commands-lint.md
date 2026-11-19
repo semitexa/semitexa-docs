@@ -167,6 +167,7 @@ bin/semitexa lint:shell-fallbacks
 | option | takes a value |
 |---|---|
 | `--file` | yes |
+| `--all` | no |
 | `--json` | no |
 
 ## `lint:skin-legacy`
