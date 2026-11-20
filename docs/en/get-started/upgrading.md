@@ -42,10 +42,11 @@ In this order, and it stops at the first stage that fails:
 1. **Preflight.** Read-only checks before anything is touched: the database answers, there is disk space, `composer.json` and `composer.lock` are readable, and `var/` is writable. A failed check stops the update with nothing changed.
 2. **Packages.** Every `semitexa/*` package moves to the version the newest `semitexa/ultimate` release pins — the set that release was tested as. Composer runs inside the containers; if it fails, `composer.json`, `composer.lock` and `vendor/` are put back as they were.
 3. **Itself first.** When the release brings a newer `semitexa/update`, the command stops after the package step and runs again on the new code, so the remaining stages are the new release's. You see this as a note in the output; it is not an error.
-4. **Scaffold files.** A file you never changed is replaced with the new release's version. A file you did change is **left as it is**. For the agent docs (`AGENTS.md`, `CLAUDE.md` and the like) the release's version is written next to it as `<file>.new`; any other changed file is only reported (`manual_review`) — see below.
-5. **Database.** Data patches and the schema sync for the new release, the same as `orm:sync`. A destructive schema change (a dropped column, a narrowed type) is refused unless you pass `--allow-destructive`.
-6. **Health check.** When `SEMITEXA_UPDATE_HEALTHCHECK_URL` is set, the update counts as successful only if that URL answers. Without it this stage is skipped.
-7. **Journal.** The run is recorded: `bin/semitexa update:history` lists past runs and their outcome.
+4. **Required settings.** On the new code, `system:doctor` checks the settings the release requires, such as `APP_SECRET` outside `dev` and `test`. A missing one stops the update here, before the scaffold and the database, and names the setting and the fix. A doctor that cannot answer only warns. See [Deploying](../runtime/deploying.md#a-missing-required-setting).
+5. **Scaffold files.** A file you never changed is replaced with the new release's version. A file you did change is **left as it is**. For the agent docs (`AGENTS.md`, `CLAUDE.md` and the like) the release's version is written next to it as `<file>.new`; any other changed file is only reported (`manual_review`) — see below.
+6. **Database.** Data patches and the schema sync for the new release, the same as `orm:sync`. A destructive schema change (a dropped column, a narrowed type) is refused unless you pass `--allow-destructive`.
+7. **Health check.** When `SEMITEXA_UPDATE_HEALTHCHECK_URL` is set, the update counts as successful only if that URL answers. Without it this stage is skipped.
+8. **Journal.** The run is recorded: `bin/semitexa update:history` lists past runs and their outcome.
 
 Then `server:restart`, so the workers load the new code.
 

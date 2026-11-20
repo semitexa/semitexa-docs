@@ -20,6 +20,9 @@ keywords:
   - SEMITEXA_AUTO_DEPLOY_RESTART_COMMAND
   - install-auto-deploy-systemd.sh
   - semitexa-auto-deploy.timer
+  - required-settings
+  - APP_SECRET
+  - blocked.json
   - var/log/deployments
 ---
 
@@ -175,7 +178,7 @@ When auto-deploy is off it ends with status `skipped`. With no newer release it 
 3. Keeps a copy of `composer.json` and `composer.lock` in memory.
 4. Runs `composer update 'semitexa/*' --with-all-dependencies --prefer-dist --no-dev --no-interaction --optimize-autoloader`, with `composer` from the `PATH` or `vendor/bin/composer`.
 5. Compares every `semitexa/*` package in `composer.lock` with `vendor/composer/installed.json` and fails if one is missing or at another version. A `require-dev` package is not counted as missing: `--no-dev` takes it out of `vendor/` while `composer.lock` keeps it.
-6. Runs `orm:sync`, then `cache:clear`. When the server runs in the same container, `cache:clear` also reloads its workers.
+6. Asks `system:doctor --json`, on the new code, whether a setting the release requires is missing (see [A missing required setting](#a-missing-required-setting)). Then runs `orm:sync`, then `cache:clear`. When the server runs in the same container, `cache:clear` also reloads its workers.
 7. Restarts: with `SEMITEXA_AUTO_DEPLOY_RESTART_COMMAND`, that command. Otherwise `docker compose restart`, but only when `docker-compose.yml` and the Docker CLI exist and the command is not running inside a container. Otherwise nothing, and the result says `restart_required: true`.
 8. Fetches `SEMITEXA_AUTO_DEPLOY_HEALTHCHECK_URL` when it is set; a failure fails the deploy and rolls it back. After a restart in step 7 it tries four times, three seconds apart. Without one (inside the `app` container) it asks the workers `cache:clear` reloaded on the new `vendor/`. A deploy that passes keeps the `composer.json` and `composer.lock` it replaced in `var/update/rollback/` (`rollback_snapshot: kept` in the result), so the systemd wrapper's check after its restart can still roll it back with `update:packages:rollback`.
 
@@ -244,6 +247,18 @@ Any failure after the lock is taken ends the run as `failed`, with the error as 
 | `FAILED` | the files could not be written, or `composer install` failed: `vendor/` is still on the new versions |
 
 The rollback does not undo schema changes `orm:sync` made and does not repeat the health check. During the run the saved files are kept in memory only: a run killed mid-update has nothing to roll back from.
+
+### A missing required setting
+
+A doctor check can name the env settings it judges. `AppSecretDoctorCheck` names `APP_SECRET`, which is required outside `dev` and `test`. When such a check fails on the new code, the release needs a setting `.env` does not have. Left alone, the pages that need it would answer 500 at their first use.
+
+- **`update:packages:auto` stops before `orm:sync` and rolls back**, as for any failed deploy. The database is untouched. The release is **not** written to `rejected.json`, because the release is fine.
+- **The following ticks wait.** `var/update/rollback/blocked.json` records the release set, the missing settings and a hash of `.env`. While both still match, each tick ends as `noop`, and the reason names the setting. Fix `.env`, and the next tick tries again; a newer release does too. A setting given only through the process environment does not change the hash: delete `blocked.json` after setting it there.
+- **A marker that cannot be read stops the tick before composer.** So does a `.env` that cannot be read; the file stays where it is.
+- **`bin/semitexa update` runs the same check** as its `required-settings` stage, after the packages and before the scaffold and the database. A missing setting ends the update with a non-zero exit. The message names the setting, the check, the `APP_ENV` it judged and the fix, for example `openssl rand -hex 32` for `APP_SECRET`.
+- **A doctor that cannot answer does not block.** That covers an older core that names no settings, a crash, or a run past 120 seconds. You get a warning saying the check did not run.
+
+The server also says it when it starts: with `APP_ENV` other than `dev` or `test` and an empty `APP_SECRET`, it prints an `[Semitexa] APP_SECRET IS NOT SET` block to stderr once, and starts anyway.
 
 ### Rolling back the last deploy
 
