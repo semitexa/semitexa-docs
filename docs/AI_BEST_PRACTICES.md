@@ -507,7 +507,7 @@ What not to do:
 
 - **Do** always provide `responseWith:` — it links the payload to its resource.
 - **Do** validate user input in setters: throw `Semitexa\Core\Exception\ValidationException` from any `setX()` that receives an invalid value. The framework converts the exception to a `422` response with a `{ errors: { field: [...] } }` envelope. That answer is JSON: a payload posted by an HTML form uses `validate()` plus the handler's `invalid()` instead (§11).
-- **Do** use `protected` properties with explicit getters/setters. The `RequestDtoHydrator` calls setters to populate the DTO, so setter-time validation runs before the handler ever sees the payload.
+- **Do** use `protected` properties with explicit getters/setters. The `PayloadHydrator` calls setters to populate the DTO, so setter-time validation runs before the handler ever sees the payload.
 - **Do** use `requirements:` for path params — it constrains what the router will match.
 - **Don't** implement `PayloadInterface` — it is deprecated (v2.0). Payloads no longer need a marker interface; the pipeline accepts `object` typed parameters.
 - **Don't** put business logic in a payload. It is a data carrier only.
@@ -1377,7 +1377,7 @@ System env variables are **never** overwritten by `.env` files.
 
 Validation lives in setters. Each `setX()` is responsible for its field's
 own constraints; failures throw `Semitexa\Core\Exception\ValidationException`
-with a field-keyed `errors` map. The `RequestDtoHydrator` calls setters in
+with a field-keyed `errors` map. The `PayloadHydrator` calls setters in
 turn, so an invalid value never makes it past hydration — the handler only
 ever sees a fully-valid payload.
 
@@ -1503,14 +1503,14 @@ Full pattern with payload, resource and template:
 
 ### Type enforcement
 
-`RequestDtoHydrator` casts values to setter parameter types. In strict mode (testing only), `TypeMismatchException` is thrown for mismatches → 422.
+`PayloadHydrator` casts values to setter parameter types. In strict mode (testing only), `TypeMismatchException` is thrown for mismatches → 422.
 
 ### Rules
 
 - **Do** validate user input inside setters; throw `ValidationException` with a `[field => [messages]]` map.
 - **Do** reach for the framework traits (`Semitexa\Core\Validation\Trait\…`) when an assertion is reusable — and add new traits there instead of pasting an inline helper into a payload.
 - **Do** keep each setter responsible for one field's constraints — the first failure short-circuits hydration with a clear, scoped error.
-- **Do** use `protected` properties with explicit getters/setters so the `RequestDtoHydrator` can drive validation.
+- **Do** use `protected` properties with explicit getters/setters so the `PayloadHydrator` can drive validation.
 - **Do** give a browser-posted HTML form `validate()` on the payload and `invalid()` on the handler (`HandlesInvalidPayloadInterface`). Without `invalid()`, the browser gets the JSON 422.
 - **Don't** add a post-hydration `validate()` to a payload whose setters can state the rule — keep `validate()` for cross-field rules, required fields and HTML forms.
 - **Don't** validate in `handle()` — not even to keep a form on screen; that is what `invalid()` is for. Rules stay in the payload.
@@ -2326,7 +2326,7 @@ All domain errors extend `Semitexa\Core\Exception\DomainException` and map to HT
 ```text
 DomainException (abstract, extends \RuntimeException)
   ├─ NotFoundException              → 404  (error code: "not_found")
-  ├─ ValidationException            → 422  (error code: "validation_failed", carries field errors)
+  ├─ ValidationException            → 422  (error code: "validation", carries field errors)
   ├─ AuthenticationException        → 401  (error code: "authentication_failed")
   ├─ AccessDeniedException          → 403  (error code: "access_denied")
   ├─ ConflictException              → 409  (error code: "conflict")
@@ -2375,7 +2375,7 @@ throw new ValidationException(['email' => ['Email is required']]);
 
 // ExceptionMapper produces (JSON):
 // HTTP 422
-// {"error": "validation_failed", "message": "Validation failed.", "errors": {"email": ["Email is required"]}}
+// {"error": "validation", "message": "Validation failed.", "errors": {"email": ["Email is required"]}}
 ```
 
 The error format is the same for JSON, XML, and HTML (error page template).
