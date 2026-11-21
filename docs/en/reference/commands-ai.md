@@ -682,6 +682,8 @@ bin/semitexa ai:work "<action>"
 | `--recipe` | yes |
 | `--risk` | yes |
 | `--phase` | yes |
+| `--blocker` | yes |
+| `--evidence` | yes |
 | `--status` | yes |
 | `--scope` | yes |
 | `--take-over` | no |
