@@ -516,6 +516,25 @@ final class ContactMethodPayload implements ValidatablePayloadInterface
 
 The unit tests under `packages/semitexa-core/tests/Unit/Validation/` are the exact behaviour contract — refer to them for the precise edge cases each method handles.
 
+### `LengthValidationTrait` and `StringValidationTrait` together
+
+The older `LengthValidationTrait` also declares `validateLength`, with the arguments in another order (`$field, $value, $min, $max, &$errors`). PHP cannot load a class that uses both traits as they are, so a payload that needs both says which one keeps the name:
+
+```php
+use Semitexa\Core\Validation\Trait\LengthValidationTrait;
+use Semitexa\Core\Validation\Trait\StringValidationTrait;
+
+final class ImportRowPayload
+{
+    use LengthValidationTrait, StringValidationTrait {
+        StringValidationTrait::validateLength insteadof LengthValidationTrait;
+        LengthValidationTrait::validateLength as validateLengthLegacy;
+    }
+}
+```
+
+`$this->validateLength($errors, 'name', $value, min: 2, max: 50)` is then the `StringValidationTrait` form and `$this->validateLengthLegacy('name', $value, 2, 50, $errors)` the older one. New payloads use `StringValidationTrait` alone for strings; its `validateLength` takes a string, so the length of an array is checked with `ChoiceValidationTrait::validateCount($errors, 'tags', $value, min: 2)` (or `validateMinCount` / `validateMaxCount`), where the older trait accepted an array too.
+
 ## Comparison messages never leak values
 
 Cross-field comparison messages mention only the other field name:
