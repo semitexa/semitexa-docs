@@ -2375,7 +2375,9 @@ throw new ValidationException(['email' => ['Email is required']]);
 
 // ExceptionMapper produces (JSON):
 // HTTP 422
-// {"error": "validation", "message": "Validation failed.", "errors": {"email": ["Email is required"]}}
+// {"error": "validation", "message": "Validation failed.", "context": {"errors": {"email": ["Email is required"]}}}
+// (a ValidationException thrown from handle() is a domain error; a payload that fails
+// validation before handle() runs gets the flat {"errors": {...}} body instead)
 ```
 
 The error format is the same for JSON, XML, and HTML (error page template).

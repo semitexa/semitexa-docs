@@ -533,7 +533,7 @@ final class ImportRowPayload
 }
 ```
 
-`$this->validateLength($errors, 'name', $value, min: 2, max: 50)` is then the `StringValidationTrait` form and `$this->validateLengthLegacy('name', $value, 2, 50, $errors)` the older one. New payloads use `StringValidationTrait` alone.
+`$this->validateLength($errors, 'name', $value, min: 2, max: 50)` is then the `StringValidationTrait` form and `$this->validateLengthLegacy('name', $value, 2, 50, $errors)` the older one. New payloads use `StringValidationTrait` alone for strings; its `validateLength` takes a string, so the length of an array is checked with `ChoiceValidationTrait::validateCount($errors, 'tags', $value, min: 2)` (or `validateMinCount` / `validateMaxCount`), where the older trait accepted an array too.
 
 ## Comparison messages never leak values
 
