@@ -338,9 +338,14 @@ their next save.
   another account, the renewal is refused: the status host gets `data-state="expired"`, the form
   dispatches `semitexa:collab:expired`, and nothing typed afterwards is shared until the page is
   loaded again.
-- **An authorizer that allows events by name** has to allow the renewal: your
-  `UiInteractionAuthorizerInterface` is asked for part `manifest`, event `renew` like for any
-  other event of the form.
+- **Renewal follows your authorizer.** `manifest.renew` signs the form's tokens again only
+  while your `UiInteractionAuthorizerInterface` still allows the edits they grant: it is asked
+  about every event of the form's mode (`field.edit`, the lock events and the rest) as if each
+  were being sent, with the form's scope in `$event->config['scope']`, and one denial refuses
+  the renewal (403 `collab_renew_forbidden`). So access to a record that ends while a tab is
+  open ends with the tokens the page holds, within five minutes. An authorizer that allows
+  events by name must allow part `manifest`, event `renew` too, or no form outlives its first
+  tokens. The renewal token itself lasts a day; after that the page must be reloaded.
 - **Two tabs of one signed-in person are one participant:** one chip and one lock. A release
   from one tab ends the lock the other is using, and one tab skips the snapshots the other
   caused.
