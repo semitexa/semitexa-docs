@@ -56,8 +56,9 @@ The pattern above — one `#[AsService]` class holding a package's settings — 
 
 - **`int` and `float`:** a value that is not a number, such as `WEBHOOK_TIMEOUT_SECONDS=abc`, is not cast. The property gets the default, and a boot diagnostic names the variable and the value it could not read.
 - **String-backed enum:** the value is matched against the enum's cases; one that matches none gives the default, with no diagnostic.
-- **Int-backed enum:** works only while the variable is unset, when the default is used. A set variable is passed to the enum as a string, PHP raises a `TypeError`, and the container does not build. The default is not used. Use a string-backed enum for a value read from the environment.
-- **`bool`:** `1`, `true`, `on` and `yes` are true, in any letter case, so `TRUE` is true; anything else is false.
+- **Int-backed enum:** a whole number, with an optional sign and surrounding whitespace, is matched against the cases; anything else, or a number that is no case, gives the default, with no diagnostic. (Older cores raised a `TypeError` here whenever the variable was set, and the container did not build.)
+- **A default the property cannot hold:** the fallback is assigned as it is. A non-nullable enum property whose `#[Config]` has no default gets `null` when the value matches no case, PHP raises a `TypeError`, and the container does not build. Give such a property a default that is one of its cases, or make it nullable.
+- **`bool`:** `1`, `true`, `on` and `yes` are true, in any letter case and with surrounding whitespace ignored, so `TRUE` and ` true ` are true; anything else is false.
 
 ## What it does not do
 
