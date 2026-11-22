@@ -2768,7 +2768,7 @@ flow through to NDJSON verbatim:
 | `semitexa.injectedPropertyVisibility` | `#[InjectAs*]` / `#[Config]` property is not `protected` |
 | `semitexa.injectOnScalarType` | `#[InjectAs*]` on a scalar property (must use `#[Config]`) |
 | `semitexa.configOnArrayType` / `configOnClassType` | `#[Config]` on an unsupported type |
-| `semitexa.unannotatedServiceProperty` | Class property with no `#[InjectAs*]` / `#[Config]` attribute |
+| `semitexa.unannotatedServiceProperty` | Property typed with an interface or a context type and no `#[InjectAs*]` / `#[Config]` attribute (a property typed with a concrete service class is not caught) |
 | `semitexa.traitInjection` | `#[InjectAs*]` property declared inside a trait |
 
 Rules live in `packages/semitexa-core/src/PHPStan/Rules/`. The same set runs
