@@ -20,7 +20,7 @@ keywords:
 ---
 # Runtime State Lifecycle
 
-Semitexa runs as a long-lived Swoole worker process: the container is built once at boot and serves N requests before the worker is restarted. That model is fast — but it means any module-level static state lives across requests by default, and getting the lifecycle wrong is a class of bug that looks fine in unit tests and breaks in production once a worker has been alive for a few minutes.
+Semitexa runs as a long-lived Swoole worker process: the container is built once at boot and serves N requests before the worker is restarted. That means any module-level static state lives across requests by default, and getting the lifecycle wrong is a class of bug that looks fine in unit tests and breaks in production once a worker has been alive for a few minutes.
 
 This page is the definitive taxonomy. It explains, with framework-class examples, which kinds of state must reset every request, which must survive every request, and which only reset on demand from tests or admin tools.
 

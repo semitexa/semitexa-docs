@@ -7,7 +7,7 @@ summary: #[AsService] makes a plain class a worker-scoped singleton that the con
 order: 20
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.21.1434
 keywords:
   - AsService
   - make:service
@@ -47,8 +47,11 @@ bin/semitexa make:service
 | `#[AsRepository]` (ORM) | repositories |
 | `#[SatisfiesServiceContract]` | contract implementations |
 | `#[SatisfiesRepositoryContract]` | repository contract implementations |
+| `#[AsAuthHandler]` (auth) | authentication handlers |
+| `#[AsSlotHandler]` (SSR) | slot handlers |
+| an attribute that implements `ImpliesService` | a package's own marker for its services |
 
-That list is exhaustive — it is `LintDiCommand::CONTAINER_MANAGED_ATTRIBUTES`, and it is what `lint:di` walks.
+`lint:di` walks the first six rows only. Auth handlers, slot handlers and `ImpliesService` carriers are built by the container, and a mistake in one still fails the container build, but `lint:di` does not list them among the classes it checked.
 
 **`#[AsCommand]` is deliberately not on it.** Console commands are not container-managed, so `lint:di` does not check them — but a command still cannot take its dependencies through the constructor: console boot does not resolve constructor arguments, and a command that asks for them is skipped at boot with a warning that names the fix. Declare them as protected properties with `#[InjectAsReadonly]`, as a service does.
 
@@ -66,7 +69,7 @@ That is `Semitexa\Orm\Query\CollectionQueryCompiler`. See [service contracts](co
 
 One instance serves every request handled by that worker, for the life of the process. Two consequences:
 
-- **Do not store per-request state on it.** A property you mutate during a request is still there for the next one. If the class genuinely needs per-execution state, it belongs in the [execution-scoped tier](mutable.md) instead, and PHPStan's `ExecutionScopedWithoutAttributeRule` will say so.
+- **Do not store per-request state on it.** A property you mutate during a request is still there for the next one, and under concurrency another request reads it while yours is still running. Nothing checks this today: `lint:di` and PHPStan both pass a service that keeps the current tenant or user in a plain property. Read the context at call time instead, for example `TenantContextStoreInterface::tryGet()` inside the method, or put the class in the [execution-scoped tier](mutable.md) with `#[ExecutionScoped]`.
 - **Do not hold a connection handle across requests.** `WorkerServiceConnectionHandleRule` flags this: acquire from the pool inside the call, or use a coroutine-local if it must span calls within one request.
 
 Object identity is stable across requests, which is exactly why a registry, a compiler or a cache belongs here.

@@ -7,7 +7,7 @@ summary: "#[ExecutionScoped] opts a class into a per-execution clone; #[InjectAs
 order: 40
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.21.1434
 keywords:
   - InjectAsMutable
   - ExecutionScoped
@@ -44,11 +44,13 @@ The `#[AsService]` is not redundant here. `#[ExecutionScoped]` sets the *tier*; 
 
 ## Most classes never write `#[ExecutionScoped]`
 
-It is **implied** by the three attributes that already mark per-execution work:
+It is **implied** by the five attributes that already mark per-execution work:
 
 - `#[AsPayloadHandler]`
 - `#[AsEventListener]`
 - `#[AsPipelineListener]`
+- `#[AsAuthHandler]`, from `semitexa/auth`
+- `#[AsSlotHandler]`, from `semitexa/ssr`
 
 So a handler is already execution-scoped and simply uses `#[InjectAsMutable]` for the things that change per request:
 
@@ -65,6 +67,10 @@ Write `#[ExecutionScoped]` explicitly only for a class that needs per-execution 
 
 ## What goes wrong without it
 
-A worker-scoped service that quietly accumulates per-request state is the classic long-running-runtime bug: the second request sees the first request's data, and only under load. PHPStan's `ExecutionScopedWithoutAttributeRule` flags per-execution state on a class that never opted in, which is why the failure usually shows up in analysis rather than in production.
+A worker-scoped service that quietly accumulates per-request state is the classic long-running-runtime bug: the second request sees the first request's data, and only under load.
+
+**Nothing checks this today.** A plain property that holds request data on a worker-shared service passes `lint:di` and PHPStan. The service has to be written correctly: either it reads the context at call time, for example `TenantContextStoreInterface::tryGet()` inside the method that needs the tenant, or the class is `#[ExecutionScoped]`.
+
+What the tools do catch is narrower. `ExecutionScopedWithoutAttributeRule` and `bin/semitexa lint:scoping` flag `#[InjectAsMutable]` on a service, contract implementation or repository that carries no scope attribute. Without one the class is built once per worker, so the property never receives per-execution values.
 
 The inverse mistake is cheaper but still real: marking something execution-scoped that has no state at all just buys a clone per request for nothing. Shared is the default for a reason — see [readonly injection](readonly.md).

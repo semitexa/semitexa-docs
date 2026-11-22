@@ -7,7 +7,7 @@ summary: The default tier: one instance per worker, injected into a protected pr
 order: 30
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.21.1434
 keywords:
   - InjectAsReadonly
   - worker-scoped
@@ -41,19 +41,21 @@ That is deliberate. A missing dependency stops the worker starting rather than s
 
 ## Optional injection
 
-Two ways to say "fill this if you can":
+One way to say "fill this if you can":
 
 ```php
 #[InjectAsReadonly(optional: true)]
-protected ?SearchIndexer $indexer;
+protected SearchIndexer $indexer;
 ```
 
-A **nullable property type is itself recorded as optional**, so `?SearchIndexer` behaves the same way without the argument. Either way, when the container has no binding the property is simply skipped.
+When the container has no binding, injection is skipped and the property stays **uninitialised**, not `null`. Guard every read with `isset($this->indexer)`, typically in one accessor that falls back to a null object.
 
-The escape hatch is narrow on purpose. Only the *missing binding* case is forgiven — the structural rules above still throw, because a private property or an untyped one is a mistake that a default of `null` would only hide.
+The type stays non-nullable. A nullable type (`?SearchIndexer`) is the older way to say the same thing: the container still treats it as optional, but `lint:di` rejects a nullable injected property on a container-managed class, so do not write new ones.
+
+The escape hatch is narrow on purpose. Only the *missing binding* case is forgiven — the structural rules above still throw, because a private property or an untyped one is a mistake that skipping would only hide.
 
 Reach for it when a dependency comes from a package that may not be installed. Do not reach for it to quieten a boot error you have not read.
 
 ## Readonly cannot depend on execution-scoped
 
-Injecting an execution-scoped type into a readonly property throws. The reason is structural: the shared instance would capture one execution's clone and hand it to every later execution — precisely the cross-request contamination the tiers exist to prevent. If a shared service needs per-request data, it should receive it as a method argument, or the class itself belongs in the [execution-scoped tier](mutable.md).
+Injecting an execution-scoped type into a readonly property throws. The reason is structural: the shared instance would capture one execution's clone and hand it to every later execution — precisely the cross-request contamination the tiers exist to prevent. If a shared service needs per-request data, it should receive it as a method argument or read it from the context at call time, or the class itself belongs in the [execution-scoped tier](mutable.md).
