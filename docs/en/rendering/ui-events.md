@@ -239,7 +239,7 @@ A page without a KISS session, or whose KISS stream fails before it ever
 connects, falls back to the feed's own plain `GET`. A feed that must not be
 readable that way declares `exposure: RouteExposure::Hug` and no path: it is
 reachable only by name, through HUG. The collaborative-form document feed
-(`platform-ui.form-doc`) is one.
+(`platform-ui.form-doc`) is one; see [Collaborative Forms](collaborative-forms.md).
 
 In the browser all of this is `SemitexaUi.core.openFeedChannel({feed, params,
 dataEvent, errorEvent, onData, onError, onPull})`, which returns

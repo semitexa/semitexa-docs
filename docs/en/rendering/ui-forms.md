@@ -21,6 +21,8 @@ keywords:
 
 A composition container for grouping fields and surfacing a *client-local* aggregate of their server-validated state while the user types. Field rules run server-side through `FieldComponent`'s pipeline; the aggregate never re-evaluates them. **Not a form engine** — no persistence, no server-side form-state store, no async validation. Submitting is opt-in: a form rendered with signed `fields` and/or a `submitAction` submits through HUG to `FormComponent::onSubmit`, which revalidates every signed field and then runs the action (see [Form submit pipeline](#form-submit-pipeline-authoritative-final-validation)). Without either, a submit only answers `Form has no fields.`
 
+A form several people edit at the same time is a different component, `platform.collab-form`: see [Collaborative Forms](collaborative-forms.md).
+
 ```twig
 {% set _fields %}
     {{ component('platform.field', {
