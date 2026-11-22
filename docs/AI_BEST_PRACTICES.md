@@ -1019,7 +1019,7 @@ throw new RateLimitException(retryAfter: 60);          // → 429
 - **Do** use `$resource->setContext()` for API data — the framework handles JSON/XML serialization.
 - **Do** use `$resource->setRedirect()` instead of `Response::redirect()`.
 - **Do** use `#[InjectAsReadonly]` for stateless services and `#[InjectAsMutable]` for request-scoped state.
-- **Do** make optional dependencies nullable with a default of `null`.
+- **Do** declare an optional dependency with `#[InjectAsReadonly(optional: true)]` on a non-nullable property, and guard every read with `isset()`. `lint:di` rejects a nullable injected property.
 - **Don't** call other handlers directly — use events or handler groups.
 - **Don't** access `$_GET`, `$_POST`, `$_SERVER` — everything comes through the payload or injected `Request`.
 - **Don't** use `echo` or `die()` — always return the resource DTO.
@@ -1058,7 +1058,7 @@ Authorization now runs inside the `AuthCheck` phase via pipeline listeners such 
 final class CustomAuthListener implements PipelineListenerInterface
 {
     #[InjectAsReadonly]
-    protected ?ContainerInterface $container = null;
+    protected ContainerInterface $container;
 
     public function handle(RequestPipelineContext $context): void
     {
@@ -1143,7 +1143,7 @@ For framework-managed classes, prefer Semitexa injection attributes. Constructor
 
 - **Do** use `#[InjectAsReadonly]` by default — it's the most efficient (no cloning).
 - **Do** use `#[InjectAsMutable]` only for services that hold per-request state (Session, CookieJar).
-- **Do** make optional dependencies nullable: `protected ?SomeInterface $service = null`.
+- **Do** declare an optional dependency as `#[InjectAsReadonly(optional: true)] protected SomeInterface $service;`: the type stays non-nullable, the property stays uninitialised when nothing is bound, and every read is guarded with `isset($this->service)`. `lint:di` rejects a nullable injected property.
 - **Do** prefer Semitexa injection attributes for framework-managed classes.
 - **Don't** use `new` to instantiate services — always inject via DI.
 - **Don't** store request-scoped data in `#[InjectAsReadonly]` services — they're shared across requests.

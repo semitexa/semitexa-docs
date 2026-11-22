@@ -53,7 +53,7 @@ bin/semitexa make:service
 
 `lint:di` walks the first six rows only. Auth handlers, slot handlers and `ImpliesService` carriers are built by the container, and a mistake in one still fails the container build, but `lint:di` does not list them among the classes it checked.
 
-**`#[AsCommand]` is deliberately not on it.** Console commands are not container-managed, so `lint:di` does not check them — but a command still cannot take its dependencies through the constructor: console boot does not resolve constructor arguments, and a command that asks for them is skipped at boot with a warning that names the fix. Declare them as protected properties with `#[InjectAsReadonly]`, as a service does.
+**`#[AsCommand]` is deliberately not on it.** Console commands are not container-managed, so `lint:di` runs only one of its checks on them, `#[InjectAsReadonly]` on an execution-scoped type, and counts them in its total. A command still cannot take its dependencies through the constructor: console boot does not resolve constructor arguments, and a command that asks for them is skipped at boot with a warning that names the fix. Declare them as protected properties with `#[InjectAsReadonly]`, as a service does.
 
 The one combination that *is* idiomatic is pairing it with a contract declaration, because the two say different things — this class is a service, and it satisfies that capability:
 
@@ -69,7 +69,7 @@ That is `Semitexa\Orm\Query\CollectionQueryCompiler`. See [service contracts](co
 
 One instance serves every request handled by that worker, for the life of the process. Two consequences:
 
-- **Do not store per-request state on it.** A property you mutate during a request is still there for the next one, and under concurrency another request reads it while yours is still running. Nothing checks this today: `lint:di` and PHPStan both pass a service that keeps the current tenant or user in a plain property. Read the context at call time instead, for example `TenantContextStoreInterface::tryGet()` inside the method, or put the class in the [execution-scoped tier](mutable.md) with `#[ExecutionScoped]`.
+- **Do not store per-request state on it.** A property you mutate during a request is still there for the next one, and under concurrency another request reads it while yours is still running. Nothing checks this today: `lint:di` and PHPStan both pass a service that keeps the current tenant or user in a property such as `private ?string $tenantId`. Read the context at call time instead, by injecting `TenantContextStoreInterface` and calling `$this->tenantStore->tryGet()` inside the method, or put the class in the [execution-scoped tier](mutable.md) with `#[ExecutionScoped]`. That page shows the example and says exactly which properties the tools do report.
 - **Do not hold a connection handle across requests.** `WorkerServiceConnectionHandleRule` flags this: acquire from the pool inside the call, or use a coroutine-local if it must span calls within one request.
 
 Object identity is stable across requests, which is exactly why a registry, a compiler or a cache belongs here.

@@ -84,7 +84,7 @@ bin/semitexa lint:di
  [OK] All 363 container-managed classes pass DI lint.
 ```
 
-The number is your project's own. It counts the container-managed classes and the console commands, which get one of the checks.
+The number is your project's own. It counts the container-managed classes and the console commands. Commands are not container-managed, so they get one of the checks only: `#[InjectAsReadonly]` on an execution-scoped type.
 
 `lint:di` reports one finding per class or property for what it can see on a container that built:
 
@@ -110,7 +110,7 @@ PHPStan rules cover what needs the source rather than a built container. The one
 
 `UnannotatedServicePropertyRule` is narrower than its name: a bare property typed as a concrete class, such as `protected SharedCounter $shared;`, passes both PHPStan and `lint:di`, stays unset, and fails at its first read.
 
-Nothing checks the opposite mistake either: per-request data kept in a plain property of a worker-shared service. See [worker-scoped means shared](services.md).
+Nothing checks what a worker-shared service stores either: per-request data kept in a property of its own. See [what goes wrong without execution scope](mutable.md).
 
 ## Why one path
 

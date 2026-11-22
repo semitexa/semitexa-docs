@@ -69,7 +69,26 @@ Write `#[ExecutionScoped]` explicitly only for a class that needs per-execution 
 
 A worker-scoped service that quietly accumulates per-request state is the classic long-running-runtime bug: the second request sees the first request's data, and only under load.
 
-**Nothing checks this today.** A plain property that holds request data on a worker-shared service passes `lint:di` and PHPStan. The service has to be written correctly: either it reads the context at call time, for example `TenantContextStoreInterface::tryGet()` inside the method that needs the tenant, or the class is `#[ExecutionScoped]`.
+**Nothing checks this today.** No tool looks at what a worker-shared service stores. A property that holds request data passes `lint:di` and PHPStan when it is private or public, or protected and typed as a scalar, an array or a concrete class: `private ?string $tenantId` is the usual shape, and it passes.
+
+One shape is reported, for a different reason. A protected property with no injection attribute, typed as `Request` or as any type whose name ends in `Interface`, is flagged by `UnannotatedServicePropertyRule` as a missing injection attribute.
+
+The service has to be written correctly: either the class is `#[ExecutionScoped]`, or it reads the context at call time from an injected store:
+
+```php
+#[AsService]
+final class TenantLabel
+{
+    #[InjectAsReadonly]
+    protected TenantContextStoreInterface $tenantStore;
+
+    public function current(): ?TenantContextInterface
+    {
+        // read on every call: the store keeps the tenant per coroutine
+        return $this->tenantStore->tryGet();
+    }
+}
+```
 
 What the tools do catch is narrower. `ExecutionScopedWithoutAttributeRule` and `bin/semitexa lint:scoping` flag `#[InjectAsMutable]` on a service, contract implementation or repository that carries no scope attribute. Without one the class is built once per worker, so the property never receives per-execution values.
 
