@@ -16,6 +16,7 @@ keywords:
   - presence
   - FormCollaborationDrafts
   - semitexa:collab:reset
+  - semitexa:collab:expired
   - "#[CollaborativeForm]"
 ---
 
@@ -270,17 +271,25 @@ their next save.
 |---|---|
 | `semitexa:collab:reset` | DOM event on the component root, bubbling: the draft ended. `detail.rebased` says whether stored values were applied. |
 | `semitexa:collab:error` | DOM event on the component root, bubbling: the feed sent `ui.document.error`. `detail.error`, `detail.envelope`. |
-| `[data-ui-collab-status]` | `data-state`: `connecting`, `live`, `offline` or `error`. The runtime writes no text into it. |
+| `semitexa:collab:expired` | DOM event on the component root, bubbling: the form's tokens expired and the server refused to renew them. Ask for a reload. |
+| `[data-ui-collab-status]` | `data-state`: `connecting`, `live`, `offline`, `error` or `expired`. The runtime writes no text into it. |
 | `[data-ui-collab-save-status]` | `Optimistic` only. `data-state`: `unsaved`, `saving`, `saved` or `error`, with a text. |
 | `window.SemitexaUi.formCollab.bootAll(root)` | Scans `root` for collaborative forms. Markup added to the page later is found without it. |
 
 ## Limits today
 
-- **A page left open.** The shell's tokens are signed for 300 s
-  (`SignedContext::DEFAULT_TTL_SECONDS`) and the collaboration runtime does not renew them. After
-  that HUG answers every edit, ping and lock request with 422 `Signed context expired.`, which
-  the runtime takes as a refusal: nothing typed afterwards is shared until the page is loaded
-  again.
+- **A page left open for a day.** The shell's tokens are signed for 300 s
+  (`SignedContext::DEFAULT_TTL_SECONDS`). When HUG refuses one as expired, the runtime trades the
+  manifest's renewal token for fresh ones and sends the refused edit, ping or lock request once
+  more, so the form keeps saving. The renewal token lives a day
+  (`CollabManifestBuilder::RENEW_TTL_SECONDS`) and is valid only for the session, tenant and
+  signed-in person the page was drawn for. After a day, or once that person signed out or into
+  another account, the renewal is refused: the status host gets `data-state="expired"`, the form
+  dispatches `semitexa:collab:expired`, and nothing typed afterwards is shared until the page is
+  loaded again.
+- **An authorizer that allows events by name** has to allow the renewal: your
+  `UiInteractionAuthorizerInterface` is asked for part `manifest`, event `renew` like for any
+  other event of the form.
 - **Two tabs of one signed-in person are one participant:** one chip and one lock. A release
   from one tab ends the lock the other is using, and one tab skips the snapshots the other
   caused.
@@ -295,6 +304,7 @@ their next save.
 | all four modes, two participants on one page | `/ui-playground/components/collaborative-form?mode=…` | `collab-optimistic.spec.ts`, `collab-form-lock.spec.ts`, `collab-field-lock.spec.ts` |
 | the runtime: edit order, locks, the form post, a draft's end | `semitexa/platform-ui` | `FormCollabRuntimeTest` |
 | the server: policy, refusals, names | `semitexa/platform-ui` | `FormCollaborationEventHandlerTest`, `FormCollaboratorLabelTest` |
+| a form open past its tokens' TTL keeps saving; who may renew | `semitexa/platform-ui` | `FormCollabContextRenewalTest` |
 
 ## Next steps
 
