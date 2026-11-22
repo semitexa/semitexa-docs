@@ -195,14 +195,16 @@ newcomer receives writes the draft's values over the inputs' rendered ones.
   `[data-ui-collab-conflict]` host shows "Save conflict" with two buttons: **Keep mine** saves
   again over the newer draft, **Take theirs** replaces the inputs with the draft's values.
   While you have unsaved edits no snapshot overwrites your inputs. `form.save` writes the shared
-  draft (`FormCollabDraftStoreInterface::apply()`), not your record. A tab whose runtime sends no
+  draft (`FormCollabDraftStoreInterface::apply()`), not your record: see
+  [Optimistic: the record is yours to save too](#optimistic-the-record-is-yours-to-save-too). A tab whose runtime sends no
   epoch is told to reload (`collab_client_outdated`).
 
 ## Saving with your own form post
 
-In `Shared`, `FormLock` and `FieldLock` the record is saved by your own POST. The shell wraps
-the `content` slot in `<form action="#" method="post" novalidate>` and adds no button in these
-modes. To keep your own submit beside it:
+The record is saved by your own POST, in every mode. The shell wraps the `content` slot in
+`<form action="#" method="post" novalidate>`. In `Shared`, `FormLock` and `FieldLock` it adds no
+button; in `Optimistic` its **Save** writes the draft only (see
+[below](#optimistic-the-record-is-yours-to-save-too)). To keep your own submit beside it:
 
 - **Name the target on the button:** `<button type="submit" formaction="/orders/42">` in the
   slot, as in the example above. The shell's form then posts to your route. (A control can
@@ -235,7 +237,7 @@ $this->collabDrafts->discardForRecord('order', (string) $order->getId(), [
 ```
 
 `discardForRecord()` takes the same `formKey` and `recordId` the page gave the shell. It deletes
-the draft and tells the editors who have the form open:
+the draft, whatever it holds by then, and tells the editors who have the form open:
 
 - **with the stored values:** each managed field named in them is set to what was stored. A
   field someone is typing in keeps their text, which is sent on as a new edit. A field you do
@@ -250,6 +252,49 @@ her own save.
 The runtime also keeps the post and the live edits apart: when the page is hidden by your post,
 the fields that post carried are not sent again as live edits, so no new draft starts behind
 the save.
+
+### An edit that arrives while you save
+
+Edits keep reaching the draft while your handler runs. The discard does not know which of them
+your save stored: it deletes the draft as it stands, and an edit that lands after the delete
+starts a new draft. So an edit accepted between the moment your handler read the values it
+stored and the discard is not in the record and no longer in a draft. What happens to it in the
+open tabs depends on the values you pass:
+
+- **a field you name:** every tab sets it to the stored value, and the edit is gone. One case is
+  spared: a tab where the field has focus, or its edit is still on its way, keeps the text and
+  sends it again as a new edit.
+- **a field you do not name, or no values at all:** no input is changed. The edit stays in the
+  inputs that show it, its author's and those of the tabs that received it, and reaches the
+  record with the next post from one of them. A person who opens the form meanwhile sees the
+  record without it.
+
+Nothing in the package compares the two for you, and there is no discard that is refused when
+the draft has moved on. What a handler can do is read the draft just before it discards,
+`FormCollabDraftStoreInterface::load()` with the scope from `FormDocumentScope::forRecord()`,
+and leave out of the stored values every field whose draft value differs from what it stored.
+Those fields then keep what the tabs show, and `semitexa:collab:reset` still tells each page
+that a save happened. An edit landing between that read and the discard is still treated as
+saved. `FormLock` narrows the window to one writer; it does not close it.
+
+### Optimistic: the record is yours to save too
+
+The shell's **Save** in `Optimistic` writes the shared draft and nothing else. The handler
+raises no event and calls no code of yours when a draft is saved, so no record is written by it.
+What the code supports is the same own post as in the other modes:
+
+- The shell wraps the slot in the same form in `Optimistic`, and its own button only answers its
+  own click. A `formaction` button of yours in the slot posts the form to your route, with the
+  rules above.
+- That post carries what the tab's inputs hold, whether **Save** was pressed or not, and no
+  draft version: the conflict prompt guards the draft, not your record. Two posts to your route
+  are yours to order.
+- Call `discardForRecord()` after the commit, as above. An open `Optimistic` tab with no
+  unsaved edits is set to the stored values you pass. One with unsaved edits keeps them and
+  meets the conflict prompt on its next **Save**, where **Take theirs** gives it the stored
+  values.
+- A handler that wants what **Save** committed rather than what one tab posted reads it from
+  `FormCollabDraftStoreInterface::load()`: `values`, `version` and `epoch` of the draft.
 
 ## When a draft ends
 
@@ -277,6 +322,12 @@ their next save.
 | `window.SemitexaUi.formCollab.bootAll(root)` | Scans `root` for collaborative forms. Markup added to the page later is found without it. |
 
 ## Limits today
+
+- **`Optimistic` saves no record.** Its **Save** and version guard cover the shared draft only;
+  nothing carries a saved draft into your record or tells your code about it. See
+  [Optimistic: the record is yours to save too](#optimistic-the-record-is-yours-to-save-too).
+- **A save and its discard are not one step.** An edit accepted in between is deleted with the
+  draft. See [An edit that arrives while you save](#an-edit-that-arrives-while-you-save).
 
 - **A page left open for a day.** The shell's tokens are signed for 300 s
   (`SignedContext::DEFAULT_TTL_SECONDS`). When HUG refuses one as expired, the runtime trades the
