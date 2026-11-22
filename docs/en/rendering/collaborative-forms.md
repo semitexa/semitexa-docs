@@ -277,6 +277,11 @@ Those fields then keep what the tabs show, and `semitexa:collab:reset` still tel
 that a save happened. An edit landing between that read and the discard is still treated as
 saved. `FormLock` narrows the window to one writer; it does not close it.
 
+A field left out survives in the open tabs only, not in the draft, which the discard deletes:
+if those tabs close before one of them posts again, the edit is lost. An app that must not lose
+an edit made during a save has to coordinate it itself, for example by persisting what the draft
+held at the discard and reconciling it with the record afterwards; the package does neither.
+
 ### Optimistic: the record is yours to save too
 
 The shell's **Save** in `Optimistic` writes the shared draft and nothing else. The handler
