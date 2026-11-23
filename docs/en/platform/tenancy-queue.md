@@ -2,7 +2,7 @@
 id: platform/tenancy-queue
 section: platform
 slug: tenancy-queue
-title: Queue Tenant Propagation
+title: Tenants in Queued Jobs
 summary: The core queue does not carry the tenant. A Queued handler or listener runs with no tenant, so the job carries the tenant id in its payload and enters that tenant itself.
 order: 50
 locale: en
@@ -15,7 +15,7 @@ keywords:
   - worker context
   - background isolation
 ---
-# Queue Tenant Propagation
+# Tenants in Queued Jobs
 
 **The core queue does not carry the tenant.** A `Queued` handler or listener that `queue:work` runs has no session, no signed-in user and no tenant: tenant-scoped code in it sees the default scope, not the tenant of the request that queued the job. Nothing warns about it.
 
