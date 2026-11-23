@@ -3,11 +3,11 @@ id: di/configuration
 section: di
 slug: configuration
 title: Configuration Injection
-summary: #[Config] reads a scalar from the environment into a typed property, with a default in code. It is the only supported way a service reads env.
+summary: #[Config] reads a scalar or a backed enum from the environment into a typed property, with a default in code. It is the only supported way a service reads env.
 order: 60
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.21.1434
 keywords:
   - Config
   - env
@@ -43,7 +43,7 @@ That is `Semitexa\Webhooks\Configuration\WebhookConfig`, trimmed. The attribute 
 Because the value is read **once, at boot**, into a typed property. Three things follow that a scattered `getenv()` call cannot give you:
 
 - **The default lives in code, beside the property.** There is one place to read to know what happens when the variable is absent.
-- **The type is the property's type.** A `float` property gets a float, not the string `"2.0"`.
+- **The type is the property's type.** A `float` property gets a float, not the string `"2.0"`. The allowed types are `int`, `float`, `string`, `bool` and a backed enum.
 - **The key is discoverable.** `docs:truth-index` enumerates every `#[Config]` key in the framework, which is how `docs:lint` can tell a real env variable from an invented one in a documentation page.
 
 A container-managed class reading the environment any other way is bypassing all three.
@@ -52,8 +52,16 @@ A container-managed class reading the environment any other way is bypassing all
 
 The pattern above — one `#[AsService]` class holding a package's settings — is the idiom. Injecting `WebhookConfig` gives a caller typed accessors instead of a spray of `#[Config]` properties on every consumer, and it keeps the package's env surface enumerable in a single file.
 
+## When the value does not fit the type
+
+- **`int` and `float`:** a value that is not a number, such as `WEBHOOK_TIMEOUT_SECONDS=abc`, is not cast. The property gets the default, and a boot diagnostic names the variable and the value it could not read.
+- **String-backed enum:** the value is matched against the enum's cases; one that matches none gives the default, with no diagnostic.
+- **Int-backed enum:** a whole number, with an optional sign and surrounding whitespace, is matched against the cases; anything else, or a number that is no case, gives the default, with no diagnostic. (Up to semitexa/core 2026.11.21.1434 a set variable raised a `TypeError` and the container did not build; the release after it reads the number.)
+- **A default the property cannot hold:** the fallback is assigned as it is. A non-nullable enum property whose `#[Config]` has no default gets `null` when the value matches no case, PHP raises a `TypeError`, and the container does not build. Give such a property a default that is one of its cases, or make it nullable.
+- **`bool`:** `1`, `true`, `on` and `yes` are true, in any letter case and with surrounding whitespace ignored, so `TRUE` and ` true ` are true; anything else is false.
+
 ## What it does not do
 
-`#[Config]` is for **scalars**. It has no array, JSON or secret-store handling, and no per-tenant awareness: it reads the process environment the worker booted with. Per-tenant values come from tenant configuration instead — see [per-tenant configuration](../platform/tenancy-config.md).
+`#[Config]` is for **scalars and backed enums**. It has no array, JSON or secret-store handling, and no per-tenant awareness: it reads the process environment the worker booted with. Per-tenant values come from tenant configuration instead — see [per-tenant configuration](../platform/tenancy-config.md).
 
 Because the read happens at boot, changing a variable in `.env` requires restarting the worker. That is not a limitation of the attribute so much as of long-running processes generally, but it does surprise people arriving from request-per-process runtimes.

@@ -7,7 +7,7 @@ summary: Seeing which implementation is bound to a contract, using a resolver as
 order: 80
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.21.1434
 keywords:
   - contract:list
   - SatisfiesServiceContract
@@ -17,9 +17,12 @@ keywords:
 
 # Resolving Service Contracts
 
-Service contracts are interfaces bound to implementations in the **Semitexa DI container**. Only types discovered via **#[SatisfiesServiceContract(of: SomeInterface::class)]** (and bootstrap entries like `Environment`) are in the container. Dependency injection is **only via protected properties** with **#[InjectAsReadonly]**, **#[InjectAsMutable]**, or **#[InjectAsFactory]** — see **src/Container/README.md** for full rules.
+Service contracts are interfaces bound to implementations in the **Semitexa DI container**. An implementation declares itself with **#[SatisfiesServiceContract(of: SomeInterface::class)]**. Contracts are one of several things the container holds: services, handlers, listeners and repositories are in it too, see [declaring a service](services.md). Dependencies arrive on protected properties with **#[InjectAsReadonly]**, **#[InjectAsMutable]** or **#[InjectAsFactory]** — see the [DI canon](overview.md) for the rules.
 
-When several modules provide an implementation for the same interface, the **active** one is chosen by module "extends" order (child module wins).
+When several modules provide an implementation for the same interface, one of them is **active**:
+
+- **A child module wins over its parent**, and only when the relation is declared: the child's `composer.json` names the parent in `extra.semitexa-module.extends`.
+- **Between modules with no such relation, discovery order decides**: the project's own modules first, then packages, then vendor modules. There is no warning today, so two unrelated modules that implement the same interface resolve silently. Run `contracts:list` to see which one is active.
 
 ## Seeing which contract is bound to which class
 
@@ -49,7 +52,7 @@ Output is JSON: `contracts[]` with `contract`, `active`, and `implementations` (
 
 - Implementations are discovered via **#[SatisfiesServiceContract(of: SomeInterface::class)]** on classes (in modules).
 - **Single implementation:** the container binds the interface directly to that class.
-- **Multiple implementations:** a **registry resolver** is generated in `src/registry/Contracts/` (e.g. `ItemListProviderResolver`). The resolver receives all implementations via constructor and exposes `getContract()`; the container uses it to obtain the chosen implementation. By default the resolver returns the implementation chosen by module "extends" order; you can edit `getContract()` to pick another. Resolver is **optional**: if the class does not exist, the container uses the registry’s active implementation directly.
+- **Multiple implementations:** a **registry resolver** is generated in `src/registry/Contracts/` (e.g. `ItemListProviderResolver`). The resolver receives all implementations via constructor and exposes `getContract()`; the container uses it to obtain the chosen implementation. This generated class is the one place where the container passes constructor arguments. By default the resolver returns the implementation chosen by module order as described above; you can edit `getContract()` to pick another. `contracts:list` does not read the resolver: it marks as active the implementation module order selects, so after such an edit the container and the command can disagree. Resolver is **optional**: if the class does not exist, the container uses the registry’s active implementation directly.
 - **Generate resolvers:** run **`bin/semitexa registry:sync:contracts`** (or **`bin/semitexa registry:sync`** to sync payloads and contracts together). Only interfaces with **2+ implementations** get a resolver; single-implementation contracts are not generated. The container discovers resolvers by convention (`App\Registry\Contracts\{InterfaceShortName}Resolver`), no manifest needed.
 - **Canonical autoload mapping:** consumer apps should map **`App\Registry\`** to **`src/registry/`** in `autoload.psr-4`; legacy `src/Registry/Contracts/` directories should be migrated away before re-running contract sync so stale generated resolvers do not stay active.
 - See `ServiceContractRegistry`, `RegistryContractResolverGenerator`, and `ModuleRegistry::getModuleOrderByExtends()` in the core package.

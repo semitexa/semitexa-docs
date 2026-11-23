@@ -3,11 +3,11 @@ id: di/overview
 section: di
 slug: overview
 title: DI Canon
-summary: One canonical DI path for container-managed classes: protected property attributes, no constructor arguments, validated at boot and enforced by lint:di.
+summary: One canonical DI path for container-managed classes: protected property attributes, no constructor arguments, validated at boot and checked by lint:di and PHPStan.
 order: 10
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.21.1434
 keywords:
   - InjectAsReadonly
   - InjectAsMutable
@@ -17,7 +17,7 @@ keywords:
 ---
 # DI Canon
 
-Semitexa has exactly one dependency injection channel for container-managed classes: **protected properties carrying an injection attribute**.
+The classes you write get their dependencies through one channel when the container manages them: **protected properties carrying an injection attribute**.
 
 ```semitexa-diagram
 title: Container resolution at worker boot
@@ -60,13 +60,19 @@ Four attributes, and nothing else, feed a container-managed object:
 The container builds container-managed objects with `newInstanceWithoutConstructor()`. Two consequences follow, and they are easy to conflate:
 
 - **A `__construct` with parameters is rejected.** The container treats it as an attempt to smuggle in a second DI channel and refuses to build the class.
-- **A parameterless `__construct` is tolerated but never called.** This is the one that bites: initialisation you put there silently does not run. Initialise in property declarations instead.
+- **A parameterless `__construct` is never called.** An empty one is allowed. One with a body is reported by `lint:di`, because that body never runs.
+
+Initialisation that needs the injected dependencies goes into `initialize()`: implement `Semitexa\Core\Contract\InitializesAfterInjectionInterface` and the container calls it once per instance, after every injected property is filled and before anything else receives the object. On an execution-scoped class that is once per execution, so keep I/O out of it. A value that needs no dependency can stay in the property declaration.
 
 Constructors are entirely unrestricted on anything the container does not manage — value objects, DTOs, payloads, resources, entities. The rule is about container-managed classes, not about PHP.
 
+One exception is generated, not written by hand: a contract resolver in `src/registry/Contracts/` receives the implementations of its contract through its constructor. See [resolving service contracts](contract-resolution.md).
+
 ## Boot validation, and the two tools that enforce it
 
-The graph is validated at boot, so an unresolvable dependency fails the worker rather than the first request that touches it. The container is also **sealed after boot**: calling `set()` afterwards throws `ContainerSealedException`. There is no runtime registration and no service locator.
+The graph is validated at boot, so an unresolvable dependency fails the worker rather than the first request that touches it. The container is also **sealed after boot**: calling `set()` afterwards throws `ContainerSealedException`. There is no runtime registration.
+
+Injection is the rule, but a lookup by class name still exists. `Psr\Container\ContainerInterface` is itself injectable, and code that the container does not manage can read an execution-scoped service at the point of use with `RequestScopedContainer::forCurrentExecution($this->container)->get(Foo::class)`. What is rejected is the static route: `StaticContainerAccessRule` flags a `ContainerFactory::` call outside the framework's own internals.
 
 You do not have to wait for boot to find out:
 
@@ -78,16 +84,31 @@ bin/semitexa lint:di
  [OK] All 363 container-managed classes pass DI lint.
 ```
 
-It reports the precise reason per class — a constructor with parameters, an unannotated service property, two competing injection attributes on one property.
+The number is your project's own. It counts the container-managed classes and the console commands. Commands are not container-managed, so they get one of the checks only: `#[InjectAsReadonly]` on an execution-scoped type.
 
-PHPStan carries the same rules into the editor. The ones you are most likely to meet:
+`lint:di` reports one finding per class or property for what it can see on a container that built:
+
+- a parameterless `__construct` with a body;
+- a nullable injected property;
+- `#[InjectAsReadonly]` on an execution-scoped type.
+
+Two things it does not report that way:
+
+- **These stop the container from building:** a constructor with parameters; two injection attributes on one property; an injected property that is private or public, or declared in a trait; `#[Config]` on an array or a class that is not a backed enum; `#[InjectAs*]` on a scalar. `lint:di` is itself a container-built command, so it never reaches its own checks. It prints `The container did not build, so commands that need it cannot run, and a server restarted now would not start.` followed by the container's message, which names the class. The build stops at the first such class, so fix it and run again to see the next.
+- **A property with no injection attribute is not checked at all.** `lint:di` only looks at properties that carry `#[InjectAs*]` or `#[Config]`. A bare typed property is PHPStan's to find.
+
+PHPStan rules cover what needs the source rather than a built container. The ones you are most likely to meet:
 
 | Rule | Rejects |
 |---|---|
-| `StaticContainerAccessRule` | reaching for the container statically instead of injecting |
-| `UnannotatedServicePropertyRule` | a service-typed property with no injection attribute |
-| `ExecutionScopedWithoutAttributeRule` | per-execution state on a class that never opted into execution scope |
+| `StaticContainerAccessRule` | a `ContainerFactory::` call outside the framework's internals |
+| `UnannotatedServicePropertyRule` | a protected property with no injection attribute, on a container-managed class, whose type name ends in `Interface` or is one of the per-request context types such as `Request` |
+| `ExecutionScopedWithoutAttributeRule` | `#[InjectAsMutable]` on a service, contract implementation or repository that carries no scope attribute |
 | `TraitInjectionRule` | injection attributes inside a trait — declare them in the consuming class |
+
+`UnannotatedServicePropertyRule` is narrower than its name: a bare property typed as a concrete class, such as `protected SharedCounter $shared;`, passes both PHPStan and `lint:di`, stays unset, and fails at its first read.
+
+Nothing checks what a worker-shared service stores either: per-request data kept in a property of its own. See [what goes wrong without execution scope](mutable.md).
 
 ## Why one path
 
