@@ -1113,13 +1113,13 @@ final class MyHandler implements TypedHandlerInterface
     protected SessionInterface $session;
 
     #[InjectAsFactory]
-    protected NotifierFactoryInterface $notifiers;
+    protected FactoryNotifierInterface $notifiers;
 
     public function handle(MyPayload $payload, GenericResponse $resource): GenericResponse
     {
         $user = $this->userRepo->find($payload->id);
         $this->session->set('last_viewed', $user->id);
-        $notifier = $this->notifiers->get('email');
+        $notifier = $this->notifiers->get(NotifierKind::Email);
         // ...
     }
 }
@@ -1286,17 +1286,17 @@ With two or more implementations of a contract, the registry picks the active on
 
 ### Factory contracts (multi-implementation)
 
-For interfaces with multiple valid implementations at runtime:
+For interfaces with multiple valid implementations at runtime. The factory interface is named `Factory` + the contract's short name, in the contract's namespace, and each implementation names its key, a backed-enum case, with `#[SatisfiesServiceContract(of: NotifierInterface::class, factoryKey: NotifierKind::Email)]`:
 
 ```php
 #[InjectAsFactory]
-protected NotifierFactoryInterface $notifiers;
+protected FactoryNotifierInterface $notifiers;
 
 // Usage:
-$emailNotifier = $this->notifiers->get('email');
-$smsNotifier   = $this->notifiers->get('sms');
+$emailNotifier = $this->notifiers->get(NotifierKind::Email);
+$smsNotifier   = $this->notifiers->get(NotifierKind::Sms);
 $default       = $this->notifiers->getDefault();
-$keys          = $this->notifiers->keys(); // ['email', 'sms']
+$keys          = $this->notifiers->keys(); // [NotifierKind::Email, NotifierKind::Sms]
 ```
 
 ### Rules
