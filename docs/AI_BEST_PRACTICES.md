@@ -1280,25 +1280,9 @@ final class SettingsStore implements SettingsStoreInterface { ... }
 final class DoctrineUserRepository implements UserRepositoryInterface { ... }
 ```
 
-### Generated registry resolvers
+### Which implementation is active
 
-Use `bin/semitexa registry:sync:contracts` when you are working on resolver generation for multi-implementation contracts:
-
-```php
-// Auto-generated: src/registry/Contracts/SettingsStoreResolver.php
-final class SettingsStoreResolver
-{
-    public function __construct(
-        private SettingsStoreFromModuleA $implA,
-        private SettingsStoreFromModuleB $implB,
-    ) {}
-
-    public function getContract(): SettingsStoreInterface
-    {
-        return $this->implB; // edit to switch
-    }
-}
-```
+With two or more implementations of a contract, the registry picks the active one by module order: the module whose `composer.json` declares `extends` on the other wins. Nothing else decides it, so declare that relation to change the winner; there is no class to edit. `bin/semitexa contracts:list` shows the choice, and `bin/semitexa registry:sync:contracts` generates the `Factory*` classes (and removes the resolver classes earlier versions generated). To choose at runtime, use a factory contract.
 
 ### Factory contracts (multi-implementation)
 
@@ -1319,7 +1303,7 @@ $keys          = $this->notifiers->keys(); // ['email', 'sms']
 
 - **Do** use `#[SatisfiesServiceContract]` for single-implementation contracts.
 - **Do** use `#[SatisfiesRepositoryContract]` for repository interfaces.
-- **Do** use `registry:sync:contracts` for maintenance/debug flows around generated resolvers.
+- **Do** run `registry:sync:contracts` after adding a `Factory*` interface, and declare `extends` to change which implementation is active.
 - **Don't** wire contracts manually — let the registry handle resolution.
 
 The point is not "DI flexibility." The point is making substitution readable, reviewable, and deterministic.

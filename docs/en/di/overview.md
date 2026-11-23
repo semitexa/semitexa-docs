@@ -66,7 +66,7 @@ Initialisation that needs the injected dependencies goes into `initialize()`: im
 
 Constructors are entirely unrestricted on anything the container does not manage — value objects, DTOs, payloads, resources, entities. The rule is about container-managed classes, not about PHP.
 
-One exception is generated, not written by hand: a contract resolver in `src/registry/Contracts/` receives the implementations of its contract through its constructor. See [resolving service contracts](contract-resolution.md).
+One exception is generated, not written by hand: a `Factory*` class in `src/registry/Contracts/` receives the container's generic factory for its contract through its constructor. Which implementation of a contract is active is the registry's choice alone, see [resolving service contracts](contract-resolution.md).
 
 ## Boot validation, and the two tools that enforce it
 

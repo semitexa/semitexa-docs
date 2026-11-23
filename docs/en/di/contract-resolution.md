@@ -3,15 +3,14 @@ id: di/contract-resolution
 section: di
 slug: contract-resolution
 title: Resolving Service Contracts
-summary: Seeing which implementation is bound to a contract, using a resolver as a factory, and the Factory* naming convention for choosing by key.
+summary: Seeing which implementation is bound to a contract, how the registry alone chooses it, and the Factory* naming convention for choosing by key.
 order: 80
 locale: en
 status: canonical
-verified_against: 2026.11.21.1434
+verified_against: 2026.11.23.1215
 keywords:
   - contract:list
   - SatisfiesServiceContract
-  - resolver
   - Factory
 ---
 
@@ -52,20 +51,10 @@ Output is JSON: `contracts[]` with `contract`, `active`, and `implementations` (
 
 - Implementations are discovered via **#[SatisfiesServiceContract(of: SomeInterface::class)]** on classes (in modules).
 - **Single implementation:** the container binds the interface directly to that class.
-- **Multiple implementations:** a **registry resolver** is generated in `src/registry/Contracts/` (e.g. `ItemListProviderResolver`). The resolver receives all implementations via constructor and exposes `getContract()`; the container uses it to obtain the chosen implementation. This generated class is the one place where the container passes constructor arguments. By default the resolver returns the implementation chosen by module order as described above; you can edit `getContract()` to pick another. `contracts:list` does not read the resolver: it marks as active the implementation module order selects, so after such an edit the container and the command can disagree. Resolver is **optional**: if the class does not exist, the container uses the registry’s active implementation directly.
-- **Generate resolvers:** run **`bin/semitexa registry:sync:contracts`** (or **`bin/semitexa registry:sync`** to sync payloads and contracts together). Only interfaces with **2+ implementations** get a resolver; single-implementation contracts are not generated. The container discovers resolvers by convention (`App\Registry\Contracts\{InterfaceShortName}Resolver`), no manifest needed.
-- **Canonical autoload mapping:** consumer apps should map **`App\Registry\`** to **`src/registry/`** in `autoload.psr-4`; legacy `src/Registry/Contracts/` directories should be migrated away before re-running contract sync so stale generated resolvers do not stay active.
+- **Multiple implementations:** the **registry alone** decides which one is active (on `develop`, after 2026.11.23.1215), by module order as described above. The container binds the interface to it everywhere (`get()`, injected properties, a factory's `getDefault()`), and `contracts:list` shows the same choice. To make another one active, declare the relation (`extends`) in the module's `composer.json`. To choose one at runtime, use a `Factory*` interface (below).
+- **Sync:** **`bin/semitexa registry:sync:contracts`** (or **`bin/semitexa registry:sync`** to sync payloads and contracts together) generates the `Factory*` implementations for contracts with **2+ implementations**. Earlier versions also generated a resolver per such contract (`src/registry/Contracts/{InterfaceShortName}Resolver.php`); the container no longer reads one, and the sync removes the ones it generated. A file without the generated header stays.
+- **Canonical autoload mapping:** consumer apps should map **`App\Registry\`** to **`src/registry/`** in `autoload.psr-4`; legacy `src/Registry/Contracts/` directories should be migrated away before re-running contract sync, so the generated classes stay in one place.
 - See `ServiceContractRegistry`, `RegistryContractResolverGenerator`, and `ModuleRegistry::getModuleOrderByExtends()` in the core package.
-
-## Resolver as factory
-
-The registry resolver is a **factory** in the usual sense: it receives all implementations via DI and exposes one method (`getContract()`) that returns the chosen instance. By default the generated code returns the implementation selected by module order, but you own the class and can change the logic:
-
-- **Config-driven:** read a config key (e.g. `app.send_email.driver`) and return the implementation that matches.
-- **Context-driven:** use request, tenant, or feature flags to pick an implementation.
-- **Custom strategy:** merge, delegate, or switch between implementations inside `getContract()`.
-
-There is no separate “Factory” pattern in Semitexa: service contracts with multiple implementations use this single mechanism. Document or name the resolver as a factory in your codebase if that helps (e.g. `SendEmailFactory` / `ItemListProviderResolver`).
 
 ## Factory* naming convention (choose implementation by key)
 
