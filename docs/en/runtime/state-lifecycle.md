@@ -324,10 +324,10 @@ The atomic-claim API is `markIfFirstSeen(string $key, ?int $ttlSeconds = null): 
 
 In-tree implementations:
 
-- **`InMemoryWebhookReplayStore`** (default for tests + single-worker demos): single PHP statement combining `isset()` check + assignment. Swoole coroutines do not preempt mid-statement, so the operation is atomic by construction. Honors TTL via lazy expiry — entries are marked with an absolute `expires_at` timestamp and treated as not-seen on the next touch after the deadline.
+- **`InMemoryWebhookReplayStore`** (for tests and single-worker demos): single PHP statement combining `isset()` check + assignment. Swoole coroutines do not preempt mid-statement, so the operation is atomic by construction. Honors TTL via lazy expiry — entries are marked with an absolute `expires_at` timestamp and treated as not-seen on the next touch after the deadline.
 - **`RedisWebhookReplayStore`** (production for Redis-backed deployments): atomic via `SET key value NX EX <ttl>`. The Redis server guarantees one-winner semantics across all connected clients — multiple workers, multiple processes, multiple machines pointing at the same Redis DB. TTL is server-side; the key disappears automatically after the replay window.
-- **`MySqlWebhookReplayStore`** (production for MySQL/MariaDB-backed deployments): atomic via `INSERT IGNORE INTO webhook_replay_keys (replay_key, first_seen_at, expires_at) VALUES (...)`. The PRIMARY KEY constraint on `replay_key` collapses check-and-claim into a single MySQL statement; affected-row count is the boolean answer. Atomicity holds across every PHP worker, every PHP process, every machine pointing at the same database. **Expired keys remain blocking until `cleanupExpired()` removes them** — a delete-then-insert policy would reintroduce a check-then-act race (two writers could both observe an expired row, both delete it, both insert their own — both win, both fire side effects). Operators schedule `cleanupExpired()` periodically (cron, queue job, admin command); the framework never relies on lazy expiry for correctness.
-- **PostgreSQL-backed implementation** (recommended shape, not shipped): the same atomic-insert pattern with `INSERT ... ON CONFLICT DO NOTHING` and `affected_rows` inspection. `MySqlWebhookReplayStore` is the reference design.
+- **`MySqlWebhookReplayStore`** (the database store, behind the default `DatabaseWebhookReplayStore`): atomic via `INSERT IGNORE INTO webhook_replay_keys (replay_key, first_seen_at, expires_at) VALUES (...)` on MySQL, and `INSERT ... ON CONFLICT (replay_key) DO NOTHING` on SQLite (on `develop`, after 2026.11.23.1729). The PRIMARY KEY constraint on `replay_key` collapses check-and-claim into a single statement; affected-row count is the boolean answer. Atomicity holds across every PHP worker, every PHP process, every machine pointing at the same database. **Expired keys remain blocking until `cleanupExpired()` removes them** — a delete-then-insert policy would reintroduce a check-then-act race (two writers could both observe an expired row, both delete it, both insert their own — both win, both fire side effects). Operators schedule `cleanupExpired()` periodically (cron, queue job, admin command); the framework never relies on lazy expiry for correctness.
+- **PostgreSQL** has no ORM adapter yet (planned). `MySqlWebhookReplayStore` writes the standard `INSERT ... ON CONFLICT DO NOTHING` wherever the ORM's dialect writes upserts that way (SQLite today; an adapter that names no dialect gets MySQL's form) (on `develop`, after 2026.11.23.1729), which is the form PostgreSQL takes, with the affected-row count as the answer.
 
 `SignedWebhookHandler` reads `replayWindowSeconds` from `#[AsWebhookReceiver]` and passes it to `markIfFirstSeen()`. The framework does not issue `seen()` + `markSeen()` anywhere in production request-processing code; the contract docstring marks the two-call pattern as unsafe so it cannot be reintroduced silently.
 
@@ -353,11 +353,11 @@ In-tree implementations:
 
 #### Service binding
 
-`InMemoryWebhookReplayStore` is the framework default — registered with `#[SatisfiesServiceContract]`. `RedisWebhookReplayStore` and `MySqlWebhookReplayStore` are intentionally NOT marked with the attribute; production deployments wire whichever they choose explicitly in their container bootstrap or a dedicated factory. Rationale: the choice of replay store (and which Redis / which database / which schema) is a deployment decision, not framework magic. Tests and demos use the in-memory default; production overrides explicitly.
+`DatabaseWebhookReplayStore` is the framework default (on `develop`, after 2026.11.23.1729): `MySqlWebhookReplayStore` over the ORM's database, built by the container, as the store itself takes its `OrmManager` by constructor. `InMemoryWebhookReplayStore` was the default before; it is for tests now. A class from one of the project's own modules that satisfies `WebhookReplayStoreInterface` wins over the package's default; that is how a deployment binds `RedisWebhookReplayStore` (see [webhooks](webhooks.md)).
 
 #### Schema (MySQL)
 
-`MySqlWebhookReplayStore` requires the `webhook_replay_keys` table. The ORM-managed shape lives at `packages/semitexa-webhooks/src/Application/Db/MySQL/Model/WebhookReplayKeyResourceModel.php`. Production deployments materialize it via the framework's schema-sync mechanism (`bin/semitexa orm:diff` to preview, `orm:sync` to apply). Equivalent raw SQL:
+`MySqlWebhookReplayStore`, and so the default store, requires the `webhook_replay_keys` table. The ORM-managed shape lives at `packages/semitexa-webhooks/src/Application/Db/MySQL/Model/WebhookReplayKeyResourceModel.php`. Production deployments materialize it via the framework's schema-sync mechanism (`bin/semitexa orm:diff` to preview, `orm:sync` to apply). Equivalent raw SQL:
 
 ```sql
 CREATE TABLE webhook_replay_keys (
@@ -375,7 +375,7 @@ The `replay_key` column is the natural primary key — there is no surrogate id.
 
 The framework has THREE related-but-distinct dedupe layers in the webhook path:
 
-1. **`WebhookReplayStoreInterface`** (inbound, request-level). Idempotency guard typically keyed by event-id with a TTL. Block duplicate request *processing* early at the receiver. Backings: in-memory (default), Redis, MySQL.
+1. **`WebhookReplayStoreInterface`** (inbound, request-level). Idempotency guard typically keyed by event-id with a TTL. Block duplicate request *processing* early at the receiver. Backings: the database (default (on `develop`, after 2026.11.23.1729)), Redis, in-memory (tests).
 2. **`InboundDeliveryRepositoryInterface::insertOrMatchDedupe`** (inbound, persistent). Inbox audit dedupe with per-row lifecycle (`Received` → `Verified`/`RejectedSignature` → `Processing` → `Processed`/`Failed`/`DuplicateIgnored`). Records every inbound delivery for forensics, replay, and protects DB-backed inbox processing from double-execution.
 3. **`OutboundDeliveryRepositoryInterface::insertOrMatchIdempotency`** (outbound, persistent). Publisher-side dedupe — two publishers with the same `(endpoint_definition_id, idempotency_key)` produce exactly one outbound delivery row, never two.
 
@@ -402,7 +402,7 @@ The four atomic layers (publisher idempotency, worker claim/lease, worker CAS fi
 | Publisher | `INSERT IGNORE` + `UNIQUE (endpoint_definition_id, idempotency_key)` | duplicate outbound delivery row |
 | Worker claim | conditional `UPDATE … WHERE status IN (…) AND lease_expired` | duplicate claim of the same delivery |
 | Worker CAS finalization | `UPDATE … WHERE status = 'delivering' AND lease_owner = :worker_id` | stale worker overwriting a row that another worker reclaimed |
-| Inbound replay store | `markIfFirstSeen()` (in-memory: single PHP statement; Redis: `SET NX EX`; MySQL: `INSERT IGNORE` + `PRIMARY KEY`) | duplicate handler invocation at the receiver edge |
+| Inbound replay store | `markIfFirstSeen()` (in-memory: single PHP statement; Redis: `SET NX EX`; database: `INSERT IGNORE` on MySQL, `ON CONFLICT DO NOTHING` elsewhere, + `PRIMARY KEY`) | duplicate handler invocation at the receiver edge |
 | Inbound dedupe | `INSERT IGNORE` + `UNIQUE (dedupe_key)` | duplicate inbox audit row + duplicate processing |
 
 None of these layers replaces another. Each protects against a different failure mode:
