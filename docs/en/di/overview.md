@@ -89,14 +89,12 @@ The number is your project's own. It counts the container-managed classes and th
 `lint:di` reports one finding per class or property for what it can see on a container that built:
 
 - a parameterless `__construct` with a body;
-- an injected property that is private or public, or declared in a trait;
-- `#[Config]` on an array or a class that is not a backed enum, and `#[InjectAs*]` on a scalar;
 - a nullable injected property;
 - `#[InjectAsReadonly]` on an execution-scoped type.
 
 Two things it does not report that way:
 
-- **A constructor with parameters, or two injection attributes on one property, stops the container from building.** `lint:di` is itself a container-built command, so it never reaches its own checks. It prints `The container did not build, so commands that need it cannot run, and a server restarted now would not start.` followed by the container's message, which names the class. The build stops at the first such class, so fix it and run again to see the next.
+- **These stop the container from building:** a constructor with parameters; two injection attributes on one property; an injected property that is private or public, or declared in a trait; `#[Config]` on an array or a class that is not a backed enum; `#[InjectAs*]` on a scalar. `lint:di` is itself a container-built command, so it never reaches its own checks. It prints `The container did not build, so commands that need it cannot run, and a server restarted now would not start.` followed by the container's message, which names the class. The build stops at the first such class, so fix it and run again to see the next.
 - **A property with no injection attribute is not checked at all.** `lint:di` only looks at properties that carry `#[InjectAs*]` or `#[Config]`. A bare typed property is PHPStan's to find.
 
 PHPStan rules cover what needs the source rather than a built container. The ones you are most likely to meet:
