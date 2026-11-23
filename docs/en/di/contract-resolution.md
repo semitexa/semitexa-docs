@@ -24,12 +24,12 @@ When several modules provide an implementation for the same interface, one of th
 - **Between modules with no such relation, discovery order decides**: the project's own modules first, then packages, then vendor modules; Core's own implementation loses to any module.
 - **Two exceptions to that order, today.** Check `contracts:list` after you declare a relation:
   - a module that another module extends is placed after every module nobody extends, packages and vendor modules included, so an unrelated package can win a contract over a project module that has a child;
-  - modules whose `extends` relations form a cycle get no place in the order and rank with Core, so among them the implementation found first wins.
+  - modules whose `extends` relations form a cycle get no place in the order and rank with Core, so among them and Core's default the implementation found first wins.
 - **`contracts:list` names what decided each contract** with two or more implementations (on `develop`, after 2026.11.23.1215). In `--json`, `decided_by` is one of these values, and `tied_with` lists the implementations that lost only by discovery order:
   - `extends`: a declared relation;
   - `project-module`: a project module over a package;
   - `core-default`: any module over Core;
-  - `discovery-order`: nothing in the order separates them (no relation, or an extends cycle), so the one found first won.
+  - `discovery-order`: no declared relation, tier or Core default separates them, so the module order decided: the one found first won, or one of the two exceptions above did (a module placed late because another extends it, a module in a cycle).
 - **`lint:di` warns**, without failing, when the active implementation and one it tied with are in two different project modules (on `develop`, after 2026.11.23.1215). A tie between packages, or a contract a package wins, shows in `contracts:list` with no warning.
 
 ## Seeing which contract is bound to which class
