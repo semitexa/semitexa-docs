@@ -104,11 +104,12 @@ PHPStan rules cover what needs the source rather than a built container. The one
 | `StaticContainerAccessRule` | a `ContainerFactory::` call outside the framework's internals |
 | `UnannotatedServicePropertyRule` | a protected property with no injection attribute, on a container-managed class, whose type name ends in `Interface` or is one of the per-request context types such as `Request` |
 | `ExecutionScopedWithoutAttributeRule` | `#[InjectAsMutable]` on a service, contract implementation or repository that carries no scope attribute |
+| `WorkerServiceCallerStateRule` | a property of a worker-shared service, with no `#[InjectAs*]` and no `#[Config]`, assigned through `$this` from an expression that reads a parameter of the enclosing method (any method but `__construct`); `#[WorkerState('why')]` on the property opts out |
 | `TraitInjectionRule` | injection attributes inside a trait — declare them in the consuming class |
 
 `UnannotatedServicePropertyRule` is narrower than its name: a bare property typed as a concrete class, such as `protected SharedCounter $shared;`, passes both PHPStan and `lint:di`, stays unset, and fails at its first read.
 
-Nothing checks what a worker-shared service stores either: per-request data kept in a property of its own. See [what goes wrong without execution scope](mutable.md).
+`WorkerServiceCallerStateRule` (identifier `semitexa.workerServiceCallerState`) covers one shape of per-request data kept on a worker-shared service: a value a caller passed in. Up to semitexa/core 2026.11.21.1434 nothing checked this; the release after it adds the rule. Fix a report by reading the context at call time, or mark a property that really is one per worker with `#[WorkerState('why')]`. Its silence is not proof. It does not report a service that reads the context itself and keeps it, a parameter copied to a local variable before the assignment, or a method inherited from a trait or a base class. See [what goes wrong without execution scope](mutable.md) for the examples and the full list.
 
 ## Why one path
 
