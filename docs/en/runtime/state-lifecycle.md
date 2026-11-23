@@ -198,13 +198,13 @@ Use this checklist:
 `Semitexa\Tenancy\Context\TenantContextStore` exposes three writers:
 
 - `set(TenantContextInterface $context)` — primary per-request API, used by `TenancyPhase` after the resolver picks a tenant. Locks the context as immutable for the rest of the request when called inside a Swoole coroutine.
-- `setFallback(TenantContextInterface $context)` — CLI / queue worker entry point, used by `TenantAwareJobSerializer::unwrapAndRestore()` to restore tenant identity for a queued job, and by `TenantRunCommand` via `swapFallback()` for the CLI `tenant:run` flow.
+- `setFallback(TenantContextInterface $context)` — CLI entry point, used by `TenantAwareJobSerializer::unwrapAndRestore()` for a job of a package that wraps and unwraps its own messages (semitexa-media's `media:work`). Core's queue (`queue:work`) carries no tenant and restores none (checked against 2026.11.23.1729): a `Queued` handler enters its tenant itself, see [Tenants in Queued Jobs](../platform/tenancy-queue.md).
 - `swapFallback(?TenantContextInterface $context)` — atomic swap returning the previous value; for tenant-switching dev tools that want to restore the previous tenant on exit.
 
 Despite the naming, **all three are per-execution APIs**. There is no scenario in production code today where a tenant identity is meant to persist *past* the unit of work that established it. Three production call sites confirm this:
 
 - `TenancyPhase` resolves the tenant per HTTP request and calls `set()`. The next request resolves again.
-- `TenantAwareJobSerializer::unwrapAndRestore()` calls `setFallback()` per queued job. The next job calls it again with its own tenant.
+- `TenantAwareJobSerializer::unwrapAndRestore()` calls `setFallback()` for a `media:work` job that carries a tenant. A job of the default tenant carries none, so the call sets nothing for it. A `queue:work` job gets no such call: its handler sets its own tenant, and the worker's per-message wipe clears it.
 - `TenantRunCommand` calls `set()` on entry and clears in its own `finally`. The framework wipe between any nested `Application::handleRequest` dispatches is harmless — the inner request would resolve its own tenant via the resolver chain.
 
 `TenantContextStore` self-registers with `PerRequestStateRegistry` so the framework wipes both the coroutine-local context and the static fallback after every `Application::handleRequest` and `QueueWorker::processPayload`. Without this, tenant A's request could leave its `TenantContext` in the static fallback for a later anonymous request — a multi-tenant safety bug in CLI / queue / test mode where the same `Application` instance handles many requests.
