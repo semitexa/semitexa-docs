@@ -21,7 +21,11 @@ Service contracts are interfaces bound to implementations in the **Semitexa DI c
 When several modules provide an implementation for the same interface, one of them is **active**:
 
 - **A child module wins over its parent**, and only when the relation is declared: the child's `composer.json` names the parent in `extra.semitexa-module.extends`.
-- **Between modules with no such relation, discovery order decides**: the project's own modules first, then packages, then vendor modules. There is no warning today, so two unrelated modules that implement the same interface resolve silently. Run `contracts:list` to see which one is active.
+- **Between modules with no such relation, discovery order decides**: the project's own modules first, then packages, then vendor modules; Core's own implementation loses to any module. `contracts:list` names what decided each contract with two or more implementations, and `lint:di` warns, without failing, when two of the project's own modules tie (on `develop`, after 2026.11.23.1215). In `--json`, `decided_by` is one of these values, and `tied_with` lists the implementations that lost only by discovery order:
+  - `extends`: a declared relation;
+  - `project-module`: a project module over a package;
+  - `core-default`: any module over Core;
+  - `discovery-order`: nothing relates them, so the one found first won.
 
 ## Seeing which contract is bound to which class
 
@@ -51,7 +55,7 @@ Output is JSON: `contracts[]` with `contract`, `active`, and `implementations` (
 
 - Implementations are discovered via **#[SatisfiesServiceContract(of: SomeInterface::class)]** on classes (in modules).
 - **Single implementation:** the container binds the interface directly to that class.
-- **Multiple implementations:** the **registry alone** decides which one is active (on `develop`, after 2026.11.23.1215), by module order as described above. The container binds the interface to it everywhere (`get()`, injected properties, a factory's `getDefault()`), and `contracts:list` shows the same choice. To make another one active, declare the relation (`extends`) in the module's `composer.json`. To choose one at runtime, use a `Factory*` interface (below).
+- **Multiple implementations:** the **registry alone** decides which one is active (on `develop`, after 2026.11.23.1215), by module order as described above. The container binds the interface to it everywhere (`get()`, injected properties, a factory's `getDefault()`), and `contracts:list` shows the same choice and what decided it. To make another one active, declare the relation (`extends`) in the module's `composer.json`. To choose one at runtime, use a `Factory*` interface (below).
 - **Sync:** **`bin/semitexa registry:sync:contracts`** (or **`bin/semitexa registry:sync`** to sync payloads and contracts together) generates the `Factory*` implementations for contracts with **2+ implementations**. Earlier versions also generated a resolver per such contract (`src/registry/Contracts/{InterfaceShortName}Resolver.php`); the container no longer reads one, and the sync removes the ones it generated. A file without the generated header stays.
 - **Canonical autoload mapping:** consumer apps should map **`App\Registry\`** to **`src/registry/`** in `autoload.psr-4`; legacy `src/Registry/Contracts/` directories should be migrated away before re-running contract sync, so the generated classes stay in one place.
 - See `ServiceContractRegistry`, `RegistryContractResolverGenerator`, and `ModuleRegistry::getModuleOrderByExtends()` in the core package.

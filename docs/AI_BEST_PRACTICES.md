@@ -1098,7 +1098,7 @@ In a long-lived runtime, the wrong object lifetime becomes a correctness bug, no
 |---|---|---|---|
 | `#[InjectAsReadonly]` | Per-worker (shared) | Built once, shared across all requests | Stateless services, repositories, config |
 | `#[InjectAsMutable]` | Per-request (clone) | Prototype cloned per `get()`, request context injected | Session-scoped state, request-aware services |
-| `#[InjectAsFactory]` | Per-resolve | Returns `ContractFactoryInterface` | Multi-implementation contracts |
+| `#[InjectAsFactory]` | Per-resolve | Injects the contract's `Factory*` interface; `get($key)` returns the implementation for that key | Multi-implementation contracts |
 
 ### Property injection (preferred for handlers)
 
@@ -1282,7 +1282,7 @@ final class DoctrineUserRepository implements UserRepositoryInterface { ... }
 
 ### Which implementation is active
 
-With two or more implementations of a contract, the registry picks the active one by module order: the module whose `composer.json` declares `extends` on the other wins. Nothing else decides it, so declare that relation to change the winner; there is no class to edit. `bin/semitexa contracts:list` shows the choice, and `bin/semitexa registry:sync:contracts` generates the `Factory*` classes (and removes the resolver classes earlier versions generated). To choose at runtime, use a factory contract.
+With two or more implementations of a contract, the registry picks the active one by module order. A module whose `composer.json` declares `extends` on another wins over it, a project module wins over a package, and any module wins over Core. Between unrelated modules of one tier, the one found first wins. Declare the relation to change the winner; there is no class to edit. `bin/semitexa contracts:list` shows the choice and what decided it (`decided_by`, `tied_with`), and `bin/semitexa lint:di` warns when two of the project's own modules tie. `bin/semitexa registry:sync:contracts` generates the `Factory*` classes (and removes the resolver classes earlier versions generated). To choose at runtime, use a factory contract.
 
 ### Factory contracts (multi-implementation)
 
