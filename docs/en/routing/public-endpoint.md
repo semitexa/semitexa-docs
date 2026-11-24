@@ -3,29 +3,51 @@ id: routing/public-endpoint
 section: routing
 slug: public-endpoint
 title: Public Payload
-summary: Anonymous endpoints opt in explicitly with the public access attribute. Every other payload requires authentication.
+summary: Anonymous endpoints opt in explicitly, with #[AsPublicPayload] or a public feed that says why. Every other payload requires authentication.
 order: 80
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.24.1203
 keywords:
   - "#[AsPublicPayload]"
   - "#[AsProtectedPayload]"
   - "#[AsServicePayload]"
+  - "#[AsPublicFeed]"
+  - "#[AsCollectionFeed]"
+  - lint:access
   - 401 Unauthorized
   - Authorizer
 ---
 # Public Payload
 
-Semitexa is closed by default. Every payload picks one of three access attributes — `#[AsPublicPayload]`, `#[AsProtectedPayload]`, or `#[AsServicePayload]` — and the framework refuses to discover a payload that declares none. Anonymous access is the explicit `#[AsPublicPayload]` opt-in, never an implicit fallback.
+Semitexa is closed by default. A payload becomes a route only through a route attribute, and each one names its own access type: there is no default to fall back to. Anonymous access is always an explicit opt-in.
+
+## Which attributes make a route public
+
+Every route attribute extends `AbstractPayloadRoute` and answers `getAccessType()` with `Public`, `Protected` or `Service`:
+
+| Attribute | Package | Access |
+|---|---|---|
+| `#[AsPublicPayload]` | core | Public |
+| `#[AsProtectedPayload]` | authorization | Protected |
+| `#[AsServicePayload]` | authorization | Service |
+| `#[AsPublicFeed]` | crud | Public, with a required `reason:` |
+| `#[AsCollectionFeed]` | crud | Protected by default; Public with `access: PayloadAccessType::Public` and a `reason:`; never Service |
+| `#[AsProtectedFeed]`, `#[AsCrud]`, `#[AsSettingsPage]` | crud | Protected |
+
+A review for anonymous exposure of the framework's own attributes therefore looks for three forms, not one: `AsPublicPayload`, `AsPublicFeed`, and `PayloadAccessType::Public` inside an `#[AsCollectionFeed]`. A project or package that defines its own route attribute (any class extending `AbstractPayloadRoute`) adds a fourth: check what its `getAccessType()` returns. Both public feed forms refuse an empty `reason`, so each says in the code why anyone may read its rows. A collection feed turns public through its `access:` argument alone, with no change to the attribute's name, so read that argument in a diff.
 
 ## How it works
 
-The access policy resolver inspects the payload's access attribute at boot. `#[AsPublicPayload]` marks the route as anonymous-allowed. `#[AsProtectedPayload]` requires a User-domain principal and returns 401 to guest requests before the handler runs. `#[AsServicePayload]` requires a Service-domain principal (a verified webhook signature, machine token, or partner credential) and similarly returns 401 on missing or wrong-domain credentials.
+`#[AsProtectedPayload]` requires a User-domain principal and returns 401 to a guest before the handler runs. `#[AsServicePayload]` requires a Service-domain principal (a verified webhook signature, a machine token or a partner credential) and returns 401 on missing or wrong-domain credentials. `#[AsPublicPayload]` and the public feeds let a guest through.
 
-## Why this matters
+Discovery reads each route's access type when the server boots. The rest of the access metadata is checked on the first request to each payload class, and a policy that passes is cached. Two access attributes on one class, or a public payload that also requires a permission or a capability, therefore boots cleanly and then fails every request to that route. `bin/semitexa lint:access` runs the same check over every route with no request, and `ai:verify` runs it whenever a payload changes, so the mistake is caught before it ships.
 
-The three attributes are mutually exclusive and explicit. Public exposure becomes a deliberate code-review event because the keyword `AsPublicPayload` appears at the type. There is no "default protected" fallback that someone could remove; there is no shared base attribute that could accidentally drop a route into the wrong access class. A payload that declares none of the three never reaches the route registry, so a missing attribute is a build-time discovery failure rather than a silently exposed endpoint.
+The nearest class decides. A payload that extends another and declares its own route attribute takes that attribute's access type; the parent's is not counted. Permission and capability requirements gather over the whole chain. A public subclass of a payload that requires a permission fails every request, and `lint:access` reports it; a public subclass of one that requires nothing is public.
+
+## A payload with no access attribute
+
+A payload class with no route attribute is not a route, so no request reaches it. If a handler is written for it, the server refuses to boot and names the payload. Either way a missing attribute closes the endpoint and never exposes it.
 
 ## See also
 
