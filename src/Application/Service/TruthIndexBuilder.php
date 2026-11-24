@@ -471,22 +471,40 @@ final class TruthIndexBuilder
                 if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
                     continue;
                 }
+                // The framework's keys, not its tests' or tools': a key only a
+                // test or a release script reads (WK_*, PATH, TMPDIR, RELEASE_*)
+                // is no setting a page could document.
+                $path = str_replace('\\', '/', $file->getPathname());
+                if (preg_match('#/(?:tests|resources/skills|tools)/#', $path) === 1) {
+                    continue;
+                }
+                $code = (string) file_get_contents($file->getPathname());
 
-                // Every reader, not one: core reads through Environment (and
+                // Every literal reader: core reads through Environment (and
                 // Environment itself through its $get closure), tenancy through
                 // its own EnvReader, some code through a bare getenv() or
-                // $_ENV, and #[Config(env: ...)] binds a key to a property, its
-                // env: argument anywhere among the named ones.
-                // A reader left out makes its keys look undocumented
-                // (SWOOLE_LOG_ROTATION, BOOT_STRICT_MODE).
+                // $_ENV, #[Config(env: ...)] binds a key to a property (env:
+                // anywhere among the named arguments), and an 'env::KEY::default'
+                // attribute string names one. A reader left out makes its keys
+                // look undocumented (SWOOLE_LOG_ROTATION, BOOT_STRICT_MODE).
                 preg_match_all(
-                    '/(?:(?:getEnvValue|EnvReader::get[A-Za-z]*|\$get|\bgetenv)\(\s*|\$_ENV\[\s*|\bConfig\([^)]*?\benv:\s*)[\'"]([A-Z][A-Z0-9_]*)[\'"]/',
-                    (string) file_get_contents($file->getPathname()),
+                    '/(?:(?:getEnvValue|EnvReader::get[A-Za-z]*|\$get|\bgetenv)\(\s*|\$_ENV\[\s*|\bConfig\([^)]*?\benv:\s*)[\'"]([A-Z][A-Z0-9_]*)[\'"]|[\'"]env::([A-Z][A-Z0-9_]*)/',
+                    $code,
                     $matches,
                 );
+                foreach (array_merge($matches[1], $matches[2]) as $key) {
+                    if ($key !== '') {
+                        $keys[$key] = true;
+                    }
+                }
 
-                foreach ($matches[1] ?? [] as $key) {
-                    $keys[$key] = true;
+                // A key read through a class constant (getenv(self::ENV)): the
+                // constant's value is the key. Only constants such a call names.
+                preg_match_all('/(?:getEnvValue|EnvReader::get[A-Za-z]*|\bgetenv)\(\s*(?:self|static)::([A-Z_][A-Z0-9_]*)\s*[,)]/', $code, $named);
+                foreach (array_unique($named[1]) as $constant) {
+                    if (preg_match('/\bconst\s+(?:string\s+)?' . $constant . '\s*=\s*[\'"]([A-Z][A-Z0-9_]*)[\'"]/', $code, $value) === 1) {
+                        $keys[$value[1]] = true;
+                    }
                 }
             }
         }

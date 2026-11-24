@@ -81,6 +81,22 @@ final class TruthIndexBuilderTest extends TestCase
                 }
             }
             PHP);
+        // Two more ways a key reaches the code, and one reader that is no setting.
+        file_put_contents($workspace . '/packages/semitexa-probe/src/Scheduled.php', <<<'PHP'
+            <?php
+            final class Scheduled
+            {
+                private const ENV = 'PROBE_CACHE_TTL';
+
+                #[AsScheduledJob(cron: 'env::PROBE_SEO_CRON::0 3 * * *')]
+                public function run(): void
+                {
+                    getenv(self::ENV);
+                }
+            }
+            PHP);
+        mkdir($workspace . '/packages/semitexa-probe/tests', 0755, true);
+        file_put_contents($workspace . '/packages/semitexa-probe/tests/ReaderTest.php', "<?php\ngetenv('PROBE_TEST_ONLY');\n");
         $root->setValue(null, $workspace);
 
         try {
@@ -90,7 +106,7 @@ final class TruthIndexBuilderTest extends TestCase
             exec('rm -rf ' . escapeshellarg($workspace));
         }
 
-        self::assertSame(['APP_ENV', 'BOOT_STRICT_MODE', 'MAIL_FROM_NAME', 'SWOOLE_LOG_ROTATION', 'WEBHOOK_BACKOFF_MULTIPLIER', 'WEBHOOK_TIMEOUT_SECONDS'], $keys);
+        self::assertSame(['APP_ENV', 'BOOT_STRICT_MODE', 'MAIL_FROM_NAME', 'PROBE_CACHE_TTL', 'PROBE_SEO_CRON', 'SWOOLE_LOG_ROTATION', 'WEBHOOK_BACKOFF_MULTIPLIER', 'WEBHOOK_TIMEOUT_SECONDS'], $keys, 'and not PROBE_TEST_ONLY, which only a test reads');
     }
 
     /** A checkout counts only with an exact version to be newer than (review, docs#139). */
