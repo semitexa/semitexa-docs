@@ -3,7 +3,7 @@ id: routing/public-endpoint
 section: routing
 slug: public-endpoint
 title: Public Payload
-summary: Anonymous endpoints opt in explicitly, with #[AsPublicPayload] or a public feed that says why. Every other payload requires authentication.
+summary: Anonymous endpoints opt in explicitly, with #[AsPublicPayload], a public feed that says why, or a route attribute of your own whose getAccessType() returns Public. Every other payload requires authentication.
 order: 80
 locale: en
 status: canonical

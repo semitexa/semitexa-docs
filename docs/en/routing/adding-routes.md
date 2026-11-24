@@ -129,7 +129,7 @@ The starter `Hello` module (`src/modules/Hello/`) in a new project is a complete
 
    `GET /status` answers `{"message":"Hello from the Website module"}`. The payload is a plain class; the handler implements `TypedHandlerInterface` and takes the concrete payload and resource types.
 
-   `#[AsPublicPayload]` makes a route anonymous. `#[AsProtectedPayload]` (signed-in user) and `#[AsServicePayload]` (machine credential) live in `Semitexa\Authorization\Attribute\`. A payload with none of the three is never routed.
+   `#[AsPublicPayload]` makes a route anonymous. `#[AsProtectedPayload]` (signed-in user) and `#[AsServicePayload]` (machine credential) live in `Semitexa\Authorization\Attribute\`. semitexa-crud adds route attributes of its own for feeds, CRUD screens and settings pages, so a payload that carries one of those is routed without these three; [Public Payload](public-endpoint.md) lists every route attribute with its access type. Give a payload exactly one route attribute: one with none is never routed, and one with two fails every request.
 
 4. **Restart the server**
 
