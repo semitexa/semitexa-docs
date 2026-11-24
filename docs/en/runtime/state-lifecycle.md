@@ -593,7 +593,7 @@ The summary surfaces row counts only — never payload bodies, header contents, 
 | Operator action required | none (test-only) | none | schedule the command |
 | Expired keys still block until cleanup? | n/a | no — Redis evicts on TTL | yes — Option B blocks until cleanup runs |
 
-The MySQL backing is the only one where cleanup cadence is operator-visible. The blocking-until-cleanup contract is intentional (it removes the delete-then-insert race), but it does mean an under-scheduled `webhook:cleanup` makes a claim last longer than the TTL it was given: the inbox's 661 seconds, or the TTL a handler passes to `markIfFirstSeen()` (`replayWindowSeconds` is not read). A 24-hour TTL with daily cleanup is fine; an 11-minute TTL with daily cleanup is not, since the claim in practice lasts up to 24 hours.
+The MySQL backing is the only one where cleanup cadence is operator-visible. The blocking-until-cleanup contract is intentional (it removes the delete-then-insert race), but it does mean an under-scheduled `webhook:cleanup` makes a claim last longer than the TTL it was given: the inbox's 661 seconds, or the TTL a handler passes to `markIfFirstSeen()` (`replayWindowSeconds` is not read). A 24-hour TTL with daily cleanup is fine; an 11-minute TTL with daily cleanup is not, since the claim lasts until the first cleanup after it expires: its TTL plus up to almost a day (one made at 23:55 with cleanup at midnight expires at 00:06 and goes at the next midnight).
 
 ### Swoole-specific anti-patterns
 
