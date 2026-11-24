@@ -472,10 +472,12 @@ final class TruthIndexBuilder
                     continue;
                 }
                 // The framework's keys, not its tests' or tools': a key only a
-                // test or a release script reads (WK_*, PATH, TMPDIR, RELEASE_*)
-                // is no setting a page could document.
-                $path = str_replace('\\', '/', $file->getPathname());
-                if (preg_match('#/(?:tests|resources/skills|tools)/#', $path) === 1) {
+                // test or a release script reads (WK_*, TMPDIR, RELEASE_*) is no
+                // setting a page could document. Judged by the path inside the
+                // scanned root: a project checked out under a directory named
+                // tools or tests is still scanned.
+                $inRoot = '/' . ltrim(substr(str_replace('\\', '/', $file->getPathname()), strlen(str_replace('\\', '/', $root))), '/');
+                if (preg_match('#/(?:tests|resources/skills|tools)/#', $inRoot) === 1) {
                     continue;
                 }
                 $code = (string) file_get_contents($file->getPathname());

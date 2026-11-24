@@ -53,13 +53,18 @@ final class TruthIndexBuilderTest extends TestCase
      * and EnvReader::get*() were read, so docs:lint called real keys unknown:
      * SWOOLE_LOG_ROTATION (read through Environment's $get closure) on core#253,
      * BOOT_STRICT_MODE (a bare getenv()) on core#271.
+     *
+     * The project itself sits under a directory named tools: only a tests or
+     * tools directory inside the scanned root is left out, not a checkout that
+     * happens to live under one (review of the follow-up).
      */
     #[Test]
     public function every_way_the_code_reads_an_environment_key_counts(): void
     {
         $root = new \ReflectionProperty(ProjectRoot::class, 'root');
         $previous = $root->getValue();
-        $workspace = sys_get_temp_dir() . '/semitexa-env-keys-' . bin2hex(random_bytes(4));
+        $base = sys_get_temp_dir() . '/semitexa-env-keys-' . bin2hex(random_bytes(4));
+        $workspace = $base . '/tools/checkout';
         mkdir($workspace . '/packages/semitexa-probe/src', 0755, true);
         file_put_contents($workspace . '/packages/semitexa-probe/src/Reader.php', <<<'PHP'
             <?php
@@ -103,7 +108,7 @@ final class TruthIndexBuilderTest extends TestCase
             $keys = $this->build($this->applicationWithSampleCommand())['env_keys'];
         } finally {
             $root->setValue(null, $previous);
-            exec('rm -rf ' . escapeshellarg($workspace));
+            exec('rm -rf ' . escapeshellarg($base));
         }
 
         self::assertSame(['APP_ENV', 'BOOT_STRICT_MODE', 'MAIL_FROM_NAME', 'PROBE_CACHE_TTL', 'PROBE_SEO_CRON', 'SWOOLE_LOG_ROTATION', 'WEBHOOK_BACKOFF_MULTIPLIER', 'WEBHOOK_TIMEOUT_SECONDS'], $keys, 'and not PROBE_TEST_ONLY, which only a test reads');
