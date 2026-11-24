@@ -48,6 +48,51 @@ final class TruthIndexBuilderTest extends TestCase
         }
     }
 
+    /**
+     * Every way the framework reads an environment key counts. Only getEnvValue()
+     * and EnvReader::get*() were read, so docs:lint called real keys unknown:
+     * SWOOLE_LOG_ROTATION (read through Environment's $get closure) on core#253,
+     * BOOT_STRICT_MODE (a bare getenv()) on core#271.
+     */
+    #[Test]
+    public function every_way_the_code_reads_an_environment_key_counts(): void
+    {
+        $root = new \ReflectionProperty(ProjectRoot::class, 'root');
+        $previous = $root->getValue();
+        $workspace = sys_get_temp_dir() . '/semitexa-env-keys-' . bin2hex(random_bytes(4));
+        mkdir($workspace . '/packages/semitexa-probe/src', 0755, true);
+        file_put_contents($workspace . '/packages/semitexa-probe/src/Reader.php', <<<'PHP'
+            <?php
+            final class Reader
+            {
+                #[Config(env: 'WEBHOOK_BACKOFF_MULTIPLIER', default: 2.0)]
+                protected float $multiplier = 2.0;
+
+                #[Config(default: 30, env: 'WEBHOOK_TIMEOUT_SECONDS')]
+                protected int $timeout = 30;
+
+                public function read(\Closure $get): void
+                {
+                    $get('SWOOLE_LOG_ROTATION', 'daily');
+                    getenv('BOOT_STRICT_MODE');
+                    $_ENV['MAIL_FROM_NAME'] ?? null;
+                    Environment::getEnvValue('APP_ENV');
+                    $lowercase = getenv('not_a_key');
+                }
+            }
+            PHP);
+        $root->setValue(null, $workspace);
+
+        try {
+            $keys = $this->build($this->applicationWithSampleCommand())['env_keys'];
+        } finally {
+            $root->setValue(null, $previous);
+            exec('rm -rf ' . escapeshellarg($workspace));
+        }
+
+        self::assertSame(['APP_ENV', 'BOOT_STRICT_MODE', 'MAIL_FROM_NAME', 'SWOOLE_LOG_ROTATION', 'WEBHOOK_BACKOFF_MULTIPLIER', 'WEBHOOK_TIMEOUT_SECONDS'], $keys);
+    }
+
     /** A checkout counts only with an exact version to be newer than (review, docs#139). */
     #[Test]
     public function a_checkout_is_named_only_when_its_manifest_pins_an_exact_core(): void
