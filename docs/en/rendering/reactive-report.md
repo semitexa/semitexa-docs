@@ -30,7 +30,7 @@ The slot starts as SSR output, not as a placeholder for a client-side widget fra
 
 ### Who may connect, and for how long
 
-The slot rides the canonical `/__semitexa_kiss` stream, so the page inherits that stream's access rules rather than any of its own. By default an anonymous connection is refused with `401 Unauthorized`: a status page meant for signed-out visitors will simply never start. `SSE_PUBLIC_ANONYMOUS=true` opens it to them.
+The slot rides the canonical `/__semitexa_kiss` stream, so the page inherits that stream's access rules rather than any of its own. A signed-out visitor is not refused: a page rendered without a session gets a bearer channel, and the slot's first render arrives over it. What a guest does not get by default is the refresh. The slot keeps re-rendering only with `SSR_DEFERRED_PERSISTENT_SSE=true`, and for signed-out visitors also `SSR_DEFERRED_PERSISTENT_SSE_REQUIRE_AUTH=false`; otherwise it renders once and stays as it is, with no error. `SSE_PUBLIC_ANONYMOUS=true` does not change this. See [SSE Stream](../events/sse.md) for the full rules.
 
 Opening it does not remove the limits. The configured connection caps still apply, and `SSE_MAX_CONNECTION_AGE_SECONDS` still ends a connection that has been held too long — the client reconnects, which is an ordinary HTTP request and counts like one. A report page left open on a wallboard is a held coroutine per viewer for as long as the cap allows, so the capacity question is how many viewers, not how many refreshes.
 
