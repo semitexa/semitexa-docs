@@ -26,7 +26,7 @@ keywords:
 - **Inbound** — a route that accepts a request only when its HMAC-SHA256 signature checks out, plus a replay store so the same delivery is acted on once.
 - **Outbound** — `publish()` writes a row to an outbox; the `webhook:work` worker signs it, sends it through the core `HttpClientInterface`, and retries with backoff.
 
-Everything that is not the signature check lives in the database: endpoint definitions (`webhook_endpoint_definitions`), the outbox (`webhook_outbox`), the inbox (`webhook_inbox`), an append-only audit log (`webhook_attempts`) and, if you choose the MySQL replay store, `webhook_replay_keys`.
+Everything that is not the signature check lives in the database: endpoint definitions (`webhook_endpoint_definitions`), the outbox (`webhook_outbox`), the inbox (`webhook_inbox`), an append-only audit log (`webhook_attempts`) and the default replay store's keys (`webhook_replay_keys`) (on `develop`, after 2026.11.23.1729); before that, only if you chose the MySQL replay store.
 
 ## Receiving
 
@@ -141,69 +141,24 @@ final class PartnerWebhookHandler implements TypedHandlerInterface
 }
 ```
 
-`markIfFirstSeen($key, $ttlSeconds)` is the atomic check-and-claim; never build it from `seen()` followed by `markSeen()`, which two coroutines can both pass. `WebhookReplayKeyFactory::compose($namespace, $eventId, $tenantId)` returns `tenant:{id}:{namespace}:{eventId}`, or `{namespace}:{eventId}` without a tenant, so two tenants never share a key. `ConflictException` answers 409.
+`markIfFirstSeen($key, $ttlSeconds)` is the atomic check-and-claim; never build it from `seen()` followed by `markSeen()`, which two coroutines can both pass. The claim comes before the action and a failure does not undo it: if the action throws or the worker stops, a retry of the same signed bytes is answered 409 for as long as its signature still verifies (300 s either way of its timestamp); after that it fails authentication (401) before the handler runs. A retry signed again with a later timestamp is new bytes and is not affected; one signed again within the same second, with the same body, is the same bytes. The key itself outlives that: the TTL (86400 s here), and in the database store until `webhook:cleanup` deletes the expired row. When the processing has to survive a failure, use the inbox below: it stores the delivery before it processes it, and runs it again on the provider's retry or with `webhook:replay:inbound`. `WebhookReplayKeyFactory::compose($namespace, $eventId, $tenantId)` returns `tenant:{id}:{namespace}:{eventId}`, or `{namespace}:{eventId}` without a tenant, so two tenants never share a key. `ConflictException` answers 409.
 
-Three stores ship:
+Four stores ship:
 
 | Store | Shared across workers | Expiry |
 |---|---|---|
-| `InMemoryWebhookReplayStore` (bound by default) | no — a static array per worker process | lazy, on the next touch of the key |
-| `MySqlWebhookReplayStore` | yes — `INSERT IGNORE` on the `webhook_replay_keys` primary key | an expired key **keeps blocking** until `cleanupExpired()` deletes it |
+| `DatabaseWebhookReplayStore` (bound by default) | yes — `MySqlWebhookReplayStore` over the ORM's database | as `MySqlWebhookReplayStore` |
+| `MySqlWebhookReplayStore` | yes — an insert on the `webhook_replay_keys` primary key: `INSERT IGNORE` on MySQL; `INSERT ... ON CONFLICT DO NOTHING` elsewhere (on `develop`, after 2026.11.23.1729) | an expired key **keeps blocking** until `cleanupExpired()` deletes it |
 | `RedisWebhookReplayStore` | yes — `SET NX EX` | by Redis; a null TTL means one year |
+| `InMemoryWebhookReplayStore` (for tests) | no — a static array per worker process | lazy, on the next touch of the key |
 
-With several Swoole workers the default store misses every duplicate that lands on another worker. Its first use with `APP_ENV=prod` records a boot diagnostic saying so. The shared stores take constructor arguments (`OrmManager`, `RedisConnectionPool`), which the container does not build, so bind one through a class of your own that the container can build:
+The database store is the default (on `develop`, after 2026.11.23.1729). Before that the in-memory store was, and with several Swoole workers it missed every duplicate that landed on another worker. `DatabaseWebhookReplayStore` is `MySqlWebhookReplayStore` over the ORM's database, the one the inbox lives in, built by the container. The store itself takes its `OrmManager` by constructor, so code that wires `new MySqlWebhookReplayStore($orm)` by hand keeps working. Its table, `webhook_replay_keys`, is an ORM resource that `orm:sync` creates together with `webhook_inbox`. Run `bin/semitexa contracts:list` to see which store is active: a class from one of your own modules that satisfies `WebhookReplayStoreInterface` wins over the package's default. A wrapper of that kind over `MySqlWebhookReplayStore`, as earlier versions of this page showed, still works, and the default now does the same. Redis's store takes a `RedisConnectionPool` by constructor, which the container does not build, so a Redis binding is a class of your own that builds it. The in-memory store is for tests. A project that binds it gets a boot diagnostic in `APP_ENV=prod`, and the receiver checks no replays with it.
 
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace App\Modules\Billing\Application\Service;
-
-use Semitexa\Core\Attribute\InjectAsReadonly;
-use Semitexa\Core\Attribute\SatisfiesServiceContract;
-use Semitexa\Orm\OrmManager;
-use Semitexa\Webhooks\Auth\Contract\ExpiringWebhookReplayStoreInterface;
-use Semitexa\Webhooks\Auth\Contract\WebhookReplayStoreInterface;
-use Semitexa\Webhooks\Auth\MySqlWebhookReplayStore;
-
-#[SatisfiesServiceContract(of: WebhookReplayStoreInterface::class)]
-final class SharedWebhookReplayStore implements ExpiringWebhookReplayStoreInterface
-{
-    #[InjectAsReadonly]
-    protected OrmManager $orm;
-
-    private ?MySqlWebhookReplayStore $store = null;
-
-    public function seen(string $key): bool { return $this->store()->seen($key); }
-    public function markSeen(string $key): void { $this->store()->markSeen($key); }
-    public function markIfFirstSeen(string $key, ?int $ttlSeconds = null): bool { return $this->store()->markIfFirstSeen($key, $ttlSeconds); }
-    public function clear(): void { $this->store()->clear(); }
-    public function isShared(): bool { return true; }
-    public function diagnosticName(): string { return 'mysql'; }
-
-    public function cleanupExpired(?\DateTimeImmutable $now = null, ?int $limit = null, ?string $tenantId = null): int
-    {
-        return $this->store()->cleanupExpired($now, $limit, $tenantId);
-    }
-
-    public function countExpired(?\DateTimeImmutable $now = null, ?string $tenantId = null): int
-    {
-        return $this->store()->countExpired($now, $tenantId);
-    }
-
-    private function store(): MySqlWebhookReplayStore
-    {
-        return $this->store ??= new MySqlWebhookReplayStore($this->orm);
-    }
-}
-```
-
-Run `bin/semitexa contracts:list` afterwards and check that this class, not `InMemoryWebhookReplayStore`, is the active implementation of `WebhookReplayStoreInterface`. Because it implements `ExpiringWebhookReplayStoreInterface`, `webhook:cleanup` deletes its expired keys; schedule that command. A wrapper written before 2026-10-21 implements only `WebhookReplayStoreInterface` with `cleanupExpired(?int $limit)`: `webhook:cleanup` skips it until it implements `ExpiringWebhookReplayStoreInterface` with the signatures above.
+The database store implements `ExpiringWebhookReplayStoreInterface`, so `webhook:cleanup` deletes its expired keys; schedule that command. A wrapper written before 2026-10-21 implements only `WebhookReplayStoreInterface` with `cleanupExpired(?int $limit)`: `webhook:cleanup` skips it until it implements `ExpiringWebhookReplayStoreInterface` with the signatures of `MySqlWebhookReplayStore`.
 
 ### The inbox
 
-The package also has a persistent inbox: `InboundWebhookReceiver::receive(InboundWebhookEnvelope $envelope, ?WebhookInboundProcessorInterface $processor)` looks up an endpoint definition by key — it must be `inbound` and name a `verificationMode`, or `receive()` throws (an outbound row verifies nothing) — verifies the signature against that definition's `secretRef` and `verificationMode`, writes a `webhook_inbox` row under a dedupe key, and runs the processor, recording each transition in `webhook_attempts`. The dedupe key is `[tenant:{id}:]provider:{providerKey}:endpoint:{endpointKey}:event:{sha256 of the event id and the body hash}` when the request carries `X-Webhook-Event-Id` (or one of a few common provider event-id headers), and otherwise `…:hash:{sha256 of the body}`. The id is not signed, so it is bound to the body: a provider's retry of the same event matches, a captured request re-sent under another event's id does not take that event's key. When the bound `WebhookReplayStoreInterface` is shared between workers (`isShared()`, Redis or MySQL; not the default in-memory one), the exact signed bytes (timestamp and body) of every newly stored delivery are also remembered for 600 seconds, and the same bytes arriving under another event id are stored as `duplicate_ignored` and not processed; `webhook:replay:inbound` refuses such a row. A request whose signature fails keeps only the first 4 KiB of its body. Rows stored before this change keyed on the id alone, so the first repeat of such a delivery after upgrading is processed again. Inbox statuses: `received`, `verified`, `rejected_signature`, `processing`, `processed`, `failed`, and `duplicate_ignored` (rows written before 2026-10-21, and copies of another delivery's signed bytes). A request whose signature fails is stored under a key of its own, so a forged request naming a real event id cannot make the genuine delivery look like its duplicate. When the same delivery arrives again, its row counts it (`duplicate_count`, `last_received_at`) and keeps its status, and `receive()` returns it marked `duplicate_ignored`. A repeat of a delivery that `failed` is claimed by one arrival (back to `received`) and, when a processor is passed, processed again, as a provider's retry should be. So is a repeat of one left `received` for 15 minutes: the request that stored it died before even recording its signature. A delivery received without a processor rests in `verified`, and a repeat of it stays a duplicate.
+The package also has a persistent inbox: `InboundWebhookReceiver::receive(InboundWebhookEnvelope $envelope, ?WebhookInboundProcessorInterface $processor)` looks up an endpoint definition by key — it must be `inbound` and name a `verificationMode`, or `receive()` throws (an outbound row verifies nothing) — verifies the signature against that definition's `secretRef` and `verificationMode`, writes a `webhook_inbox` row under a dedupe key, and runs the processor, recording each transition in `webhook_attempts`. The dedupe key is `[tenant:{id}:]provider:{providerKey}:endpoint:{endpointKey}:event:{sha256 of the event id and the body hash}` when the request carries `X-Webhook-Event-Id` (or one of a few common provider event-id headers), and otherwise `…:hash:{sha256 of the body}`. The id is not signed, so it is bound to the body: a provider's retry of the same event with the same body bytes matches, a captured request re-sent under another event's id does not take that event's key. A retry whose body differs by a byte, the same JSON serialized again with other whitespace for one, has another key and is processed again. When the bound `WebhookReplayStoreInterface` is shared between workers (`isShared()`: the default database store, or Redis; not the in-memory one), the exact signed bytes (timestamp and body) of every newly stored delivery are also remembered for 600 seconds, and the same bytes arriving under another event id are stored as `duplicate_ignored` and not processed; `webhook:replay:inbound` refuses such a row. When that check itself fails (the store down, or its table missing), the delivery is stored as `failed` and the error surfaces. The provider's retry is then processed while its signature still verifies, signed afresh or sent within 300 seconds of its timestamp (later, it fails the signature check and is stored as `rejected_signature`, and the processor does not run): it makes the claim, or finds that the claim already names it, because the claim records the delivery that made it (on `develop`, after 2026.11.23.1729). A store that cannot record that (one of your own without `OwnedClaimStoreInterface`, or the database store before `orm:sync` adds its `owner` column) falls back to two keys, which a store error between them can open to a replay, and the receiver warns once. A request whose signature fails keeps only the first 4 KiB of its body. Rows stored before this change keyed on the id alone, so the first repeat of such a delivery after upgrading is processed again. Inbox statuses: `received`, `verified`, `rejected_signature`, `processing`, `processed`, `failed`, and `duplicate_ignored` (rows written before 2026-10-21, and copies of another delivery's signed bytes). A request whose signature fails is stored under a key of its own, so a forged request naming a real event id cannot make the genuine delivery look like its duplicate. When the same delivery arrives again, its row counts it (`duplicate_count`, `last_received_at`) and keeps its status, and `receive()` returns it marked `duplicate_ignored`. A repeat of a delivery that `failed` is claimed by one arrival (back to `received`) and, when a processor is passed, processed again, as a provider's retry should be. So is a repeat of one left `received` for 15 minutes: the request that stored it died before even recording its signature. A delivery received without a processor rests in `verified`, and a repeat of it stays a duplicate.
 
 The receiver, `InboundWebhookService` and `InboundDedupeKeyFactory` are services: inject `InboundWebhookReceiver` and call `receive()` from your own route. `webhook:replay:inbound <id>` runs a stored delivery again through the processor its endpoint names in `handler_class` (a container service implementing `WebhookInboundProcessorInterface`), without checking its signature again: only a delivery that was verified when it arrived can be replayed. A delivery a request or replay is on right now is refused (a `received` or `verified` one until it has not moved for 15 minutes; one stuck in `processing` for 15 minutes is taken over with `--force`), one already processed needs `--force`, a disabled endpoint is refused, and a delivery bound to a tenant replays only under that tenant (`bin/semitexa tenant:run <tenant> webhook:replay:inbound <id>`). The command exits non-zero when the processor fails.
 
@@ -324,9 +279,15 @@ The variables named by your `secretRef` values hold the secrets. `WEBHOOK_MAX_AT
 
 ## Watch out for
 
-- **The default replay store does not span workers.** `InMemoryWebhookReplayStore` is per process; bind a shared one before production. Without one, the inbox does not check signed bytes at all, so a captured request re-sent under new event ids within the signature window is processed once per id.
+- **A replay claim made before the action is not undone by a failure.** With a handler that claims and then acts, as in the example above, an action that throws blocks retries of the same signed bytes for the rest of their signature window (409, then 401). The key outlives that: its TTL, and in the database store until cleanup deletes the expired row. Use the inbox when the processing has to survive a failure.
+- **The replay table comes from `orm:sync`.** The default replay store is the database one (on `develop`, after 2026.11.23.1729), so `webhook_replay_keys` has to exist, as `webhook_inbox` does. Until it does, a verified delivery fails, and the provider's retry is processed once it is there. A project that binds the in-memory store instead has no replay check: the inbox checks signed bytes only with a store the workers share. Run `orm:sync` before the new code takes traffic: until the `owner` column exists the receiver falls back to two keys, and a delivery claimed that way that failed, then is retried with the same bytes after the sync, is not processed: it is stored as `duplicate_ignored`, which `webhook:replay:inbound` refuses.
+- **Upgrading: wait out the signature window.** Claims made before this version are not seen after it, in two ways:
+  - the inbox's claim key changes form, from the endpoint key and a hash of the timestamp and body to one hash of all three;
+  - a handler that claimed through the earlier in-memory default, as in the example above, loses those claims when its worker stops, and the database store does not have them.
+
+  Bytes claimed before the upgrade can then be processed once more while they still verify: by the inbox under another event id, by a handler under any. To close that window, stop and drain the old receivers, then wait more than 600 s before the new code takes traffic: a timestamp may run 300 s ahead of the server's clock, so also allow for clock skew, and a verifier of your own may need another wait. Run `orm:sync` in that time. The inbox on the earlier in-memory default checked no replays, so for the inbox alone there are no claims to wait out.
 - **Key replay protection on signed bytes.** `X-Webhook-Event-Id` (and so `WebhookPrincipal::$eventId`) is not covered by the signature: a captured request resent with a new event id verifies and passes a key built from it. Hash the timestamp and body, as in the handler above, or use an id from inside the signed body.
-- **The window is 300 seconds either side, fixed.** A signed request is accepted from 300 seconds before to 300 seconds after the server's clock, so a replay key must be kept 600 seconds; `replayWindowSeconds` changes nothing.
+- **The window is 300 seconds either side, fixed.** A signed request is accepted from 300 seconds before to 300 seconds after the server's clock, so a replay key must be kept 600 seconds; `replayWindowSeconds` changes nothing. Those 600 seconds are counted by the clock that sets and expires the claim: Redis's own, or for the database store the claiming worker's and the cleanup's (an expired row blocks until cleanup deletes it). They hold only while every worker's clock agrees with that one. When the sender's clock runs 300 seconds ahead, a worker whose clock is N seconds behind still accepts the bytes for N seconds after their claim expired, and a copy sent then under another event id is processed. Keep the clocks in sync (NTP).
 - **An empty secret refuses every request.** `PARTNER_WEBHOOK_SECRET=` (set but empty) is treated like a missing one: nothing verifies.
 - **`secretRef` without `env:` is the secret.** `secretRef: 'PARTNER_WEBHOOK_SECRET'` makes the variable's name the HMAC key.
 - **A missing outbound secret stops the delivery.** If the endpoint's `env:` variable is unset or empty, the attempt fails and is retried on the usual backoff until its attempts run out, so setting the secret in time lets it through. An endpoint with a `signingMode` and no `secretRef` fails at once, permanently. The outbound signer resolves `secretRef` through the bound `WebhookSecretResolverInterface` with the endpoint's tenant, as the receivers do.
