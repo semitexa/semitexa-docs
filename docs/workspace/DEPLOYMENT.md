@@ -82,12 +82,12 @@ The app takes the visitor's address from `X-Forwarded-For` and the scheme from `
 Loopback (`127.0.0.1`, `::1`) is trusted by default, which covers nginx proxying to Swoole on the same host, as above. When the app runs in Docker and nginx on the host reaches it through a published port, the app sees the gateway of the project's compose network instead. List that address in `TRUSTED_PROXIES` (comma-separated IPs or CIDR blocks):
 
 ```bash
-docker inspect "$(docker compose ps -q app)" --format '{{range .NetworkSettings.Networks}}{{.Gateway}} {{end}}'
+docker inspect "$(docker compose ps -q app)" --format '{{range $name, $net := .NetworkSettings.Networks}}{{$name}} {{$net.Gateway}}{{"\n"}}{{end}}'
 ```
 
-Several addresses mean several networks; the published port arrives through the project's own (`<name>_default`). Set it in `.env` and run `bin/semitexa server:restart app`: the container reads its environment when it is created, and restarting that one service recreates it without removing the network.
+It prints each network the app joins with its gateway. When there is more than one, the app itself says which address the published port arrives from: the warning described below names it in its `peer` field. Set it in `.env` and run `bin/semitexa server:restart app`: the container reads its environment when it is created, and restarting that one service recreates it without removing the network.
 
-Trust that one address, not a whole private range: any container on the network could otherwise claim any visitor's address. Keep the published port on `127.0.0.1` (the scaffold default, `SWOOLE_BIND`), since trusting the gateway trusts everything that reaches the app through it. A `docker compose down` removes the network, and the next `up` may give it another subnet, so read the address again after one. Until then, each worker logs one warning (channel `http`, in `var/log/app.log`) the first time `X-Forwarded-For` arrives from a private address `TRUSTED_PROXIES` does not list.
+Trust that one address, not a whole private range: any container on the network could otherwise claim any visitor's address. Keep the published port on `127.0.0.1` (the scaffold default, `SWOOLE_BIND`), since trusting the gateway trusts everything that reaches the app through it. A `docker compose down` removes the network, and the next `up` may give it another subnet, so read the address again after one. Until then, each worker logs one warning (channel `http`, in `var/log/app.log`) the first time `X-Forwarded-For` arrives from a private address `TRUSTED_PROXIES` does not list; its `peer` field (under `context`) is the address to trust when it is one of the gateways printed above.
 
 ## 🚀 Tuning
 - **Port**: the server listens on `SWOOLE_PORT` (default `9502`) on `SWOOLE_HOST` (default `0.0.0.0`). Point the proxy at whatever you set.
