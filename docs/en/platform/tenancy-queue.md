@@ -27,7 +27,7 @@ keywords:
 
 There is no automatic way yet. Do it explicitly:
 
-1. **Carry the tenant id in the payload.** Give the queued request (or event) a `tenantId` field with a public `getTenantId(): ?string` and a public `setTenantId(?string $tenantId)`: a payload travels through its getters and is rebuilt through its public setters, `null` included. A setter that takes `string` only throws on a job queued with no tenant, and the job is retried until it lands in the dead letter. Fill it before dispatching, from `TenantContext::get()?->getTenantId()`. That is `null` when no tenant context is set and `'default'` in the default tenant, so a handler that may get either skips step 2 for them.
+1. **Carry the tenant id in the payload.** Give the queued request (or event) a `tenantId` field with a public `getTenantId(): ?string` and a public `setTenantId(?string $tenantId)`: a payload travels through its getters and is rebuilt through its public setters, `null` included. A setter that takes `string` only throws on a job queued with no tenant, and the job is retried until it lands in the dead letter. Fill it before dispatching, from `TenantContext::get()?->getTenantId()`. That is `null` when no tenant context is set and `'default'` in the default tenant. The handler below skips the switch for both: `fromResolution()` takes a string, and `'default'` names no tenant to enter. The job then runs in the default scope.
 2. **Enter that tenant in the handler**, with the calls `TenantFanout` uses:
 
 ```php
@@ -38,7 +38,10 @@ public function handle(SendInvoice $request, SendInvoiceResult $response): SendI
 {
     $store = TenantContextStore::shared();
     $store->clear(); // set() locks the context inside a coroutine; clear() drops the lock
-    $store->set(TenantContext::fromResolution($request->getTenantId(), 'queue'));
+    $tenantId = $request->getTenantId();
+    if ($tenantId !== null && $tenantId !== 'default') {
+        $store->set(TenantContext::fromResolution($tenantId, 'queue'));
+    }
     try {
         // tenant-scoped work
     } finally {
@@ -62,6 +65,8 @@ For work on a clock, a scheduled job with `per_tenant` gets this done for it: `s
 - `wrap(array $payload)` adds a `_tenant` key holding the current context's tenant id, strategy, locale and environment. In the default tenant it adds nothing.
 - `unwrap(array $payload)` returns the payload without the key, and the context (or `null`).
 - `unwrapAndRestore(array $payload)` also makes that context current through the store's fallback, which is read only outside a coroutine.
+
+A worker that calls `unwrapAndRestore()` resets its per-job state after every message, in a `finally`: `PerRequestStateRegistry::resetAll()` and `CoroutineLocal::endRequest()`, the pair `QueueWorker` and `MediaWorker` end each message with. A message queued in the default tenant carries no `_tenant` key and restores nothing, so without the reset its job runs in the tenant of the message before it.
 
 Wrapping the payload of a `Queued` handler's request with it does nothing useful: nothing on the worker's side unwraps it.
 
