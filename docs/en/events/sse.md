@@ -59,8 +59,8 @@ A long-lived SSE connection holds a Swoole coroutine, a file descriptor, and a r
 
 **Defaults:**
 
-- **Authentication is required.** `/__semitexa_kiss` — the single SSE stream endpoint, used by Semitexa's browser-side SSE bootstrap — enforces an authenticated session. An unauthenticated request receives `401 Unauthorized`.
-- **Per-IP connection cap.** `SSE_MAX_CONN_PER_IP` (default `5`) bounds concurrent streams from a single client. Exceeding the cap returns `429 Too Many Requests` with `Retry-After: 30`.
+- **Authentication is required, with two narrow exceptions.** `/__semitexa_kiss` — the single SSE stream endpoint, used by Semitexa's browser-side SSE bootstrap — enforces an authenticated session, and an unauthenticated request receives `401 Unauthorized`. A guest may still open a stream in two cases: the one-shot drain of a page's deferred blocks (a `deferred_request_id` without `mode=live`), and a bearer channel, whose `session_id` has the strict shape `sse_` followed by 32 lowercase hex digits (128 random bits; the server mints one for a page rendered without a session). `SSE_PUBLIC_ANONYMOUS=true` admits any anonymous persistent stream, except a demo stream, which always needs a session.
+- **Per-IP connection cap.** `SSE_MAX_CONN_PER_IP` (default `5`) bounds concurrent streams from one client address in one worker. Exceeding the cap returns `429 Too Many Requests` with `Retry-After: 30`. The address is the one the rate limiter counts: the connecting peer or, when that peer is a trusted proxy (loopback, or listed in `TRUSTED_PROXIES`), the client it forwarded ([the client address behind a proxy](../routing/rate-limiting.md#the-client-address-behind-a-proxy)). Behind a proxy that is neither, every visitor shares one count, and a few idle streams turn everyone away.
 - **Per-worker global cap.** `SSE_MAX_CONN_GLOBAL` (default `500`) bounds total concurrent streams in one worker. Production deployments should size this against available FD and coroutine budget.
 - **Hard connection age.** `SSE_MAX_CONNECTION_AGE_SECONDS` (default `600`) forces the server to send a `close` event and disconnect after ten minutes. Browser `EventSource` auto-reconnects; long-lived clients must handle the reconnect path.
 - **Same-origin handshake.** The request must carry `Origin` or `Referer` and the host must match the server. Requests with neither header present are rejected with `403 Forbidden`.
@@ -111,6 +111,6 @@ is, re-queued for the session.
 | Variable | Default | Purpose |
 |---|---|---|
 | `SSE_PUBLIC_ANONYMOUS` | `false` | Allow unauthenticated clients to open `/__semitexa_kiss`. |
-| `SSE_MAX_CONN_PER_IP` | `5` | Concurrent SSE connections allowed from one IP per worker. |
+| `SSE_MAX_CONN_PER_IP` | `5` | Concurrent SSE connections allowed from one client address per worker. Behind a proxy that is not on loopback, set `TRUSTED_PROXIES`. |
 | `SSE_MAX_CONN_GLOBAL` | `500` | Concurrent SSE connections allowed per worker. |
 | `SSE_MAX_CONNECTION_AGE_SECONDS` | `600` | Seconds before the server force-closes the stream. `0` disables the cap. |
