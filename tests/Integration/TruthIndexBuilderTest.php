@@ -68,6 +68,9 @@ final class TruthIndexBuilderTest extends TestCase
                 #[Config(env: 'WEBHOOK_BACKOFF_MULTIPLIER', default: 2.0)]
                 protected float $multiplier = 2.0;
 
+                #[Config(default: 30, env: 'WEBHOOK_TIMEOUT_SECONDS')]
+                protected int $timeout = 30;
+
                 public function read(\Closure $get): void
                 {
                     $get('SWOOLE_LOG_ROTATION', 'daily');
@@ -87,7 +90,7 @@ final class TruthIndexBuilderTest extends TestCase
             exec('rm -rf ' . escapeshellarg($workspace));
         }
 
-        self::assertSame(['APP_ENV', 'BOOT_STRICT_MODE', 'MAIL_FROM_NAME', 'SWOOLE_LOG_ROTATION', 'WEBHOOK_BACKOFF_MULTIPLIER'], $keys);
+        self::assertSame(['APP_ENV', 'BOOT_STRICT_MODE', 'MAIL_FROM_NAME', 'SWOOLE_LOG_ROTATION', 'WEBHOOK_BACKOFF_MULTIPLIER', 'WEBHOOK_TIMEOUT_SECONDS'], $keys);
     }
 
     /** A checkout counts only with an exact version to be newer than (review, docs#139). */

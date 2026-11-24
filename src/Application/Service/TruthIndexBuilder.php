@@ -475,11 +475,12 @@ final class TruthIndexBuilder
                 // Every reader, not one: core reads through Environment (and
                 // Environment itself through its $get closure), tenancy through
                 // its own EnvReader, some code through a bare getenv() or
-                // $_ENV, and #[Config(env: ...)] binds a key to a property.
+                // $_ENV, and #[Config(env: ...)] binds a key to a property, its
+                // env: argument anywhere among the named ones.
                 // A reader left out makes its keys look undocumented
                 // (SWOOLE_LOG_ROTATION, BOOT_STRICT_MODE).
                 preg_match_all(
-                    '/(?:(?:getEnvValue|EnvReader::get[A-Za-z]*|\$get|\bgetenv)\(\s*|\$_ENV\[\s*|\bConfig\(\s*env:\s*)[\'"]([A-Z][A-Z0-9_]*)[\'"]/',
+                    '/(?:(?:getEnvValue|EnvReader::get[A-Za-z]*|\$get|\bgetenv)\(\s*|\$_ENV\[\s*|\bConfig\([^)]*?\benv:\s*)[\'"]([A-Z][A-Z0-9_]*)[\'"]/',
                     (string) file_get_contents($file->getPathname()),
                     $matches,
                 );
