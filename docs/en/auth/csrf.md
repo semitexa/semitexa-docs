@@ -7,13 +7,15 @@ summary: Every unsafe request from a browser session, signed in or not, must car
 order: 25
 locale: en
 status: published
-verified_against: 2026.10.03.1952
+verified_against: 2026.11.24.1203
 keywords:
   - csrf_field()
   - csrf_token()
   - X-CSRF-Token
+  - XSRF-TOKEN
   - "#[CsrfExempt]"
   - CsrfToken
+  - SESSION_COOKIE_DOMAIN
 ---
 # CSRF
 
@@ -49,8 +51,33 @@ in constant time, with what the request presents:
 A guest is checked too. A guest session holds state (a cart, a draft, the sign-in form
 itself), and a form on another site posting into it is the same attack. Every session has its
 token from its first response, so a guest form presents it the same way: a guest form without
-`csrf_field()` is refused with 403. A webhook or machine route opts out with `#[CsrfExempt]`
-on its payload. Outside a request (CLI, a test), `csrf_field()` renders nothing.
+`csrf_field()` is refused with 403. While the session store cannot be read (Redis down), the
+answer is 503 with `Retry-After` instead: the token the page carries cannot match the stand-in
+session, and the visitor should retry rather than be told it forged the request. Outside a
+request (CLI, a test), `csrf_field()` renders nothing.
+
+Only POST, PUT, PATCH and DELETE are checked. Any other method, GET among them, is never
+checked, so a route that changes state must not answer GET.
+
+A webhook or machine route opts out with `#[CsrfExempt]` on its payload. The listener honours
+it on any payload and reads nothing else, whatever access attribute the payload carries. Put it
+only on a route that authenticates with a credential of its own, never on a route a signed-in
+browser posts to: that is exactly the request the check protects.
+
+## One session across sibling hosts
+
+`SESSION_COOKIE_DOMAIN` (for example `.example.com`) shares one session across the hosts under
+that domain; the [language cookie](../runtime/localization.md) takes the same domain. It also
+scopes the readable `XSRF-TOKEN` cookie to that domain, as it does the session cookie. The browser
+then sends the session cookie to every host under the domain, and a script on any of them can
+read the token from `document.cookie` and send a request that passes the check. Set it only
+when every host under the domain is yours and serves no one else's pages or scripts.
+
+Unset, the default, both cookies are host-only. A page on a sibling host still gets the session
+cookie sent with a form it posts, since it is the same site, but it cannot read the token, so
+the check refuses the request. That holds unless CORS lets that host read your pages: with
+`CORS_ALLOW_CREDENTIALS=1` and the host listed in `CORS_ALLOW_ORIGIN`, its script can fetch a
+page with the session cookie and read the token from the form.
 
 ## Why this matters
 
