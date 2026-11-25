@@ -42,19 +42,28 @@ in constant time, with what the request presents:
   ```
 
 - **JavaScript** sends the `X-CSRF-Token` header. The token is also in the readable
-  `XSRF-TOKEN` cookie, and `withCsrf()` from `platform-ui/core` adds the header for you.
+  `XSRF-TOKEN` cookie; a visitor with no session has no such cookie, and their request is not
+  checked. `withCsrf()` from `platform-ui/core` adds the header for you.
   `csrf_token()` returns the raw value when a template needs it, for example in a data
   attribute.
 - **Platform UI forms** (`platform.form` with a `submitAction`) carry their own per-submit token
   and need neither of these.
 
-A guest is checked too. A guest session holds state (a cart, a draft, the sign-in form
-itself), and a form on another site posting into it is the same attack. Every session has its
-token from its first response, so a guest form presents it the same way: a guest form without
-`csrf_field()` is refused with 403. While the session store cannot be read (Redis down), the
-answer is 503 with `Retry-After` instead: the token the page carries cannot match the stand-in
-session, and the visitor should retry rather than be told it forged the request. Outside a
-request (CLI, a test), `csrf_field()` renders nothing.
+A guest is checked too. A guest session holds state (a cart, a draft, the sign-in form itself),
+and a form on another site posting into it is the same attack. From the first release after
+`2026.11.25.0522`, a guest gets a session, and its token, with the first response that uses
+one: a page that renders `csrf_field()` does, and so does a page that streams. A POST with no
+session cookie is not checked, so a guest form that sends no token (neither `csrf_field()` nor
+an `_csrf` input holding `csrf_token()`) works only while the POST carries no session cookie,
+and is refused with 403 for anyone who has a session, including a visitor who opened a page
+that streams; `bin/semitexa lint:templates` refuses such a form. Up to `2026.11.25.0522` every
+response sets a session cookie, so such a form is refused for every visitor after their first
+page. Do not cache a fragment with `csrf_field()` inside it: the cached token is the one it was
+first rendered with, so the form is refused with 403 for every other visitor who has a session.
+While the session store cannot be read (Redis down), the answer is 503 with `Retry-After`
+instead: the token the page carries cannot match the stand-in session, and the visitor should
+retry rather than be told it forged the request. Outside a request (CLI, a test),
+`csrf_field()` renders nothing.
 
 Only POST, PUT, PATCH and DELETE are checked. Any other method, GET among them, is never
 checked, so a route that changes state must not answer GET.
