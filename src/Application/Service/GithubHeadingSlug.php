@@ -19,7 +19,9 @@ final class GithubHeadingSlug implements TextNormalizerInterface
     /** @param array<string, mixed> $context */
     public function normalize(string $text, array $context = []): string
     {
-        $slug = mb_strtolower(trim($text), 'UTF-8');
+        // Not trimmed: a space a character reference decodes to stays, as on GitHub
+        // ("## &#x20;Configuration" is "-configuration"); the parser already strips the rest.
+        $slug = mb_strtolower($text, 'UTF-8');
         $slug = (string) preg_replace('/[^\p{L}\p{Nd}\p{Nl}\p{M}\s_-]+/u', '', $slug);
 
         return (string) preg_replace('/\s/u', '-', $slug);

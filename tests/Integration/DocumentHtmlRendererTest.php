@@ -36,6 +36,8 @@ See [Delivery](#delivery-webhookwork).
 ## Twice
 
 ## Twice
+
+## &#x20;Leading space
 MD,
             path: '/docs/webhooks.md',
         );
@@ -43,7 +45,7 @@ MD,
         $content = (new DocumentHtmlRenderer())->renderHtml($document)->content;
 
         preg_match_all('/<h[1-6] id="([^"]*)"/', $content, $ids);
-        self::assertSame(['configuration', 'delivery-webhookwork', 'sse_max_conn_global', 'twice', 'twice-1'], $ids[1]);
+        self::assertSame(['configuration', 'delivery-webhookwork', 'sse_max_conn_global', 'twice', 'twice-1', '-leading-space'], $ids[1]);
         self::assertStringContainsString('<a href="#delivery-webhookwork">Delivery</a>', $content, 'the in-page link names that id');
         self::assertStringNotContainsString('heading-permalink', $content, 'and no permalink markup is added');
     }
