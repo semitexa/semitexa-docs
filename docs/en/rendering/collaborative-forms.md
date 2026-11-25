@@ -105,7 +105,7 @@ not hold the lock is answered `field_locked` and not stored.
   field they are still in stays in the input, unsent.
 - The lock is released when focus leaves the whole component, not when it moves between its
   fields, and only after the last edit has reached the server. A lock granted after focus has
-  already left the form is released at once (on `develop`, after 2026.11.21.1434).
+  already left the form is released at once (since `2026.11.23.0659`).
 - The holder renews the lock every 10 s. A lock lives 30 s without renewal
   (`CacheBackedFormLockStore::LOCK_TTL_SECONDS`), so a holder whose tab closed or lost its
   connection stops blocking the form within that time. There is no forced takeover.

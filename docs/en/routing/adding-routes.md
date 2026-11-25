@@ -191,7 +191,7 @@ If no route matches the request, or a handler throws `Semitexa\Core\Http\Excepti
 
 ## Sign-in page for guests on protected pages (error.401 route)
 
-A page a guest must not see is `#[AsProtectedPayload]`: the auth gate refuses the guest before the page's handler runs. When that refusal reaches a browser (an HTML request), the framework looks for a **named route** `error.401` (`RoutePhase::ROUTE_NAME_401`) and runs it the way it runs `error.404`. Register one in the module that owns sign-in and render the sign-in form there. The response keeps status 401. Without the route the built-in 401 page is served. The `error.401` mapping and `ErrorPageContext::$returnTo` arrive with the first semitexa/core release tagged after 2026.11.05.1529; an older core serves the built-in page even when the route exists.
+A page a guest must not see is `#[AsProtectedPayload]`: the auth gate refuses the guest before the page's handler runs. When that refusal reaches a browser (an HTML request), the framework looks for a **named route** `error.401` (`RoutePhase::ROUTE_NAME_401`) and runs it the way it runs `error.404`. Register one in the module that owns sign-in and render the sign-in form there. The response keeps status 401. Without the route the built-in 401 page is served. The `error.401` mapping and `ErrorPageContext::$returnTo` are in `semitexa/core` since `2026.11.10.0849`; an older core serves the built-in page even when the route exists.
 
 The pieces, in the module that owns sign-in:
 
