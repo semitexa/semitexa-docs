@@ -243,7 +243,7 @@ Each attempt:
 | 4xx other than 408 and 429 | `failed` at once |
 | 408, 429, 5xx, 3xx, no response | `retry_scheduled`, or `failed` once `attempt_count` reaches `max_attempts` |
 
-The wait before a retry is `initialBackoffSeconds × 2^(attempt − 1)`, give or take 25 % jitter, at least 1 s and at most `maxBackoffSeconds`. `Retry-After` is not read.
+The wait before a retry is `initialBackoffSeconds × WEBHOOK_BACKOFF_MULTIPLIER^(attempt − 1)`, give or take 25 % jitter, at least 1 s and at most `maxBackoffSeconds`. The multiplier defaults to 2 and applies to every endpoint. `Retry-After` is not read.
 
 Stopping the worker container sends SIGTERM: `webhook:work` sends and records the delivery in hand, then exits (with `pcntl`, which the scaffold image has). One cut off anyway is claimed again once its lease runs out.
 
@@ -270,12 +270,13 @@ When the lease has run out before the result is written, another worker may alre
 | Key | Default | Used for |
 |---|---|---|
 | `WEBHOOK_TIMEOUT_SECONDS` | 30 | request timeout for an endpoint whose `timeoutSeconds` is 0 or less |
+| `WEBHOOK_BACKOFF_MULTIPLIER` | 2 | how many times longer each retry waits than the one before, for every endpoint |
 | `WEBHOOK_LEASE_SECONDS` | 120 | how long a claimed delivery belongs to one worker |
 | `WEBHOOK_RETENTION_DAYS` | 30 | the default window of `webhook:cleanup` |
 | `WEBHOOK_ALLOW_PRIVATE_TARGETS` | false | allow loopback, private and link-local targets (a receiver on your own network in development) |
 | `WORKER_REPLICAS` | 1 | worker containers, each running its own `webhook:work` |
 
-The variables named by your `secretRef` values hold the secrets. `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_BACKOFF_BASE_SECONDS`, `WEBHOOK_BACKOFF_MULTIPLIER` and `WEBHOOK_DEDUPE_WINDOW_SECONDS` are read into `WebhookConfig` but nothing uses them: attempts and backoff come from the endpoint row, the multiplier is always 2.
+The variables named by your `secretRef` values hold the secrets. `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_BACKOFF_BASE_SECONDS` and `WEBHOOK_DEDUPE_WINDOW_SECONDS` are read into `WebhookConfig` but nothing uses them: the attempts and both backoff bounds come from the endpoint row.
 
 ## Watch out for
 
