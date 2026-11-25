@@ -45,8 +45,9 @@ final class DocsGetCommandTest extends TestCase
 
         self::assertSame(0, $tester->getStatusCode());
         self::assertStringContainsString('<article class="sx-docs-fragment" data-doc-id="get-started/installation"', $output);
-        self::assertStringContainsString('<h1>Installation</h1>', $output);
-        self::assertStringContainsString('<h2>Canonical flow</h2>', $output);
+        // Headings carry the anchor GitHub gives them, so #section links resolve.
+        self::assertStringContainsString('<h1 id="installation">Installation</h1>', $output);
+        self::assertStringContainsString('<h2 id="canonical-flow">Canonical flow</h2>', $output);
     }
 
     #[Test]
