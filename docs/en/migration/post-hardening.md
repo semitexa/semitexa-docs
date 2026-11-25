@@ -181,10 +181,10 @@ if (!$store->markIfFirstSeen($key, $ttlSeconds)) {
 |---|---|
 | `DatabaseWebhookReplayStore` (framework default) | Production on the ORM's database: `MySqlWebhookReplayStore` over it, built by the container. |
 | `RedisWebhookReplayStore` | Production with Redis. Atomic `SET NX EX`; server-side TTL. |
-| `MySqlWebhookReplayStore` | The database store itself. Atomic insert on the PRIMARY KEY: `INSERT IGNORE` on MySQL; `ON CONFLICT DO NOTHING` elsewhere (on `develop`, after 2026.11.23.1729). Expired keys remain blocking until cleanup. |
+| `MySqlWebhookReplayStore` | The database store itself. Atomic insert on the PRIMARY KEY: `INSERT IGNORE` on MySQL; `ON CONFLICT DO NOTHING` elsewhere (since `2026.11.24.1203`). Expired keys remain blocking until cleanup. |
 | `InMemoryWebhookReplayStore` | Tests and demos. Per-process — does not span workers. |
 
-The database store is the default (on `develop`, after 2026.11.23.1729); the in-memory store was before it, and with it the inbox checked no replays across workers. A project binds Redis, or a store of its own, with a class from one of its modules, which wins over the package's default; `bin/semitexa contracts:list` shows which is active.
+The database store is the default (since `2026.11.24.1203`); the in-memory store was before it, and with it the inbox checked no replays across workers. A project binds Redis, or a store of its own, with a class from one of its modules, which wins over the package's default; `bin/semitexa contracts:list` shows which is active.
 
 ### Inbound dedupe
 
