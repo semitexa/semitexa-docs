@@ -21,7 +21,7 @@ Instead of a single fat entity with lazy-loaded relations, Semitexa uses screen-
 
 ## How it works
 
-A screen defines its own resource model, a separate final readonly class such as `ProductCardResource`. It points at the same table with `#[FromTable]` but declares only the four columns it renders. There is no base class to extend. The schema merges the classes that share a table, so `orm:sync` still sees one table. If the screen also needs related data, `ResourceModelRelationLoader` batch-loads all related rows for the full result set in a second query, never one per row. There are no proxies and no lazy property access.
+A screen defines its own resource model, a separate final readonly class such as `ProductCardResource`. It points at the same table with `#[FromTable]` but declares only the four columns it renders. There is no base class to extend. The schema merges the classes that share a table, so `orm:sync` still sees one table. If the screen also needs related data, `ResourceModelRelationLoader` batch-loads all related rows for the full result set. That takes one more query per relation, or two for a `#[ManyToMany]` (the pivot, then the targets), never one per row. There are no proxies and no lazy property access.
 
 ## Why this matters
 
