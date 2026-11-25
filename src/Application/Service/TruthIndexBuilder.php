@@ -201,7 +201,7 @@ final class TruthIndexBuilder
         );
 
         foreach ($iterator as $file) {
-            if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+            if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php' || !$file->isFile()) {
                 continue;
             }
 
@@ -468,7 +468,7 @@ final class TruthIndexBuilder
             );
 
             foreach ($iterator as $file) {
-                if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+                if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php' || !$file->isFile()) {
                     continue;
                 }
                 // The framework's keys, not its tests' or tools': a key only a
@@ -543,7 +543,7 @@ final class TruthIndexBuilder
             );
 
             foreach ($iterator as $file) {
-                if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+                if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php' || !$file->isFile()) {
                     continue;
                 }
 
@@ -569,7 +569,8 @@ final class TruthIndexBuilder
     /**
      * A source file's text, or a failure: a scan that cannot read a file would
      * otherwise return an index with that file's facts missing and say nothing.
-     * An empty file is read as empty.
+     * An empty file is read as empty. The scans pass only regular files, so a
+     * link to nothing (an editor's lock file, .#Foo.php) is skipped, not failed.
      */
     private static function readSource(string $path): string
     {

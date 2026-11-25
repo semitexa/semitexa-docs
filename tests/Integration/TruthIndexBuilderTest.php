@@ -118,6 +118,8 @@ final class TruthIndexBuilderTest extends TestCase
                 }
             }
             PHP);
+        // An editor's lock file: a link to nothing with a .php name, skipped rather than failed.
+        symlink('someone@host.4242', $workspace . '/packages/semitexa-probe/src/.#Reader.php');
         mkdir($workspace . '/packages/semitexa-probe/tests', 0755, true);
         file_put_contents($workspace . '/packages/semitexa-probe/tests/ReaderTest.php', "<?php\ngetenv('PROBE_TEST_ONLY');\n");
         $root->setValue(null, $workspace);
@@ -144,13 +146,15 @@ final class TruthIndexBuilderTest extends TestCase
         $previous = $root->getValue();
         $workspace = sys_get_temp_dir() . '/semitexa-unreadable-source-' . bin2hex(random_bytes(4));
         mkdir($workspace . '/packages/semitexa-probe/src', 0755, true);
-        // Listed as a PHP file, and nothing to read behind it.
-        symlink($workspace . '/removed.php', $workspace . '/packages/semitexa-probe/src/Gone.php');
+        // A source file the scan has no permission to read.
+        file_put_contents($workspace . '/packages/semitexa-probe/src/Locked.php', "<?php\ngetenv('PROBE_LOCKED');\n");
+        chmod($workspace . '/packages/semitexa-probe/src/Locked.php', 0o000);
+        self::assertFalse(is_readable($workspace . '/packages/semitexa-probe/src/Locked.php'), 'the test runs as a user a mode-000 file stops');
         $root->setValue(null, $workspace);
 
         try {
             $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('Cannot read "' . $workspace . '/packages/semitexa-probe/src/Gone.php" for the truth index.');
+            $this->expectExceptionMessage('Cannot read "' . $workspace . '/packages/semitexa-probe/src/Locked.php" for the truth index.');
             $this->build($this->applicationWithSampleCommand());
         } finally {
             $root->setValue(null, $previous);
