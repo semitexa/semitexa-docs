@@ -86,35 +86,14 @@ final class TruthIndexBuilderTest extends TestCase
                 }
             }
             PHP);
-        // Two more ways a key reaches the code, and one reader that is no setting.
+        // One more way a key reaches the code, and one reader that is no setting.
         file_put_contents($workspace . '/packages/semitexa-probe/src/Scheduled.php', <<<'PHP'
             <?php
             final class Scheduled
             {
-                private const ENV = 'PROBE_CACHE_TTL';
-
                 #[AsScheduledJob(cron: 'env::PROBE_SEO_CRON::0 3 * * *')]
                 public function run(): void
                 {
-                    getenv(self::ENV);
-                }
-            }
-            PHP);
-        // Two classes, each with its own ENV: the call reads its own class's (review, docs#195).
-        file_put_contents($workspace . '/packages/semitexa-probe/src/TwoClasses.php', <<<'PHP'
-            <?php
-            class Unused
-            {
-                const ENV = 'PROBE_UNUSED_KEY';
-            }
-
-            class SecondReader
-            {
-                const ENV = 'PROBE_ACTUAL_KEY';
-
-                function read()
-                {
-                    return getenv(self::ENV);
                 }
             }
             PHP);
@@ -131,34 +110,41 @@ final class TruthIndexBuilderTest extends TestCase
             exec('rm -rf ' . escapeshellarg($base));
         }
 
-        self::assertSame(['APP_ENV', 'BOOT_STRICT_MODE', 'MAIL_FROM_NAME', 'PROBE_ACTUAL_KEY', 'PROBE_CACHE_TTL', 'PROBE_SEO_CRON', 'SWOOLE_LOG_ROTATION', 'WEBHOOK_BACKOFF_MULTIPLIER', 'WEBHOOK_TIMEOUT_SECONDS'], $keys, 'and not PROBE_TEST_ONLY, which only a test reads, nor PROBE_UNUSED_KEY, which no call reads');
+        self::assertSame(['APP_ENV', 'BOOT_STRICT_MODE', 'MAIL_FROM_NAME', 'PROBE_SEO_CRON', 'SWOOLE_LOG_ROTATION', 'WEBHOOK_BACKOFF_MULTIPLIER', 'WEBHOOK_TIMEOUT_SECONDS'], $keys, 'and not PROBE_TEST_ONLY, which only a test reads');
     }
 
     /**
      * A source file the scan cannot read fails the index (review, docs#195).
      * Read as empty, its keys would silently go missing, and docs:lint would
-     * then call real settings unknown.
+     * then call real settings unknown. Every scan reads through readSource().
+     * The path stats as a regular file and refuses to open: the container
+     * runs as root, which a mode-000 file would not stop.
      */
     #[Test]
     public function a_source_file_that_cannot_be_read_fails_the_index(): void
     {
-        $root = new \ReflectionProperty(ProjectRoot::class, 'root');
-        $previous = $root->getValue();
-        $workspace = sys_get_temp_dir() . '/semitexa-unreadable-source-' . bin2hex(random_bytes(4));
-        mkdir($workspace . '/packages/semitexa-probe/src', 0755, true);
-        // A source file the scan has no permission to read.
-        file_put_contents($workspace . '/packages/semitexa-probe/src/Locked.php', "<?php\ngetenv('PROBE_LOCKED');\n");
-        chmod($workspace . '/packages/semitexa-probe/src/Locked.php', 0o000);
-        self::assertFalse(is_readable($workspace . '/packages/semitexa-probe/src/Locked.php'), 'the test runs as a user a mode-000 file stops');
-        $root->setValue(null, $workspace);
+        $read = new \ReflectionMethod(TruthIndexBuilder::class, 'readSource');
+        self::assertTrue(stream_wrapper_register('unreadable', UnreadableFileStream::class));
 
         try {
+            self::assertTrue(is_file('unreadable://src/Locked.php'), 'the path passes the scans\' regular-file check');
             $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('Cannot read "' . $workspace . '/packages/semitexa-probe/src/Locked.php" for the truth index.');
-            $this->build($this->applicationWithSampleCommand());
+            $this->expectExceptionMessage('Cannot read "unreadable://src/Locked.php" for the truth index.');
+            $read->invoke(null, 'unreadable://src/Locked.php');
         } finally {
-            $root->setValue(null, $previous);
-            exec('rm -rf ' . escapeshellarg($workspace));
+            stream_wrapper_unregister('unreadable');
+        }
+    }
+
+    /** An empty source file is read, as empty, and not taken for one that cannot be read. */
+    #[Test]
+    public function an_empty_source_file_reads_as_empty(): void
+    {
+        $file = (string) tempnam(sys_get_temp_dir(), 'empty-source');
+        try {
+            self::assertSame('', (new \ReflectionMethod(TruthIndexBuilder::class, 'readSource'))->invoke(null, $file));
+        } finally {
+            @unlink($file);
         }
     }
 

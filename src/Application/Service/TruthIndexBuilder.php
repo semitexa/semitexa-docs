@@ -489,6 +489,9 @@ final class TruthIndexBuilder
                 // anywhere among the named arguments), and an 'env::KEY::default'
                 // attribute string names one. A reader left out makes its keys
                 // look undocumented (SWOOLE_LOG_ROTATION, BOOT_STRICT_MODE).
+                // A key read through a class constant, getenv(self::ENV), is
+                // not counted: which ENV needs the class the call sits in
+                // (idea-truth-index-resolves-env-constants-by-tokens).
                 preg_match_all(
                     '/(?:(?:getEnvValue|EnvReader::get[A-Za-z]*|\$get|\bgetenv)\(\s*|\$_ENV\[\s*|\bConfig\([^)]*?\benv:\s*)[\'"]([A-Z][A-Z0-9_]*)[\'"]|[\'"]env::([A-Z][A-Z0-9_]*)/',
                     $code,
@@ -497,22 +500,6 @@ final class TruthIndexBuilder
                 foreach (array_merge($matches[1], $matches[2]) as $key) {
                     if ($key !== '') {
                         $keys[$key] = true;
-                    }
-                }
-
-                // A key read through a class constant (getenv(self::ENV)): the
-                // constant's value is the key. Only constants such a call names,
-                // each looked up in the class the call sits in: two classes of
-                // one file may each declare their own ENV.
-                preg_match_all('/(?:getEnvValue|EnvReader::get[A-Za-z]*|\bgetenv)\(\s*(?:self|static)::([A-Z_][A-Z0-9_]*)\s*[,)]/', $code, $named, PREG_OFFSET_CAPTURE);
-                if ($named[1] !== []) {
-                    preg_match_all('/^[ \t]*(?:(?:abstract|final|readonly)\s+)*(?:class|interface|trait|enum)\s+[A-Za-z_]/m', $code, $declared, PREG_OFFSET_CAPTURE);
-                    $starts = array_map(static fn (array $declaration): int => $declaration[1], $declared[0]);
-                    foreach ($named[1] as [$constant, $at]) {
-                        $class = self::classAt($code, $starts, $at);
-                        if (preg_match('/\bconst\s+(?:string\s+)?' . $constant . '\s*=\s*[\'"]([A-Z][A-Z0-9_]*)[\'"]/', $class, $value) === 1) {
-                            $keys[$value[1]] = true;
-                        }
                     }
                 }
             }
@@ -580,27 +567,6 @@ final class TruthIndexBuilder
         }
 
         return $contents;
-    }
-
-    /**
-     * The part of $code that a self:: or static:: at $at refers to: from the
-     * last class declaration at or before it to the next one.
-     *
-     * @param list<int> $starts where each class, interface, trait or enum is declared, in order
-     */
-    private static function classAt(string $code, array $starts, int $at): string
-    {
-        $from = 0;
-        $to = strlen($code);
-        foreach ($starts as $start) {
-            if ($start > $at) {
-                $to = $start;
-                break;
-            }
-            $from = $start;
-        }
-
-        return substr($code, $from, $to - $from);
     }
 
     /**
