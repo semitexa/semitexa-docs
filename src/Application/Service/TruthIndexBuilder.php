@@ -201,7 +201,7 @@ final class TruthIndexBuilder
         );
 
         foreach ($iterator as $file) {
-            if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+            if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php' || !$file->isFile()) {
                 continue;
             }
 
@@ -209,7 +209,7 @@ final class TruthIndexBuilder
                 continue;
             }
 
-            $body = (string) file_get_contents($file->getPathname());
+            $body = self::readSource($file->getPathname());
             if (!str_contains($body, '#[Attribute')) {
                 continue;
             }
@@ -368,7 +368,7 @@ final class TruthIndexBuilder
             return [];
         }
 
-        $contents = (string) file_get_contents($wrapper);
+        $contents = self::readSource($wrapper);
         preg_match_all('/printf\s+"\s+%-\d+s\s+%s\\\\n"\s+"([a-z][a-z0-9:._-]*)/', $contents, $matches);
 
         return array_values(array_unique($matches[1] ?? []));
@@ -468,25 +468,39 @@ final class TruthIndexBuilder
             );
 
             foreach ($iterator as $file) {
-                if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+                if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php' || !$file->isFile()) {
                     continue;
                 }
+                // The framework's keys, not its tests' or tools': a key only a
+                // test or a release script reads (WK_*, TMPDIR, RELEASE_*) is no
+                // setting a page could document. Judged by the path inside the
+                // scanned root: a project checked out under a directory named
+                // tools or tests is still scanned.
+                $inRoot = '/' . ltrim(substr(str_replace('\\', '/', $file->getPathname()), strlen(str_replace('\\', '/', $root))), '/');
+                if (preg_match('#/(?:tests|resources/skills|tools)/#', $inRoot) === 1) {
+                    continue;
+                }
+                $code = self::readSource($file->getPathname());
 
-                // Every reader, not one: core reads through Environment (and
+                // Every literal reader: core reads through Environment (and
                 // Environment itself through its $get closure), tenancy through
                 // its own EnvReader, some code through a bare getenv() or
-                // $_ENV, and #[Config(env: ...)] binds a key to a property, its
-                // env: argument anywhere among the named ones.
-                // A reader left out makes its keys look undocumented
-                // (SWOOLE_LOG_ROTATION, BOOT_STRICT_MODE).
+                // $_ENV, #[Config(env: ...)] binds a key to a property (env:
+                // anywhere among the named arguments), and an 'env::KEY::default'
+                // attribute string names one. A reader left out makes its keys
+                // look undocumented (SWOOLE_LOG_ROTATION, BOOT_STRICT_MODE).
+                // A key read through a class constant, getenv(self::ENV), is
+                // not counted: which ENV needs the class the call sits in
+                // (idea-truth-index-resolves-env-constants-by-tokens).
                 preg_match_all(
-                    '/(?:(?:getEnvValue|EnvReader::get[A-Za-z]*|\$get|\bgetenv)\(\s*|\$_ENV\[\s*|\bConfig\([^)]*?\benv:\s*)[\'"]([A-Z][A-Z0-9_]*)[\'"]/',
-                    (string) file_get_contents($file->getPathname()),
+                    '/(?:(?:getEnvValue|EnvReader::get[A-Za-z]*|\$get|\bgetenv)\(\s*|\$_ENV\[\s*|\bConfig\([^)]*?\benv:\s*)[\'"]([A-Z][A-Z0-9_]*)[\'"]|[\'"]env::([A-Z][A-Z0-9_]*)/',
+                    $code,
                     $matches,
                 );
-
-                foreach ($matches[1] ?? [] as $key) {
-                    $keys[$key] = true;
+                foreach (array_merge($matches[1], $matches[2]) as $key) {
+                    if ($key !== '') {
+                        $keys[$key] = true;
+                    }
                 }
             }
         }
@@ -516,13 +530,13 @@ final class TruthIndexBuilder
             );
 
             foreach ($iterator as $file) {
-                if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+                if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php' || !$file->isFile()) {
                     continue;
                 }
 
                 preg_match_all(
                     '/"([A-Z][A-Z0-9_]*)\{\$[A-Za-z_][A-Za-z0-9_]*\}([A-Z0-9_]*)"/',
-                    (string) file_get_contents($file->getPathname()),
+                    self::readSource($file->getPathname()),
                     $matches,
                     PREG_SET_ORDER,
                 );
@@ -537,6 +551,22 @@ final class TruthIndexBuilder
         sort($out);
 
         return $out;
+    }
+
+    /**
+     * A source file's text, or a failure: a scan that cannot read a file would
+     * otherwise return an index with that file's facts missing and say nothing.
+     * An empty file is read as empty. The scans pass only regular files, so a
+     * link to nothing (an editor's lock file, .#Foo.php) is skipped, not failed.
+     */
+    private static function readSource(string $path): string
+    {
+        $contents = @file_get_contents($path);
+        if ($contents === false) {
+            throw new \RuntimeException(sprintf('Cannot read "%s" for the truth index.', $path));
+        }
+
+        return $contents;
     }
 
     /**
