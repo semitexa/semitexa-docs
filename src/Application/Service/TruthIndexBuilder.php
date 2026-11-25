@@ -209,7 +209,7 @@ final class TruthIndexBuilder
                 continue;
             }
 
-            $body = (string) file_get_contents($file->getPathname());
+            $body = self::readSource($file->getPathname());
             if (!str_contains($body, '#[Attribute')) {
                 continue;
             }
@@ -368,7 +368,7 @@ final class TruthIndexBuilder
             return [];
         }
 
-        $contents = (string) file_get_contents($wrapper);
+        $contents = self::readSource($wrapper);
         preg_match_all('/printf\s+"\s+%-\d+s\s+%s\\\\n"\s+"([a-z][a-z0-9:._-]*)/', $contents, $matches);
 
         return array_values(array_unique($matches[1] ?? []));
@@ -480,7 +480,7 @@ final class TruthIndexBuilder
                 if (preg_match('#/(?:tests|resources/skills|tools)/#', $inRoot) === 1) {
                     continue;
                 }
-                $code = (string) file_get_contents($file->getPathname());
+                $code = self::readSource($file->getPathname());
 
                 // Every literal reader: core reads through Environment (and
                 // Environment itself through its $get closure), tenancy through
@@ -501,11 +501,18 @@ final class TruthIndexBuilder
                 }
 
                 // A key read through a class constant (getenv(self::ENV)): the
-                // constant's value is the key. Only constants such a call names.
-                preg_match_all('/(?:getEnvValue|EnvReader::get[A-Za-z]*|\bgetenv)\(\s*(?:self|static)::([A-Z_][A-Z0-9_]*)\s*[,)]/', $code, $named);
-                foreach (array_unique($named[1]) as $constant) {
-                    if (preg_match('/\bconst\s+(?:string\s+)?' . $constant . '\s*=\s*[\'"]([A-Z][A-Z0-9_]*)[\'"]/', $code, $value) === 1) {
-                        $keys[$value[1]] = true;
+                // constant's value is the key. Only constants such a call names,
+                // each looked up in the class the call sits in: two classes of
+                // one file may each declare their own ENV.
+                preg_match_all('/(?:getEnvValue|EnvReader::get[A-Za-z]*|\bgetenv)\(\s*(?:self|static)::([A-Z_][A-Z0-9_]*)\s*[,)]/', $code, $named, PREG_OFFSET_CAPTURE);
+                if ($named[1] !== []) {
+                    preg_match_all('/^[ \t]*(?:(?:abstract|final|readonly)\s+)*(?:class|interface|trait|enum)\s+[A-Za-z_]/m', $code, $declared, PREG_OFFSET_CAPTURE);
+                    $starts = array_map(static fn (array $declaration): int => $declaration[1], $declared[0]);
+                    foreach ($named[1] as [$constant, $at]) {
+                        $class = self::classAt($code, $starts, $at);
+                        if (preg_match('/\bconst\s+(?:string\s+)?' . $constant . '\s*=\s*[\'"]([A-Z][A-Z0-9_]*)[\'"]/', $class, $value) === 1) {
+                            $keys[$value[1]] = true;
+                        }
                     }
                 }
             }
@@ -542,7 +549,7 @@ final class TruthIndexBuilder
 
                 preg_match_all(
                     '/"([A-Z][A-Z0-9_]*)\{\$[A-Za-z_][A-Za-z0-9_]*\}([A-Z0-9_]*)"/',
-                    (string) file_get_contents($file->getPathname()),
+                    self::readSource($file->getPathname()),
                     $matches,
                     PREG_SET_ORDER,
                 );
@@ -557,6 +564,42 @@ final class TruthIndexBuilder
         sort($out);
 
         return $out;
+    }
+
+    /**
+     * A source file's text, or a failure: a scan that cannot read a file would
+     * otherwise return an index with that file's facts missing and say nothing.
+     * An empty file is read as empty.
+     */
+    private static function readSource(string $path): string
+    {
+        $contents = @file_get_contents($path);
+        if ($contents === false) {
+            throw new \RuntimeException(sprintf('Cannot read "%s" for the truth index.', $path));
+        }
+
+        return $contents;
+    }
+
+    /**
+     * The part of $code that a self:: or static:: at $at refers to: from the
+     * last class declaration at or before it to the next one.
+     *
+     * @param list<int> $starts where each class, interface, trait or enum is declared, in order
+     */
+    private static function classAt(string $code, array $starts, int $at): string
+    {
+        $from = 0;
+        $to = strlen($code);
+        foreach ($starts as $start) {
+            if ($start > $at) {
+                $to = $start;
+                break;
+            }
+            $from = $start;
+        }
+
+        return substr($code, $from, $to - $from);
     }
 
     /**

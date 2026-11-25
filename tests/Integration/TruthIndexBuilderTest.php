@@ -100,6 +100,24 @@ final class TruthIndexBuilderTest extends TestCase
                 }
             }
             PHP);
+        // Two classes, each with its own ENV: the call reads its own class's (review, docs#195).
+        file_put_contents($workspace . '/packages/semitexa-probe/src/TwoClasses.php', <<<'PHP'
+            <?php
+            class Unused
+            {
+                const ENV = 'PROBE_UNUSED_KEY';
+            }
+
+            class SecondReader
+            {
+                const ENV = 'PROBE_ACTUAL_KEY';
+
+                function read()
+                {
+                    return getenv(self::ENV);
+                }
+            }
+            PHP);
         mkdir($workspace . '/packages/semitexa-probe/tests', 0755, true);
         file_put_contents($workspace . '/packages/semitexa-probe/tests/ReaderTest.php', "<?php\ngetenv('PROBE_TEST_ONLY');\n");
         $root->setValue(null, $workspace);
@@ -111,7 +129,33 @@ final class TruthIndexBuilderTest extends TestCase
             exec('rm -rf ' . escapeshellarg($base));
         }
 
-        self::assertSame(['APP_ENV', 'BOOT_STRICT_MODE', 'MAIL_FROM_NAME', 'PROBE_CACHE_TTL', 'PROBE_SEO_CRON', 'SWOOLE_LOG_ROTATION', 'WEBHOOK_BACKOFF_MULTIPLIER', 'WEBHOOK_TIMEOUT_SECONDS'], $keys, 'and not PROBE_TEST_ONLY, which only a test reads');
+        self::assertSame(['APP_ENV', 'BOOT_STRICT_MODE', 'MAIL_FROM_NAME', 'PROBE_ACTUAL_KEY', 'PROBE_CACHE_TTL', 'PROBE_SEO_CRON', 'SWOOLE_LOG_ROTATION', 'WEBHOOK_BACKOFF_MULTIPLIER', 'WEBHOOK_TIMEOUT_SECONDS'], $keys, 'and not PROBE_TEST_ONLY, which only a test reads, nor PROBE_UNUSED_KEY, which no call reads');
+    }
+
+    /**
+     * A source file the scan cannot read fails the index (review, docs#195).
+     * Read as empty, its keys would silently go missing, and docs:lint would
+     * then call real settings unknown.
+     */
+    #[Test]
+    public function a_source_file_that_cannot_be_read_fails_the_index(): void
+    {
+        $root = new \ReflectionProperty(ProjectRoot::class, 'root');
+        $previous = $root->getValue();
+        $workspace = sys_get_temp_dir() . '/semitexa-unreadable-source-' . bin2hex(random_bytes(4));
+        mkdir($workspace . '/packages/semitexa-probe/src', 0755, true);
+        // Listed as a PHP file, and nothing to read behind it.
+        symlink($workspace . '/removed.php', $workspace . '/packages/semitexa-probe/src/Gone.php');
+        $root->setValue(null, $workspace);
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('Cannot read "' . $workspace . '/packages/semitexa-probe/src/Gone.php" for the truth index.');
+            $this->build($this->applicationWithSampleCommand());
+        } finally {
+            $root->setValue(null, $previous);
+            exec('rm -rf ' . escapeshellarg($workspace));
+        }
     }
 
     /** A checkout counts only with an exact version to be newer than (review, docs#139). */
