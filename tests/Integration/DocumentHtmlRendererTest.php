@@ -13,6 +13,43 @@ use Semitexa\Docs\Domain\Model\ResolvedDocument;
 
 final class DocumentHtmlRendererTest extends TestCase
 {
+    /**
+     * Headings carry the anchor GitHub gives them as their id, so a page's
+     * #section links work on the site too. Before, no heading had an id and
+     * the 58 in-page anchors in docs/en worked only on GitHub.
+     */
+    #[Test]
+    public function headings_carry_the_anchor_github_gives_them(): void
+    {
+        $document = new ResolvedDocument(
+            id: new DocumentId('runtime', 'webhooks'),
+            metadata: new DocumentMetadata('Webhooks', 'Anchors.', 10),
+            markdown: <<<'MD'
+## Configuration
+
+### Delivery: `webhook:work`
+
+See [Delivery](#delivery-webhookwork).
+
+## SSE_MAX_CONN_GLOBAL
+
+## Twice
+
+## Twice
+
+## &#x20;Leading space
+MD,
+            path: '/docs/webhooks.md',
+        );
+
+        $content = (new DocumentHtmlRenderer())->renderHtml($document)->content;
+
+        preg_match_all('/<h[1-6] id="([^"]*)"/', $content, $ids);
+        self::assertSame(['configuration', 'delivery-webhookwork', 'sse_max_conn_global', 'twice', 'twice-1', '-leading-space'], $ids[1]);
+        self::assertStringContainsString('<a href="#delivery-webhookwork">Delivery</a>', $content, 'the in-page link names that id');
+        self::assertStringNotContainsString('heading-permalink', $content, 'and no permalink markup is added');
+    }
+
     #[Test]
     public function renders_copyable_commands_with_an_expected_result(): void
     {

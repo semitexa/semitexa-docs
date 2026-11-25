@@ -7,6 +7,7 @@ namespace Semitexa\Docs\Application\Service;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
+use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
 use League\CommonMark\MarkdownConverter;
 use Semitexa\Core\Attribute\AsService;
 use Semitexa\Docs\Domain\Model\DocumentId;
@@ -104,9 +105,21 @@ final class DocumentHtmlRenderer
             'renderer' => [
                 'soft_break' => "\n",
             ],
+            // Headings carry the id GitHub gives them, so the pages' #section
+            // links resolve on the site too; no permalink markup is added.
+            'heading_permalink' => [
+                'apply_id_to_heading' => true,
+                'insert' => 'none',
+                'id_prefix' => '',
+                'fragment_prefix' => '',
+            ],
+            'slug_normalizer' => [
+                'instance' => new GithubHeadingSlug(),
+            ],
         ]);
         $environment->addExtension(new CommonMarkCoreExtension());
         $environment->addExtension(new GithubFlavoredMarkdownExtension());
+        $environment->addExtension(new HeadingPermalinkExtension());
 
         return new MarkdownConverter($environment);
     }
