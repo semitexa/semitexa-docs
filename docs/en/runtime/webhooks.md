@@ -245,7 +245,7 @@ Each attempt:
 
 The wait before a retry is `initialBackoffSeconds × WEBHOOK_BACKOFF_MULTIPLIER^(attempt − 1)`, capped at `maxBackoffSeconds`. The ±25 % jitter then applies to the capped value, and the result stays between 1 s and `maxBackoffSeconds`: a capped wait lands between about 75 % of `maxBackoffSeconds` and `maxBackoffSeconds`. The multiplier defaults to 2 and applies to every endpoint. `Retry-After` is not read.
 
-> **Not in a tagged release yet.** `WEBHOOK_BACKOFF_MULTIPLIER` takes effect from the next `semitexa/webhooks` release. Up to `2026.11.24.1203`, the latest tag, the worker passes no multiplier, so each retry waits twice as long as the one before, whatever the variable says.
+> **Not in a tagged release yet.** `WEBHOOK_BACKOFF_MULTIPLIER` takes effect from the next `semitexa/webhooks` release. Up to `2026.11.24.1203`, the latest tag, the worker passes no multiplier, so the base wait doubles with each attempt, whatever the variable says.
 
 Stopping the worker container sends SIGTERM: `webhook:work` sends and records the delivery in hand, then exits (with `pcntl`, which the scaffold image has). One cut off anyway is claimed again once its lease runs out.
 
@@ -272,7 +272,7 @@ When the lease has run out before the result is written, another worker may alre
 | Key | Default | Used for |
 |---|---|---|
 | `WEBHOOK_TIMEOUT_SECONDS` | 30 | request timeout for an endpoint whose `timeoutSeconds` is 0 or less |
-| `WEBHOOK_BACKOFF_MULTIPLIER` | 2 | how many times longer each retry waits than the one before, for every endpoint; from the next release (see [Delivery](#delivery-webhookwork)) |
+| `WEBHOOK_BACKOFF_MULTIPLIER` | 2 | the factor the base retry wait grows by with each attempt, before the cap and the jitter, for every endpoint; from the next release (see [Delivery](#delivery-webhookwork)) |
 | `WEBHOOK_LEASE_SECONDS` | 120 | how long a claimed delivery belongs to one worker |
 | `WEBHOOK_RETENTION_DAYS` | 30 | the default window of `webhook:cleanup` |
 | `WEBHOOK_ALLOW_PRIVATE_TARGETS` | false | allow loopback, private and link-local targets (a receiver on your own network in development) |
