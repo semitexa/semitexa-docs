@@ -3,26 +3,30 @@ id: data/pagination
 section: data
 slug: pagination
 title: Pagination
-summary: Offset and cursor pagination out of the box. Switch modes with a single query parameter.
+summary: paginate() returns one page with its total; repositories page by offset, platform collections also by cursor.
 order: 60
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.24.1203
 keywords:
   - PaginatedResult
   - limit()
   - offset()
-  - cursor pagination
+  - paginate()
   - total count
 ---
 # Pagination
 
-Semitexa ORM repositories support both offset-based and cursor-based pagination through the same query API, switchable at runtime via a request parameter.
+Semitexa ORM repositories paginate by offset. `paginate()` returns one page together with the counts a pager needs.
 
 ## How it works
 
-A handler reads `mode`, `limit`, and `page` from the payload, validates bounds (`page >= 1`, `limit > 0` with an upper cap), computes `offset = (page - 1) * limit`, and calls `findPage($limit, $offset)` on the repository. The repository uses `limit()` and `offset()` on the query builder. Switching to cursor mode changes only the query strategy — the handler and repository interface stay identical. A `countAll()` call provides the total for page count computation, and the validated bounds keep offsets non-negative.
+On a `DomainRepository`, call `$repo->paginate($page, $perPage, $criteria)`. At the end of a `query()` chain, call `->paginate($page, $perPage)`. Either returns a `PaginatedResult` with `items`, `total`, `page`, `perPage` and `lastPage`, plus `hasNextPage()`, `hasPreviousPage()` and `isEmpty()`. On a query, `paginateAs($page, $perPage, Order::class)` maps the rows to a domain class.
+
+A page below 1 or a page size below 1 throws `InvalidArgumentException`. The handler validates both from the payload and caps the page size before passing them on. For a hand-built page, `limit()` and `offset()` are still available.
+
+Keyset (cursor) paging is done only by the collection feed compiler, for platform collections, which turns a cursor into a keyset predicate. The repository and the query builder page by offset.
 
 ## Why this matters
 
-Offset pagination is simple but degrades on large datasets. Cursor pagination stays performant at scale. Having both available through the same repository contract means the choice can be deferred until the data size makes it matter, without rewriting handler logic.
+Offset paging is simple and fits most screens, and because the result carries the total, a pager needs no second call. On very large tables a deep offset gets slow. There, a collection's cursor avoids it, and a hand-built query can page with a `where()` on the last key it saw.

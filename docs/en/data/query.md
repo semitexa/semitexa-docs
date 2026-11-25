@@ -3,27 +3,31 @@ id: data/query
 section: data
 slug: query
 title: Query Builder
-summary: Compose type-safe queries with a fluent API. No raw SQL, no magic strings.
+summary: Compose queries with a fluent API over typed column references; whereRaw() is the explicit raw-SQL escape hatch.
 order: 40
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.24.1203
 keywords:
   - ResourceModelQuery
   - where()
   - orderBy()
   - limit()
+  - orWhere()
+  - whereRaw()
   - fetchAllAs()
   - fetchOneAs()
 ---
 # Query Builder
 
-The Semitexa ORM exposes a fluent query API that compiles type-safe constraints against `ResourceModel` column references without raw SQL.
+The Semitexa ORM exposes a fluent query API. Conditions name columns through typed references, and raw SQL is an explicit escape hatch.
 
 ## How it works
 
-A repository opens a query with `->query()` on the ORM repository instance, chains `where()`, `orderBy()`, and `limit()` calls using typed `ResourceModel::column()` references and `Operator` / `Direction` enums, then materializes results with `fetchAllAs()` or `fetchOneAs()`. The result is a concrete typed collection — no magic arrays.
+A repository opens a query with `->query()` and chains `where()`, `orWhere()`, `whereIn()`, `orderBy()` and `limit()`. These take column references and the `Operator` and `Direction` enums. A column reference is `ColumnRef::for(OrderResource::class, 'status')`. The shorthand `OrderResource::column('status')` works on a resource that has `use HasColumnReferences;`. `fetchAllAs()` reads the rows as a list of domain objects. `fetchOneAs()` returns one of them, or `null`.
+
+A reference is checked when the query is built: a property the resource does not declare throws `InvalidArgumentException` at that call. It is not checked at boot. `whereRaw($sql, $bindings)` adds a raw condition with bound values, for what the builder cannot express. The tenant scope still applies to it.
 
 ## Why this matters
 
-Raw SQL strings and magic column name literals are the most common source of silent query bugs. Typed column references catch rename mismatches at boot, and the fluent API keeps the query shape visible in code review without losing flexibility for complex filtering or ordering needs.
+Column names written as strings in SQL are a common source of silent query bugs: a renamed column matches nothing instead of failing. A typed reference fails loudly the first time the query runs, and the fluent chain keeps the query's shape visible in code review. `whereRaw` covers the rest, and it stands out in review because its name says what it is.

@@ -3,11 +3,11 @@ id: data/relations
 section: data
 slug: relations
 title: Relations
-summary: Declare parent and child links on the resource itself, then read typed relations from the handler.
+summary: Declare parent and child links on the resource itself, then load them explicitly, one batched query per relation.
 order: 70
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.24.1203
 keywords:
   - "#[HasMany]"
   - "#[BelongsTo]"
@@ -17,11 +17,19 @@ keywords:
 ---
 # Relations
 
-Semitexa resource relations are declared directly on `ResourceModel` properties using `#[HasMany]` and `#[BelongsTo]` attributes. Handlers traverse them through typed repository calls.
+Semitexa relations are declared directly on resource model properties with the `#[HasMany]` and `#[BelongsTo]` attributes. Handlers load them explicitly through the repository or the query builder.
 
 ## How it works
 
-A `#[HasMany(target: TargetResource::class, foreignKey: 'column_id')]` property on a resource names the child resource and the join column. `#[BelongsTo]` declares the inverse. Handlers read relations by calling repository methods — `findByProduct()`, `findById()`, `findByCategory()` — and the ORM batch-loads the related rows for the full result set in a single query.
+A `#[HasMany(target: OrderItemResource::class, foreignKey: 'orderId')]` property names the child resource and the child's property that holds the parent's id. `foreignKey` takes a property name, not a column name: `'order_id'` throws, because the child declares no such property. `#[BelongsTo(target: OrderResource::class, foreignKey: 'orderId')]` declares the inverse, and there `foreignKey` is the property on the resource itself.
+
+A relation is loaded only when asked for:
+
+- pass `relations: [RelationRef::for(OrderResource::class, 'items')]` to `findBy()` or `findOneBy()` (on a resource that has `use HasRelationReferences;`, `OrderResource::relation('items')`);
+- or call `withRelation()` on a query;
+- for a nested relation, give a dot path: `RelationRef::path(OrderResource::class, 'items.product')`.
+
+A `#[HasMany]` or `#[BelongsTo]` relation costs one batched query for the whole result set, never one per row. A `#[ManyToMany]` relation costs two: the pivot, then the targets. A relation that was not asked for stays an unloaded `RelationState`, not a lazy proxy.
 
 ## Why this matters
 

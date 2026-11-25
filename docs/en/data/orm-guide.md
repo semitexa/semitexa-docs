@@ -93,11 +93,18 @@ $orders = $repo->query()
     ->fetchAllAs(OrderDomain::class);           // mapper registry defaults to the repo's
 ```
 
-Available: `where` (eq/neq/gt/gte/lt/lte/like/notlike), `whereIn`,
-`whereNotIn`, `whereNull`/`whereNotNull`, `whereBetween`, `whereAnyLike`
-(OR-group), `whereRaw` (placeholder-scanned escape hatch), offset
-pagination (`paginate`) and keyset cursors (through the collection feed
-compiler).
+Available:
+- `where` (eq/neq/gt/gte/lt/lte/like/notlike) and `orWhere`;
+- `whereIn`, `whereNotIn`;
+- `whereNull`/`whereNotNull` and `orWhereNull`/`orWhereNotNull`;
+- `whereBetween`, `whereLike`/`whereNotLike`;
+- `whereAnyLike` (one OR-group over several columns);
+- `whereRaw` (placeholder-scanned escape hatch);
+- `withRelation`, `forUpdate`;
+- `count()` and `exists()`;
+- offset pagination (`paginate`, and `paginateAs` to map the page) and keyset cursors (through the collection feed compiler).
+
+The tenant and soft-delete scope comes first, joined by `AND`. Your conditions follow, joined in the order you call them. When any of them is an `orWhere*`, they are wrapped in one pair of parentheses, and SQL precedence applies inside: `->where(a)->where(b)->orWhere(c)` becomes `AND (a AND b OR c)`, which reads as `(a AND b) OR c`. There is no grouping call. For `a AND (b OR c)`, put `b OR c` in a `whereAnyLike` (a LIKE over several columns) or a `whereRaw`. Each of those is wrapped in its own parentheses.
 
 ### Ordering by listed values
 
@@ -210,6 +217,16 @@ cascade-owned children + pivot sync commit or roll back together
 (`TransactionManager::run`; a caller already inside a transaction nests
 as a savepoint). The `ResourceChangedEvent` auto-publish signal fires
 strictly AFTER commit.
+
+`$settings->upsert($setting, SettingResource::column('name'))` inserts the
+model, or updates the row that already holds its key, and returns the stored
+row. The key must be a declared `#[Index(unique: true)]`; on a tenant-scoped
+repository the tenant column joins it. It throws a `LogicException` for:
+- a model with owned relations, `#[Replicated]` or `#[SoftDelete]`;
+- a key through the primary key;
+- a primary key the caller assigns;
+- a null key value;
+- an engine with no transaction.
 
 ### Deleting by criteria
 
@@ -360,3 +377,7 @@ final class OrderStore
   gate applies regardless).
 - `orm:sync` never drops without `--allow-destructive`, and drops are
   two-phase (deprecation comment first).
+- `findAll()` and `findBy()` called without a limit return at most 1000
+  rows (`DomainRepository::DEFAULT_LIMIT`). When that bound may have cut
+  the result, they only log a warning; the caller gets no signal. Pass
+  `limit:` for a page, or `null` to read every row, as an export does.

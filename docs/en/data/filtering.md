@@ -3,25 +3,27 @@ id: data/filtering
 section: data
 slug: filtering
 title: Filtering
-summary: Mark a property #[Filterable] and the ORM handles the rest. No manual WHERE clauses.
+summary: "#[Filterable] indexes a column; filter with findBy() criteria or a typed where() on the query builder."
 order: 50
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.24.1203
 keywords:
   - "#[Filterable]"
-  - FilterableTrait
-  - FilterableResourceInterface
-  - getFilterCriteria()
+  - findBy()
+  - where()
+  - Operator
 ---
 # Filtering
 
-The `#[Filterable]` attribute on a `ResourceModel` property registers that column as a valid filter target. The ORM builds the WHERE clause automatically from the declared filter criteria.
+`#[Filterable]` on a resource model property adds a single-column, non-unique index on its column. It does not build queries: filtering goes through the repository or the query builder.
 
 ## How it works
 
-A resource implements `FilterableResourceInterface` and uses `FilterableTrait`. Marking a property `#[Filterable]` makes that column available to `getFilterCriteria()`. Repositories pass the criteria to the query builder, which compiles the WHERE clause without manual string construction. Handlers simply pass payload values through to the repository.
+Pass criteria to the repository: `$repo->findBy(['status' => 'open', 'deletedAt' => null])` matches each property to its value, and a `null` value matches `IS NULL`. For any other condition, use the query builder: `$repo->query()->where(ColumnRef::for(OrderResource::class, 'amount'), Operator::GreaterThan, 100)->fetchAllAs(Order::class)`. A resource that has `use HasColumnReferences;` can write the reference as `OrderResource::column('amount')`. A handler passes the payload's values to one of the two. The property names come from the resource's typed references, never from the request.
+
+Earlier versions of this page described `FilterableTrait` and `FilterableResourceInterface`. Neither is a way to filter. A final readonly resource model cannot use the trait, and no repository reads the criteria it collects.
 
 ## Why this matters
 
-Manual WHERE clause construction per property is repetitive and error-prone. A single attribute declaration keeps filter capability co-located with the column definition, and the ORM ensures that only declared filterable columns can appear in generated queries.
+An index on the columns a screen filters by keeps those queries fast, and declaring it on the property keeps it next to the column definition. Building conditions from typed references rather than strings means a misspelled property throws when the query is built, instead of matching nothing.

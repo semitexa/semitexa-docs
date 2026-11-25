@@ -7,7 +7,7 @@ summary: Semitexa avoids N+1 with resource slices that load the exact columns an
 order: 90
 locale: en
 status: canonical
-verified_against: 2026.09.19.1020
+verified_against: 2026.11.24.1203
 keywords:
   - ResourceModelRelationLoader
   - resource slice
@@ -21,7 +21,7 @@ Instead of a single fat entity with lazy-loaded relations, Semitexa uses screen-
 
 ## How it works
 
-A screen defines its own `ResourceModel` subclass — for example `ProductCardResource` — pointing at the same table via `#[FromTable]` but declaring only the four columns it renders. If the screen also needs related data, `ResourceModelRelationLoader` batch-loads all related rows for the full result set in a second query, never one per row. There are no proxies and no lazy property access.
+A screen defines its own resource model, a separate final readonly class such as `ProductCardResource`. It points at the same table with `#[FromTable]` but declares only the four columns it renders. There is no base class to extend. The schema merges the classes that share a table, so `orm:sync` still sees one table. If the screen also needs related data, `ResourceModelRelationLoader` batch-loads all related rows for the full result set in a second query, never one per row. There are no proxies and no lazy property access.
 
 ## Why this matters
 
