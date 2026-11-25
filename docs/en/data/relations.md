@@ -3,7 +3,7 @@ id: data/relations
 section: data
 slug: relations
 title: Relations
-summary: Declare parent and child links on the resource itself, then load them explicitly, one batched query per relation.
+summary: Declare parent and child links on the resource itself, then load them explicitly, in batched queries, never one per row.
 order: 70
 locale: en
 status: canonical
